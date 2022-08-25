@@ -144,7 +144,7 @@ func (api CalibreApi) GetBookToc(c *gin.Context) {
 }
 
 func (api CalibreApi) fixPath(s string) string {
-	return path.Join(api.config.Calibre.FixPath.To, strings.TrimPrefix(s, api.config.Calibre.FixPath.From))
+	return strings.TrimPrefix(s, api.config.Search.TrimPath)
 }
 
 func (api CalibreApi) expansionTree(ori []epub.NavPoint) []epub.NavPoint {

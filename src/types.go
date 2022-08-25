@@ -10,17 +10,11 @@ import (
 type Config struct {
 	Address string `mapstructure:"address"`
 	Debug   bool   `mapstructure:"debug"`
-	Calibre struct {
-		Library string `mapstructure:"library"`
-		FixPath struct {
-			From string `mapstructure:"from"`
-			To   string `mapstructure:"to"`
-		} `mapstructure:"fixpath"`
-	} `mapstructure:"calibre"`
-	Search struct {
-		Host   string `mapstructure:"host"`
-		APIKey string `mapstructure:"apikey"`
-		Index  string `mapstructure:"index"`
+	Search  struct {
+		Host     string `mapstructure:"host"`
+		APIKey   string `mapstructure:"apikey"`
+		Index    string `mapstructure:"index"`
+		TrimPath string `mapstructure:"trimPath"`
 	} `mapstructure:"search"`
 	Storage struct {
 		Use    string `mapstructure:"use"`

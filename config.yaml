@@ -1,14 +1,10 @@
 address: :8080
 debug: false
-calibre:
-  library: /book/calibre
-  fixpath:
-    from: /data/book/calibre/library
-    to:
 search:
   host: http://127.0.0.1:7700
   apikey:
   index: books
+  trimPath: /data/book/calibre/library
 storage:
   use: webdav
   tmpdir: ".files"
