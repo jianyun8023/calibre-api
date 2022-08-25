@@ -1,32 +1,8 @@
 package calibreApi
 
 import (
-	"github.com/studio-b12/gowebdav"
-	"io"
-	"os"
 	"time"
 )
-
-type Config struct {
-	Address string `mapstructure:"address"`
-	Debug   bool   `mapstructure:"debug"`
-	Search  struct {
-		Host     string `mapstructure:"host"`
-		APIKey   string `mapstructure:"apikey"`
-		Index    string `mapstructure:"index"`
-		TrimPath string `mapstructure:"trimPath"`
-	} `mapstructure:"search"`
-	Storage struct {
-		Use    string `mapstructure:"use"`
-		TmpDir string `mapstructure:"tmpdir"`
-		Webdav struct {
-			Host     string `mapstructure:"host"`
-			User     string `mapstructure:"user"`
-			Password string `mapstructure:"password"`
-			Path     string `mapstructure:"path"`
-		} `mapstructure:"webdav"`
-	} `mapstructure:"storage"`
-}
 
 type Book struct {
 	AuthorSort  string   `json:"author_sort"`
@@ -50,13 +26,42 @@ type Book struct {
 	UUID         string    `json:"uuid"`
 }
 
-type FileClient interface {
-	Stat(path string) (os.FileInfo, error)
-	ReadStream(path string) (io.ReadCloser, error)
+type Config struct {
+	Address string  `mapstructure:"address"`
+	Debug   bool    `mapstructure:"debug"`
+	Search  Search  `mapstructure:"search"`
+	Storage Storage `mapstructure:"storage"`
+}
+type Search struct {
+	Host     string `mapstructure:"host"`
+	APIKey   string `mapstructure:"apikey"`
+	Index    string `mapstructure:"index"`
+	TrimPath string `mapstructure:"trimPath"`
+}
+type Storage struct {
+	Use    string `mapstructure:"use"`
+	TmpDir string `mapstructure:"tmpdir"`
+	Webdav Webdav `mapstructure:"webdav"`
+	Minio  Minio  `mapstructure:"minio"`
+	Local  Local  `mapstructure:"local"`
 }
 
-func NewWebDavClient(uri, user, pw string) FileClient {
-	newClient := gowebdav.NewClient(uri, user, pw)
-	client := interface{}(newClient).(FileClient)
-	return client
+type Webdav struct {
+	Host     string `mapstructure:"host"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	Path     string `mapstructure:"path"`
+}
+
+type Minio struct {
+	Endpoint        string `mapstructure:"endpoint"`
+	AccessKeyID     string `mapstructure:"accessKeyID"`
+	SecretAccessKey string `mapstructure:"secretAccessKey"`
+	UseSSL          bool   `mapstructure:"useSSL"`
+	BucketName      string `mapstructure:"bucketName"`
+	Path            string `mapstructure:"path"`
+}
+
+type Local struct {
+	Path string `mapstructure:"path"`
 }

@@ -1,6 +1,7 @@
 package calibreApi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -38,7 +39,15 @@ func NewClient(config *Config) CalibreApi {
 	var fileClient FileClient
 	switch config.Storage.Use {
 	case "webdav":
-		fileClient = NewWebDavClient(config.Storage.Webdav.Host, config.Storage.Webdav.User, config.Storage.Webdav.Password)
+		fileClient = NewWebDavClient(config.Storage.Webdav)
+	case "local":
+		fileClient = NewLocalClient(config.Storage.Local)
+	case "minio":
+		t, err := NewMinioClient(config.Storage.Minio, context.Background())
+		fileClient = t
+		if err != nil {
+			log.Fatal(err)
+		}
 	default:
 		log.Fatal(fmt.Errorf("不支持的存储类型 %q", config.Storage.Use))
 	}
@@ -81,7 +90,10 @@ func (api CalibreApi) Search(c *gin.Context) {
 		}
 		id := book.ID
 		book.Cover = "/get/cover/" + strconv.FormatInt(id, 10) + ".jpg"
-		book.Formats[0] = "/get/book/" + strconv.FormatInt(id, 10) + ".epub"
+		for i := range book.Formats {
+			s := book.Formats[i]
+			book.Formats[i] = "/get/book/" + strconv.FormatInt(id, 10) + path.Ext(s)
+		}
 		books[i] = book
 	}
 
@@ -103,13 +115,17 @@ func (api CalibreApi) GetBook(c *gin.Context) {
 	id := c.Param("id")
 	var book Book
 	err := api.bookIndex.GetDocument(id, nil, &book)
-	book.Cover = "/get/cover/" + id + ".jpg"
-	book.Formats[0] = "/get/book/" + id + ".epub"
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
-	} else {
-		c.JSON(http.StatusOK, book)
 	}
+	book.Cover = "/get/cover/" + id + ".jpg"
+	for i := range book.Formats {
+		s := book.Formats[i]
+		book.Formats[i] = "/get/book/" + id + path.Ext(s)
+	}
+	c.JSON(http.StatusOK, book)
+
 }
 
 func (api CalibreApi) GetBookToc(c *gin.Context) {
@@ -205,7 +221,8 @@ func (api CalibreApi) getFile(filepath string) (os.FileInfo, io.ReadCloser, erro
 }
 
 func (api CalibreApi) GetBookFile(c *gin.Context) {
-	id := strings.TrimSuffix(c.Param("id"), ".epub")
+	filesuffix := path.Ext(c.Param("id"))
+	id := strings.TrimSuffix(c.Param("id"), filesuffix)
 	var book Book
 	err := api.bookIndex.GetDocument(id, nil, &book)
 	if err != nil {
