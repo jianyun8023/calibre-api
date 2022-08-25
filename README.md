@@ -4,8 +4,7 @@
 
 ## 数据导入
 
-data-binary @data.json
-```
+
 
 创建索引，更新索引设置，该命令仅第一次使用需要执行。
 ```shell
@@ -54,7 +53,8 @@ calibredb --with-library=library list -f all  --for-machine --search="id:>$maxID
 curl \
   -X PUT 'http://localhost:7700/indexes/books/documents' \
   -H 'Content-Type: application/json' \
-  --
+  --data-binary @data.json
+```
 
 ## 打包
 - 直接打包 `go build`
