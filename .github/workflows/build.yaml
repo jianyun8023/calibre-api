@@ -4,10 +4,10 @@
 # Copyright (C) 2019 jianyun8023 <https://zhaojianyun.com>
 #
 
-name: Build Pulsar Images
+name: Build Calibre-API Images
 on: workflow_dispatch
 env:
-  IMAGE_NAME: docker-easyconnect
+  IMAGE_NAME: calibre-api
   VERSION: "0.0.1"
 
 jobs:
