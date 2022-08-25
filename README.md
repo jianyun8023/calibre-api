@@ -9,7 +9,7 @@
 创建索引，更新索引设置，该命令仅第一次使用需要执行。
 ```shell
 ## Create index
-curl -X "POST" "http://192.168.2.4:7700/indexes" \
+curl -X "POST" "http://localhost:7700/indexes" \
      -H 'Content-Type: application/json' \
      -d $'{
   "uid": "books"
@@ -86,7 +86,7 @@ storage:
   tmpdir: ".files"
   ## webdav配置
   webdav:
-    host: http://xxxxxx
+    host: http://xxxxxx:2344
     user: xxxxx
     password: "xxxxxxxxxxxxx"
     path: /book/calibre/library
@@ -138,7 +138,7 @@ CALIBRE_STORAGE_WEBDAV_PATH
 
 ```json
 {
-  "bookSourceUrl": "http://192.168.2.4:8080",
+  "bookSourceUrl": "http://localhost:8080",
   "bookSourceType": 0,
   "bookSourceName": "calibre书库",
   "bookSourceGroup": "calibre",
