@@ -1,10 +1,22 @@
 # Calibre-Api
 
 基于meilisearch搭建的calibre书籍搜索、下载、预览
+文件存储支持webdav、local、s3
+
+
+## 接口
+
+```text
+GET    /get/cover/:id            --> 获取书籍封面
+GET    /get/book/:id             --> 下载书籍文件
+GET    /read/:id/toc             --> 获取书籍目录（包含元信息、目录和地址）
+GET    /read/:id/file/*path      --> 读取书籍中的文件
+GET    /book/:id                 --> 获取书籍信息
+GET    /search                   --> 搜索书籍(参数q 搜索词，更多参数参考[meilisearch search](https://docs.meilisearch.com/reference/api/search.html))
+POST   /search                   --> 搜索书籍(参数q 搜索词，更多参数参考[meilisearch search](https://docs.meilisearch.com/reference/api/search.html))
+```
 
 ## 数据导入
-
-
 
 创建索引，更新索引设置，该命令仅第一次使用需要执行。
 ```shell
@@ -55,6 +67,8 @@ curl \
   -H 'Content-Type: application/json' \
   --data-binary @data.json
 ```
+
+## 接口
 
 ## 打包
 - 直接打包 `go build`
