@@ -23,13 +23,29 @@ search:
   index: books
   trimPath: /data/book/calibre/library
 storage:
+  ## 选择文件存储的位置 webdav\local\minio
   use: webdav
   tmpdir: ".files"
+  ## webdav配置
   webdav:
     host: http://xxxxxx
     user: xxxxx
     password: "xxxxxxxxxxxxx"
     path: /book/calibre/library
+  ## 本地路径
+  local:
+    path: /book/calibre/library
+  ## minio s3或者s3兼容存储
+  minio:
+    endpoint: xxx
+    accessKeyID: xxx
+    secretAccessKey: xxxx
+    useSSL: true
+    bucketName: bucket
+    path: /book/calibre/library
+    
+    
+    
 
 ```
 
