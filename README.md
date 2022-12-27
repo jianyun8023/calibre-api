@@ -75,7 +75,7 @@ curl \
 ## 接口
 
 ## 打包
-- 直接打包 `go build`
+- 直接打包 `make build`
 - 使用Docker `docker build -t calibre-api:latest -f ./Dockerfile .`
 
 ## 配置

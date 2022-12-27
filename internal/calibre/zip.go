@@ -1,10 +1,9 @@
-package calibreApi
+package calibre
 
 import (
 	"archive/zip"
 	"fmt"
 	"io"
-	_ "log"
 	"os"
 	"path/filepath"
 	"strings"
