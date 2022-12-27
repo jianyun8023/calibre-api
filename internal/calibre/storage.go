@@ -1,4 +1,4 @@
-package calibreApi
+package calibre
 
 import (
 	"bytes"

@@ -1,4 +1,4 @@
-package calibreApi
+package calibre
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 	"strings"
 )
 
-type CalibreApi struct {
+type Api struct {
 	config     *Config
 	client     *meilisearch.Client
 	bookIndex  *meilisearch.Index
@@ -26,7 +26,17 @@ type CalibreApi struct {
 	baseDir    string
 }
 
-func NewClient(config *Config) CalibreApi {
+func (c Api) SetupRouter(r *gin.Engine) {
+	r.GET("/get/cover/:id", c.getCover)
+	r.GET("/get/book/:id", c.getBookFile)
+	r.GET("/read/:id/toc", c.getBookToc)
+	r.GET("/read/:id/file/*path", c.getBookContent)
+	r.GET("/book/:id", c.getBook)
+	r.GET("/search", c.search)
+	r.POST("/search", c.search)
+}
+
+func NewClient(config *Config) Api {
 	client := meilisearch.NewClient(meilisearch.ClientConfig{
 		Host:   config.Search.Host,
 		APIKey: config.Search.APIKey,
@@ -51,7 +61,7 @@ func NewClient(config *Config) CalibreApi {
 	default:
 		log.Fatal(fmt.Errorf("不支持的存储类型 %q", config.Storage.Use))
 	}
-	return CalibreApi{
+	return Api{
 		config:     config,
 		client:     client,
 		bookIndex:  client.Index(config.Search.Index),
@@ -60,17 +70,17 @@ func NewClient(config *Config) CalibreApi {
 	}
 }
 
-func (api CalibreApi) Search(c *gin.Context) {
+func (c Api) search(r *gin.Context) {
 	var req = meilisearch.SearchRequest{}
-	err2 := c.Bind(&req)
+	err2 := r.Bind(&req)
 	if err2 != nil {
 		log.Println("====== Only Bind By Query String ======", err2)
 	}
 	if len(req.Sort) == 0 {
 		req.Sort = []string{"id:desc"}
 	}
-	q := c.Query("q")
-	search, err := api.bookIndex.Search(q, &req)
+	q := r.Query("q")
+	search, err := c.bookIndex.Search(q, &req)
 
 	books := make([]Book, len(search.Hits))
 	for i := range search.Hits {
@@ -98,10 +108,10 @@ func (api CalibreApi) Search(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		r.JSON(http.StatusInternalServerError, err)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	r.JSON(http.StatusOK, gin.H{
 		"estimatedTotalHits": search.EstimatedTotalHits,
 		"offset":             search.Offset,
 		"limit":              search.Limit,
@@ -111,37 +121,37 @@ func (api CalibreApi) Search(c *gin.Context) {
 	})
 }
 
-func (api CalibreApi) GetBook(c *gin.Context) {
-	id := c.Param("id")
+func (c Api) getBook(r *gin.Context) {
+	id := r.Param("id")
 	var book Book
-	err := api.bookIndex.GetDocument(id, nil, &book)
+	err := c.bookIndex.GetDocument(id, nil, &book)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		r.JSON(http.StatusInternalServerError, err)
 	}
 	book.Cover = "/get/cover/" + id + ".jpg"
 	for i := range book.Formats {
 		s := book.Formats[i]
 		book.Formats[i] = "/get/book/" + id + path.Ext(s)
 	}
-	c.JSON(http.StatusOK, book)
+	r.JSON(http.StatusOK, book)
 
 }
 
-func (api CalibreApi) GetBookToc(c *gin.Context) {
-	id := strings.TrimSuffix(c.Param("id"), ".epub")
+func (c Api) getBookToc(r *gin.Context) {
+	id := strings.TrimSuffix(r.Param("id"), ".epub")
 	var book Book
-	err := api.bookIndex.GetDocument(id, nil, &book)
+	err := c.bookIndex.GetDocument(id, nil, &book)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		r.JSON(http.StatusInternalServerError, err)
 	} else {
-		filepath, _ := api.getFileOrCache(api.fixPath(book.Formats[0]), id)
+		filepath, _ := c.getFileOrCache(c.fixPath(book.Formats[0]), id)
 		book, _ := epub.Open(filepath)
-		points := api.expansionTree(book.Ncx.Points)
-		var r []epub.NavPoint
+		points := c.expansionTree(book.Ncx.Points)
+		var p []epub.NavPoint
 		for i := range points {
 			point := points[i]
-			r = append(r, epub.NavPoint{
+			p = append(p, epub.NavPoint{
 				Text: point.Text,
 				Content: epub.Content{
 					Src: path.Join("/read/"+id+"/file", path.Dir(book.Container.Rootfile.Path), point.Content.Src),
@@ -150,8 +160,9 @@ func (api CalibreApi) GetBookToc(c *gin.Context) {
 		}
 
 		defer book.Close()
-		c.JSON(http.StatusOK, gin.H{
-			"points":   r,
+
+		r.JSON(http.StatusOK, gin.H{
+			"points":   p,
 			"metadata": book.Opf.Metadata,
 			"manifest": book.Opf.Manifest,
 			"baseDir":  path.Dir(book.Container.Rootfile.Path),
@@ -159,36 +170,36 @@ func (api CalibreApi) GetBookToc(c *gin.Context) {
 	}
 }
 
-func (api CalibreApi) fixPath(s string) string {
-	return strings.TrimPrefix(s, api.config.Search.TrimPath)
+func (c Api) fixPath(s string) string {
+	return strings.TrimPrefix(s, c.config.Search.TrimPath)
 }
 
-func (api CalibreApi) expansionTree(ori []epub.NavPoint) []epub.NavPoint {
+func (c Api) expansionTree(ori []epub.NavPoint) []epub.NavPoint {
 	var points []epub.NavPoint
 	for i := range ori {
 		point := ori[i]
 		points = append(points, point)
 		if len(point.Points) > 0 {
-			points = append(points, api.expansionTree(point.Points)...)
+			points = append(points, c.expansionTree(point.Points)...)
 		}
 	}
 	return points
 }
 
-func (api CalibreApi) GetBookContent(c *gin.Context) {
-	id := strings.TrimSuffix(c.Param("id"), ".epub")
+func (c Api) getBookContent(r *gin.Context) {
+	id := strings.TrimSuffix(r.Param("id"), ".epub")
 
 	//path1 := path.Join(c.Query("baseDir"), c.Query("path"))
-	path1 := c.Param("path")
+	path1 := r.Param("path")
 	var book Book
-	err := api.bookIndex.GetDocument(id, nil, &book)
+	err := c.bookIndex.GetDocument(id, nil, &book)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		r.JSON(http.StatusInternalServerError, err)
 	} else {
-		p := api.fixPath(book.Formats[0])
-		filepath, _ := api.getFileOrCache(p, id)
+		p := c.fixPath(book.Formats[0])
+		filepath, _ := c.getFileOrCache(p, id)
 
-		destDir := path.Join(api.baseDir, id)
+		destDir := path.Join(c.baseDir, id)
 
 		if Exists(destDir) {
 			s, _ := ioutil.ReadDir(destDir)
@@ -201,62 +212,62 @@ func (api CalibreApi) GetBookContent(c *gin.Context) {
 
 		err := unzipSource(filepath, destDir)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, err)
+			r.JSON(http.StatusInternalServerError, err)
 		}
-		c.FileFromFS(path1, http.Dir(destDir))
+		r.FileFromFS(path1, http.Dir(destDir))
 	}
 }
 
-func (api CalibreApi) getFile(filepath string) (os.FileInfo, io.ReadCloser, error) {
-	targetPath := path.Join(api.config.Storage.Webdav.Path, filepath)
-	info, err := api.fileClient.Stat(targetPath)
+func (c Api) getFile(filepath string) (os.FileInfo, io.ReadCloser, error) {
+	targetPath := path.Join(c.config.Storage.Webdav.Path, filepath)
+	info, err := c.fileClient.Stat(targetPath)
 	if err != nil {
 		return nil, nil, err
 	}
-	reader, err := api.fileClient.ReadStream(targetPath)
+	reader, err := c.fileClient.ReadStream(targetPath)
 	if err != nil {
 		return nil, nil, err
 	}
 	return info, reader, nil
 }
 
-func (api CalibreApi) GetBookFile(c *gin.Context) {
-	filesuffix := path.Ext(c.Param("id"))
-	id := strings.TrimSuffix(c.Param("id"), filesuffix)
+func (c Api) getBookFile(r *gin.Context) {
+	filesuffix := path.Ext(r.Param("id"))
+	id := strings.TrimSuffix(r.Param("id"), filesuffix)
 	var book Book
-	err := api.bookIndex.GetDocument(id, nil, &book)
+	err := c.bookIndex.GetDocument(id, nil, &book)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		r.JSON(http.StatusInternalServerError, err)
 	} else {
-		path := api.fixPath(book.Formats[0])
-		info, reader, _ := api.getFile(path)
+		p := c.fixPath(book.Formats[0])
+		info, reader, _ := c.getFile(p)
 		defer reader.Close()
-		c.DataFromReader(http.StatusOK, info.Size(), "", reader, nil)
+		r.DataFromReader(http.StatusOK, info.Size(), "", reader, nil)
 	}
 }
 
-func (api CalibreApi) GetCover(c *gin.Context) {
-	id := strings.TrimSuffix(c.Param("id"), ".jpg")
+func (c Api) getCover(r *gin.Context) {
+	id := strings.TrimSuffix(r.Param("id"), ".jpg")
 
 	var book Book
-	err := api.bookIndex.GetDocument(id, nil, &book)
+	err := c.bookIndex.GetDocument(id, nil, &book)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		r.JSON(http.StatusInternalServerError, err)
 	} else {
-		info, reader, _ := api.getFile(api.fixPath(book.Cover))
+		info, reader, _ := c.getFile(c.fixPath(book.Cover))
 		defer reader.Close()
-		c.DataFromReader(http.StatusOK, info.Size(), "", reader, nil)
+		r.DataFromReader(http.StatusOK, info.Size(), "", reader, nil)
 	}
 }
 
-func (api CalibreApi) getFileOrCache(filepath string, id string) (string, error) {
-	filename := path.Join(api.baseDir, id+".epub")
+func (c Api) getFileOrCache(filepath string, id string) (string, error) {
+	filename := path.Join(c.baseDir, id+".epub")
 	_, err := os.Stat(filename)
 	if Exists(filename) {
 		return filename, nil
 	}
-	_, closer, err := api.getFile(filepath)
+	_, closer, err := c.getFile(filepath)
 	if err != nil {
 		return "", err
 	}

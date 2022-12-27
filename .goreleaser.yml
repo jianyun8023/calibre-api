@@ -1,0 +1,59 @@
+project_name: calibre-api
+
+before:
+    hooks:
+        - go mod tidy
+
+builds:
+    - id: calibre-api
+      binary: calibre-api
+      gcflags:
+          - all=-l -B
+      ldflags:
+          - -s -w
+        #      - -X github.com/bookstairs/bookhunter/cmd.gitVersion={{ .Version }}
+        #      - -X github.com/bookstairs/bookhunter/cmd.gitCommit={{ .Commit }}
+        #      - -X github.com/bookstairs/bookhunter/cmd.buildDate={{ .Date }}
+      env:
+          - CGO_ENABLED=0
+      goos:
+          - linux
+          - windows
+          - darwin
+      goarch:
+          - "386"
+          - amd64
+          - arm64
+      ignore:
+          - goos: darwin
+            goarch: "386"
+          - goos: windows
+            goarch: arm64
+
+checksum:
+    name_template: 'checksums.txt'
+
+changelog:
+    sort: asc
+    filters:
+        exclude:
+            - '^docs:'
+            - '^test:'
+            - '^web:'
+            - '^build:'
+
+archives:
+    - id: calibre-api
+      builds:
+          - calibre-api
+      format: tar.gz
+      wrap_in_directory: "true"
+      format_overrides:
+          - goos: windows
+            format: zip
+
+release:
+    draft: true
+
+snapshot:
+    name_template: "{{ incminor .Version }}-next"
