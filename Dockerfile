@@ -6,8 +6,7 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 
-COPY *.go ./
-COPY src ./src
+COPY . ./
 
 RUN go build -o /calibre-api
 
