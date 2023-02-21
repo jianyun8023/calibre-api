@@ -4,8 +4,13 @@ type: docker
 name: default
 
 steps:
-    - name: calibre-api
+    - name: build
       image: golang
       commands:
         - go build
         - go test
+    - name: docker
+      image: plugins/docker
+      settings:
+        repo: calibre-api
+        tags: latest
