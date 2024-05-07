@@ -3,10 +3,6 @@
 基于meilisearch搭建的calibre书籍搜索、下载、预览
 文件存储支持webdav、local、s3
 
-## TODO
-- 使用 [bleve](https://github.com/blevesearch/bleve) 替换掉 meilisearch 搜索，降低依赖
-- 支持直接读取calibre db数据到bleve
-- 支持EPUB虚拟路径
 
 ## 接口
 
@@ -18,6 +14,7 @@ GET    /read/:id/file/*path      --> 读取书籍中的文件
 GET    /book/:id                 --> 获取书籍信息
 GET    /search                   --> 搜索书籍(参数q 搜索词，更多参数参考[meilisearch search](https://docs.meilisearch.com/reference/api/search.html))
 POST   /search                   --> 搜索书籍(参数q 搜索词，更多参数参考[meilisearch search](https://docs.meilisearch.com/reference/api/search.html))
+POST   /index/update             --> 更新索引
 ```
 
 ## 数据导入
@@ -39,11 +36,12 @@ curl -X "PATCH" "http://localhost:7700/indexes/books/settings" \
   ],
   "filterableAttributes": [
     "authors",
-    "formats",
+    "file_path",
     "id",
     "last_modified",
     "pubdate",
     "publisher",
+    "isbn",
     "tags"
   ],
   "searchableAttributes": [
@@ -60,16 +58,9 @@ curl -X "PATCH" "http://localhost:7700/indexes/books/settings" \
 }'
 ```
 
-使用calibredb将数据导出为json，
-然后上传到meilisearch中
-
+使用下面命令更新索引
 ```shell
-maxID=(curl -s "http://localhost:7700/indexes/books/search?q&limit=1&sort=id%3Adesc&attributesToRetrieve=id" | jq '.hits[0].id')
-calibredb --with-library=library list -f all  --for-machine --search="id:>$maxID" >> data.json
-curl \
-  -X PUT 'http://localhost:7700/indexes/books/documents' \
-  -H 'Content-Type: application/json' \
-  --data-binary @data.json
+curl -X "POST" "http://localhost:8080/index/update" -H 'Content-Type: application/json' 
 ```
 
 ## 接口

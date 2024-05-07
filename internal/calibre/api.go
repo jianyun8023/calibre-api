@@ -34,6 +34,7 @@ func (c Api) SetupRouter(r *gin.Engine) {
 	r.GET("/book/:id", c.getBook)
 	r.GET("/search", c.search)
 	r.POST("/search", c.search)
+	r.POST("/index/update", c.updateIndex)
 }
 
 func NewClient(config *Config) Api {
@@ -100,10 +101,7 @@ func (c Api) search(r *gin.Context) {
 		}
 		id := book.ID
 		book.Cover = "/get/cover/" + strconv.FormatInt(id, 10) + ".jpg"
-		for i := range book.Formats {
-			s := book.Formats[i]
-			book.Formats[i] = "/get/book/" + strconv.FormatInt(id, 10) + path.Ext(s)
-		}
+		book.FilePath = "/get/book/" + strconv.FormatInt(id, 10) + ".epub"
 		books[i] = book
 	}
 
@@ -127,13 +125,12 @@ func (c Api) getBook(r *gin.Context) {
 	err := c.bookIndex.GetDocument(id, nil, &book)
 
 	if err != nil {
-		r.JSON(http.StatusInternalServerError, err)
+		// 返回文件找不到
+		r.JSON(http.StatusNotFound, "book not found")
+		return
 	}
 	book.Cover = "/get/cover/" + id + ".jpg"
-	for i := range book.Formats {
-		s := book.Formats[i]
-		book.Formats[i] = "/get/book/" + id + path.Ext(s)
-	}
+	book.FilePath = "/get/book/" + id + ".epub"
 	r.JSON(http.StatusOK, book)
 
 }
@@ -145,7 +142,7 @@ func (c Api) getBookToc(r *gin.Context) {
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, err)
 	} else {
-		filepath, _ := c.getFileOrCache(c.fixPath(book.Formats[0]), id)
+		filepath, _ := c.getFileOrCache(book.FilePath, id)
 		book, _ := epub.Open(filepath)
 		points := c.expansionTree(book.Ncx.Points)
 		var p []epub.NavPoint
@@ -196,8 +193,7 @@ func (c Api) getBookContent(r *gin.Context) {
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, err)
 	} else {
-		p := c.fixPath(book.Formats[0])
-		filepath, _ := c.getFileOrCache(p, id)
+		filepath, _ := c.getFileOrCache(book.FilePath, id)
 
 		destDir := path.Join(c.baseDir, id)
 
@@ -212,7 +208,10 @@ func (c Api) getBookContent(r *gin.Context) {
 
 		err := unzipSource(filepath, destDir)
 		if err != nil {
-			r.JSON(http.StatusInternalServerError, err)
+			r.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": err.Error(),
+			})
 		}
 		r.FileFromFS(path1, http.Dir(destDir))
 	}
@@ -237,12 +236,15 @@ func (c Api) getBookFile(r *gin.Context) {
 	var book Book
 	err := c.bookIndex.GetDocument(id, nil, &book)
 	if err != nil {
-		r.JSON(http.StatusInternalServerError, err)
+		log.Println(err)
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "book not found",
+		})
 	} else {
-		p := c.fixPath(book.Formats[0])
-		info, reader, _ := c.getFile(p)
+		info, reader, _ := c.getFile(book.FilePath)
 		defer reader.Close()
-		r.DataFromReader(http.StatusOK, info.Size(), "", reader, nil)
+		r.DataFromReader(http.StatusOK, info.Size(), "application/epub+zip", reader, nil)
 	}
 }
 
@@ -253,7 +255,11 @@ func (c Api) getCover(r *gin.Context) {
 	err := c.bookIndex.GetDocument(id, nil, &book)
 
 	if err != nil {
-		r.JSON(http.StatusInternalServerError, err)
+		log.Println(err)
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "book not found",
+		})
 	} else {
 		info, reader, _ := c.getFile(c.fixPath(book.Cover))
 		defer reader.Close()
@@ -285,4 +291,47 @@ func (c Api) getFileOrCache(filepath string, id string) (string, error) {
 		_, err = f.Write(b)
 	}
 	return filename, err
+}
+
+func (c Api) getDbFileOrCache() (string, error) {
+	filename := path.Join(c.baseDir, "metadata.db")
+	_, err := os.Stat(filename)
+	if Exists(filename) {
+		return filename, nil
+	}
+	_, closer, err := c.getFile("metadata.db")
+	if err != nil {
+		return "", err
+	}
+	b, err := ioutil.ReadAll(closer)
+	if err != nil {
+		return "", err
+	}
+	closer.Close()
+
+	f, err := os.Create(filename)
+	defer f.Close()
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		_, err = f.Write(b)
+	}
+	return filename, err
+}
+
+func (c Api) updateIndex(c2 *gin.Context) {
+	dbPath, err := c.getDbFileOrCache()
+	newDb, _ := NewDb(dbPath)
+	books, _ := newDb.queryBooks()
+	println(len(books))
+	_, err = c.bookIndex.UpdateDocumentsInBatches(books, 20)
+	if err != nil {
+		log.Println(err)
+		c2.JSON(http.StatusInternalServerError, err)
+		return
+	}
+	c2.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+	})
 }
