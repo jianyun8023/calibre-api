@@ -8,6 +8,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.4.3
 	github.com/k0kubun/go-ansi v0.0.0-20180517002512-3bf9e2903213
 	github.com/kapmahc/epub v0.1.1
+	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/meilisearch/meilisearch-go v0.22.0
 	github.com/minio/minio-go/v7 v7.0.45
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db
