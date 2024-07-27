@@ -3,11 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
 	"github.com/jianyun8023/calibre-api/internal/lanzou"
 	"github.com/jianyun8023/calibre-api/pkg/log"
-
-	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"strings"
 )
@@ -21,10 +20,42 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.Default()
+	// 配置静态文件目录
+	r.Static("/static", conf.StaticDir)
+
+	// 配置模板目录
+	//r.LoadHTMLGlob(conf.TemplateDir + "/*")
+	r.GET("/", func(c *gin.Context) {
+		//c.HTML(http.StatusOK, "index.html", nil)
+		c.File(conf.TemplateDir + "/index.html")
+	})
+	// Serve the settings page
+	r.GET("/setting", func(c *gin.Context) {
+		c.File(conf.TemplateDir + "/setting.html")
+		//c.HTML(http.StatusOK, "setting.html", nil)
+	})
+
+	r.GET("/books", func(c *gin.Context) {
+		c.File(conf.TemplateDir + "/books.html")
+		//c.HTML(http.StatusOK, "setting.html", nil)
+	})
+
+	r.GET("/search", func(c *gin.Context) {
+		c.File(conf.TemplateDir + "/search.html")
+		//c.HTML(http.StatusOK, "search.html", nil)
+	})
+	r.GET("/detail/:id", func(c *gin.Context) {
+		c.File(conf.TemplateDir + "/detail.html")
+	})
 	calibre.NewClient(conf).SetupRouter(r)
 	if l, err := lanzou.NewClient(); err == nil {
 		l.SetupRouter(r)
 	}
+	// print router
+	for _, route := range r.Routes() {
+		log.Infof("route: %s %s", route.Method, route.Path)
+	}
+	log.Infof("server listen on %s", conf.Address)
 	r.Run(conf.Address)
 }
 
@@ -35,6 +66,8 @@ func initConfig() *calibre.Config {
 	viper.AddConfigPath("$HOME/.calibre-api")
 	viper.AddConfigPath(".")
 	viper.SetDefault("address", ":8080")
+	viper.SetDefault("static_dir", "./pages/static")
+	viper.SetDefault("template_dir", "./pages/templates")
 	viper.SetEnvPrefix("CALIBRE")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()

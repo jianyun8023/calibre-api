@@ -7,7 +7,8 @@ import (
 
 type Book struct {
 	AuthorSort   string    `json:"author_sort"`
-	Authors      string    `json:"authors"`
+	Authors      []string  `json:"authors"`
+	Comments     string    `json:"comments"`
 	Cover        string    `json:"cover"`
 	FilePath     string    `json:"file_path"`
 	ID           int64     `json:"id"`
@@ -25,6 +26,7 @@ type Book struct {
 type BookRaw struct {
 	AuthorSort   string         `json:"author_sort"`
 	Authors      string         `json:"authors"`
+	Comments     sql.NullString `json:"comments"`
 	Cover        string         `json:"cover"`
 	FilePath     string         `json:"file_path"`
 	ID           int64          `json:"id"`
@@ -42,10 +44,12 @@ type BookRaw struct {
 }
 
 type Config struct {
-	Address string  `mapstructure:"address"`
-	Debug   bool    `mapstructure:"debug"`
-	Search  Search  `mapstructure:"search"`
-	Storage Storage `mapstructure:"storage"`
+	Address     string  `mapstructure:"address"`
+	Debug       bool    `mapstructure:"debug"`
+	StaticDir   string  `mapstructure:"static_dir"`
+	TemplateDir string  `mapstructure:"template_dir"`
+	Search      Search  `mapstructure:"search"`
+	Storage     Storage `mapstructure:"storage"`
 }
 type Search struct {
 	Host     string `mapstructure:"host"`
