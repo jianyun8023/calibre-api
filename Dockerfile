@@ -21,4 +21,4 @@ EXPOSE 8080
 
 USER nonroot:nonroot
 
-ENTRYPOINT ["/calibre-api"]
+ENTRYPOINT ["/app/calibre-api"]
