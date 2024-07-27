@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/jianyun8023/calibre-api/pkg/log"
 	"github.com/kapmahc/epub"
 	"github.com/meilisearch/meilisearch-go"
 	"io"
 	"io/fs"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -27,14 +27,18 @@ type Api struct {
 }
 
 func (c Api) SetupRouter(r *gin.Engine) {
-	r.GET("/get/cover/:id", c.getCover)
-	r.GET("/get/book/:id", c.getBookFile)
-	r.GET("/read/:id/toc", c.getBookToc)
-	r.GET("/read/:id/file/*path", c.getBookContent)
-	r.GET("/book/:id", c.getBook)
-	r.GET("/search", c.search)
-	r.POST("/search", c.search)
-	r.POST("/index/update", c.updateIndex)
+
+	base := r.Group("/api")
+	base.GET("/get/cover/:id", c.getCover)
+	base.GET("/get/book/:id", c.getBookFile)
+	base.GET("/read/:id/toc", c.getBookToc)
+	base.GET("/read/:id/file/*path", c.getBookContent)
+	base.GET("/book/:id", c.getBook)
+	base.GET("/search", c.search)
+	base.POST("/search", c.search)
+	// 最近更新Recently
+	base.GET("/recently", c.recently)
+	base.POST("/index/update", c.updateIndex)
 }
 
 func NewClient(config *Config) Api {
@@ -62,25 +66,81 @@ func NewClient(config *Config) Api {
 	default:
 		log.Fatal(fmt.Errorf("不支持的存储类型 %q", config.Storage.Use))
 	}
+	//index := client.Index(config.Search.Index)
+	index, err := ensureIndexExists(client, config.Search.Index)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = ensureIndexExists(client, config.Search.Index+"-bak")
+	if err != nil {
+		log.Fatal(err)
+	}
 	return Api{
 		config:     config,
 		client:     client,
-		bookIndex:  client.Index(config.Search.Index),
+		bookIndex:  index,
 		fileClient: fileClient,
 		baseDir:    config.Storage.TmpDir,
 	}
+}
+
+// ensureIndexExists checks if a Meilisearch index exists, and if not, creates it and updates its settings.
+//
+// Parameters:
+// - client: A pointer to the Meilisearch client.
+// - indexName: The name of the index to check or create.
+//
+// Returns:
+// - A pointer to the Meilisearch index.
+// - An error if the index creation or settings update fails.
+func ensureIndexExists(client *meilisearch.Client, indexName string) (*meilisearch.Index, error) {
+	index := client.Index(indexName)
+
+	// Fetch index information to check if it exists
+	log.Infof("Checking if index %q exists", indexName)
+	_, err := index.FetchInfo()
+	if err != nil {
+		log.Infof("Failed to fetch index info for %q: %v", indexName, err)
+		// Index does not exist, create it
+		log.Infof("Creating index %q", indexName)
+		_, err = client.CreateIndex(&meilisearch.IndexConfig{
+			Uid:        indexName,
+			PrimaryKey: "id",
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create index: %w", err)
+		}
+		log.Infof("Index %q created", indexName)
+		// Update index settings
+		log.Infof("Updating index settings for %q", indexName)
+		_, err = index.UpdateSettings(&meilisearch.Settings{
+			DisplayedAttributes:  []string{"*"},
+			FilterableAttributes: []string{"authors", "file_path", "id", "last_modified", "pubdate", "publisher", "isbn", "tags"},
+			SearchableAttributes: []string{"title", "authors"},
+			SortableAttributes:   []string{"authors_sort", "id", "last_modified", "pubdate", "publisher"},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to update index settings: %w", err)
+		}
+	}
+	return index, nil
 }
 
 func (c Api) search(r *gin.Context) {
 	var req = meilisearch.SearchRequest{}
 	err2 := r.Bind(&req)
 	if err2 != nil {
-		log.Println("====== Only Bind By Query String ======", err2)
+		log.Infof("====== Only Bind By Query String ======", err2)
 	}
 	if len(req.Sort) == 0 {
 		req.Sort = []string{"id:desc"}
 	}
+	log.Infof("search request: %v", req)
 	q := r.Query("q")
+	if q == "" {
+		q = r.PostForm("q")
+	}
+	log.Infof("search query: %s", q)
 	search, err := c.bookIndex.Search(q, &req)
 
 	books := make([]Book, len(search.Hits))
@@ -100,8 +160,8 @@ func (c Api) search(r *gin.Context) {
 			return
 		}
 		id := book.ID
-		book.Cover = "/get/cover/" + strconv.FormatInt(id, 10) + ".jpg"
-		book.FilePath = "/get/book/" + strconv.FormatInt(id, 10) + ".epub"
+		book.Cover = "/api/get/cover/" + strconv.FormatInt(id, 10) + ".jpg"
+		book.FilePath = "/api/get/book/" + strconv.FormatInt(id, 10) + ".epub"
 		books[i] = book
 	}
 
@@ -129,8 +189,8 @@ func (c Api) getBook(r *gin.Context) {
 		r.JSON(http.StatusNotFound, "book not found")
 		return
 	}
-	book.Cover = "/get/cover/" + id + ".jpg"
-	book.FilePath = "/get/book/" + id + ".epub"
+	book.Cover = "/api/get/cover/" + id + ".jpg"
+	book.FilePath = "/api/get/book/" + id + ".epub"
 	r.JSON(http.StatusOK, book)
 
 }
@@ -230,13 +290,19 @@ func (c Api) getFile(filepath string) (os.FileInfo, io.ReadCloser, error) {
 	return info, reader, nil
 }
 
+func (c Api) stat(filepath string) (os.FileInfo, error) {
+	targetPath := path.Join(c.config.Storage.Webdav.Path, filepath)
+	info, err := c.fileClient.Stat(targetPath)
+	return info, err
+}
+
 func (c Api) getBookFile(r *gin.Context) {
 	filesuffix := path.Ext(r.Param("id"))
 	id := strings.TrimSuffix(r.Param("id"), filesuffix)
 	var book Book
 	err := c.bookIndex.GetDocument(id, nil, &book)
 	if err != nil {
-		log.Println(err)
+		log.Warn(err)
 		r.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "book not found",
@@ -255,16 +321,24 @@ func (c Api) getCover(r *gin.Context) {
 	err := c.bookIndex.GetDocument(id, nil, &book)
 
 	if err != nil {
-		log.Println(err)
+		log.Warn(err)
 		r.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "book not found",
 		})
-	} else {
-		info, reader, _ := c.getFile(c.fixPath(book.Cover))
-		defer reader.Close()
-		r.DataFromReader(http.StatusOK, info.Size(), "", reader, nil)
+		return
 	}
+
+	info, reader, err := c.getFile(c.fixPath(book.Cover))
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": err.Error(),
+		})
+		return
+	}
+	defer reader.Close()
+	r.DataFromReader(http.StatusOK, info.Size(), "image/jpeg", reader, nil)
 }
 
 func (c Api) getFileOrCache(filepath string, id string) (string, error) {
@@ -295,9 +369,21 @@ func (c Api) getFileOrCache(filepath string, id string) (string, error) {
 
 func (c Api) getDbFileOrCache() (string, error) {
 	filename := path.Join(c.baseDir, "metadata.db")
-	_, err := os.Stat(filename)
+	info, err := os.Stat(filename)
+	remoteInfo, err := c.stat("metadata.db")
+	if err != nil {
+		return "", err
+	}
+
 	if Exists(filename) {
-		return filename, nil
+		log.Info("cached metadata.db")
+		log.Infof("local file size: %d, remote file size: %d", info.Size(), remoteInfo.Size())
+		if info.Size() == remoteInfo.Size() {
+			return filename, nil
+		} else {
+			log.Info("remove cached metadata.db")
+			_ = os.Remove(filename)
+		}
 	}
 	_, closer, err := c.getFile("metadata.db")
 	if err != nil {
@@ -307,7 +393,7 @@ func (c Api) getDbFileOrCache() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	closer.Close()
+	defer closer.Close()
 
 	f, err := os.Create(filename)
 	defer f.Close()
@@ -324,14 +410,89 @@ func (c Api) updateIndex(c2 *gin.Context) {
 	newDb, _ := NewDb(dbPath)
 	books, _ := newDb.queryBooks()
 	println(len(books))
-	_, err = c.bookIndex.UpdateDocumentsInBatches(books, 20)
+
+	index := c.client.Index(c.config.Search.Index + "-bak")
+	_, err = index.DeleteAllDocuments()
 	if err != nil {
-		log.Println(err)
+		log.Warn(err)
 		c2.JSON(http.StatusInternalServerError, err)
 		return
 	}
+
+	_, err = index.UpdateDocumentsInBatches(books, 1000)
+	if err != nil {
+		log.Warn(err)
+		c2.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	resp, err := c.client.SwapIndexes(
+		[]meilisearch.SwapIndexesParams{
+			{
+				Indexes: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
+			},
+		},
+	)
 	c2.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
+		"data":    resp,
+	})
+}
+
+func (c Api) recently(r *gin.Context) {
+	limit, err := strconv.Atoi(r.DefaultQuery("limit", "10"))
+	if err != nil {
+		r.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
+		return
+	}
+	offset, err := strconv.Atoi(r.DefaultQuery("offset", "0"))
+	if err != nil {
+		r.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset"})
+		return
+	}
+
+	searchRequest := meilisearch.SearchRequest{
+		Sort:   []string{"id:desc"},
+		Limit:  int64(limit),
+		Offset: int64(offset),
+	}
+
+	search, err := c.bookIndex.Search("", &searchRequest)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	books := make([]Book, len(search.Hits))
+	for i := range search.Hits {
+		tmp := search.Hits[i].(map[string]interface{})
+		jsonb, err := json.Marshal(tmp)
+		if err != nil {
+			r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		book := Book{}
+		if err := json.Unmarshal(jsonb, &book); err != nil {
+			r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		id := book.ID
+		book.Cover = "/api/get/cover/" + strconv.FormatInt(id, 10) + ".jpg"
+		book.FilePath = "/api/get/book/" + strconv.FormatInt(id, 10) + ".epub"
+		books[i] = book
+	}
+
+	r.JSON(http.StatusOK, gin.H{
+		"totalHits": search.TotalHits,
+		"totalPages": search.TotalPages,
+		"hitsPerPage": search.HitsPerPage,
+		"estimatedTotalHits": search.EstimatedTotalHits,
+		"offset":             search.Offset,
+		"limit":              search.Limit,
+		"processingTimeMs":   search.ProcessingTimeMs,
+		"query":              search.Query,
+		"hits":               &books,
 	})
 }

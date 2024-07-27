@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Page</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3.2.37/dist/vue.global.js"></script>
+</head>
+<body class="bg-gray-100">
+<header class="bg-white py-4 shadow-md">
+    <div class="container mx-auto text-center">
+        <a class="text-2xl font-bold text-red-500 cursor-pointer" href="/">无名图书</a>
+    </div>
+</header>
+<main class="container mx-auto mt-8 w-full md:w-2/3" id="app">
+    <h2 class="text-xl font-bold mb-4">Settings</h2>
+    <table class="min-w-full bg-white rounded-lg shadow-md">
+        <thead>
+        <tr>
+            <th class="py-2 px-4 bg-gray-200">Setting</th>
+            <th class="py-2 px-4 bg-gray-200">Value</th>
+            <th class="py-2 px-4 bg-gray-200">Action</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td class="border px-4 py-2">Update Index</td>
+            <td class="border px-4 py-2">Click to update the search index</td>
+            <td class="border px-4 py-2"><button class="bg-blue-500 text-white px-4 py-2 rounded" @click="updateIndex">Update Index</button></td>
+        </tr>
+        <!-- Add more settings as needed -->
+        </tbody>
+    </table>
+</main>
+<footer class="bg-white py-4 shadow-md mt-8">
+    <div class="container mx-auto text-center">
+        <a href="/" class="text-blue-500">Home</a>
+    </div>
+</footer>
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        methods: {
+            async updateIndex() {
+                try {
+                    const response = await fetch('/api/index/update', { method: 'POST' });
+                    if (response.ok) {
+                        alert('Index updated successfully');
+                    } else {
+                        alert('Failed to update index');
+                    }
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                }
+            },
+            redirectToHome() {
+                window.location.href = '/';
+            }
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

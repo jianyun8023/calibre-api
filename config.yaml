@@ -1,5 +1,7 @@
 address: :8080
 debug: false
+static_dir: "./pages/static"
+template_dir: "./pages/templates"
 search:
   host: http://127.0.0.1:7700
   apikey:

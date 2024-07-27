@@ -2,6 +2,7 @@ package calibre
 
 import (
 	"database/sql"
+	"strings"
 )
 import _ "github.com/mattn/go-sqlite3"
 
@@ -11,6 +12,7 @@ const (
     books.timestamp AS last_modified,
     books.pubdate AS pubdate,
     books.title AS title,
+    comments.text AS comments,
     group_concat(DISTINCT authors.name) AS authors,
     group_concat(DISTINCT authors.sort) AS authors_sort,
     group_concat(DISTINCT publishers.name) AS publisher,
@@ -24,6 +26,8 @@ LEFT JOIN
     books_authors_link ON books.id = books_authors_link.book
 LEFT JOIN
     authors ON books_authors_link.author = authors.id
+LEFT JOIN
+    comments ON comments.book = books.id
 LEFT JOIN
     books_publishers_link ON books.id = books_publishers_link.book
 LEFT JOIN
@@ -70,15 +74,22 @@ func (d Db) queryBooks() (books []Book, err error) {
 	// rows to books
 	for rows.Next() {
 		var book BookRaw
-		if err := rows.Scan(&book.ID, &book.LastModified, &book.Pubdate, &book.Title, &book.Authors, &book.AuthorSort, &book.Publisher, &book.FilePath, &book.Cover, &book.Size, &book.Isbn); err != nil {
+		if err := rows.Scan(&book.ID, &book.LastModified, &book.Pubdate, &book.Title, &book.Comments, &book.Authors, &book.AuthorSort, &book.Publisher, &book.FilePath, &book.Cover, &book.Size, &book.Isbn); err != nil {
 			return nil, err
 		}
 
 		// convert BookRaw to Book
 		newBook := Book{
-			ID:           book.ID,
-			AuthorSort:   book.AuthorSort,
-			Authors:      book.Authors,
+			ID:         book.ID,
+			AuthorSort: book.AuthorSort,
+			Authors: func(authors string) []string {
+				authorList := strings.Split(authors, ",")
+				for i, author := range authorList {
+					authorList[i] = strings.TrimSpace(author)
+				}
+				return authorList
+			}(book.Authors),
+			Comments:     book.Comments.String,
 			Cover:        book.Cover,
 			FilePath:     book.FilePath,
 			Isbn:         book.Isbn.String,
