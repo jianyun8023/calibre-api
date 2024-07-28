@@ -22,6 +22,4 @@ COPY config.yaml ./
 COPY pages/ ./
 EXPOSE 8080
 
-USER nonroot:nonroot
-
 ENTRYPOINT ["/app/calibre-api"]
