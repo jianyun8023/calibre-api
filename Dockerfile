@@ -11,7 +11,7 @@ COPY . ./
 RUN go build -o /calibre-api
 
 ## Deploy
-FROM alpine
+FROM debian:bookworm-slim
 
 ENV CALIBRE_TEMPLATE_DIR=/app/templates
 ENV CALIBRE_STATIC_DIR=/app/static
@@ -22,4 +22,4 @@ COPY config.yaml ./
 COPY pages/ ./
 EXPOSE 8080
 
-ENTRYPOINT ["/app/calibre-api"]
+ENTRYPOINT ["bash","-c","/app/calibre-api"]
