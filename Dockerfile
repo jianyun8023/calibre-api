@@ -1,4 +1,4 @@
-FROM golang:1.19-buster AS build
+FROM golang:1.22 AS build
 
 WORKDIR /app
 
@@ -11,7 +11,10 @@ COPY . ./
 RUN go build -o /calibre-api
 
 ## Deploy
-FROM gcr.io/distroless/base-debian10
+FROM alpine
+
+ENV CALIBRE_TEMPLATE_DIR=/app/templates
+ENV CALIBRE_STATIC_DIR=/app/static
 
 WORKDIR /app
 COPY --from=build /calibre-api ./calibre-api
