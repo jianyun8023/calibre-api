@@ -130,7 +130,7 @@ func (c Api) search(r *gin.Context) {
 	var req = meilisearch.SearchRequest{}
 	err2 := r.Bind(&req)
 	if err2 != nil {
-		log.Infof("====== Only Bind By Query String ======", err2)
+		log.Infof("====== Only Bind By Query String ======\n%v", err2)
 	}
 	if len(req.Sort) == 0 {
 		req.Sort = []string{"id:desc"}
@@ -367,7 +367,7 @@ func (c Api) getFileOrCache(filepath string, id string) (string, error) {
 	return filename, err
 }
 
-func (c Api) getDbFileOrCache() (string, error) {
+func (c Api) getDbFileOrCache(flush bool) (string, error) {
 	filename := path.Join(c.baseDir, "metadata.db")
 	info, err := os.Stat(filename)
 	remoteInfo, err := c.stat("metadata.db")
@@ -375,7 +375,7 @@ func (c Api) getDbFileOrCache() (string, error) {
 		return "", err
 	}
 
-	if Exists(filename) {
+	if !flush && Exists(filename) {
 		log.Info("cached metadata.db")
 		log.Infof("local file size: %d, remote file size: %d", info.Size(), remoteInfo.Size())
 		if info.Size() == remoteInfo.Size() {
@@ -389,7 +389,7 @@ func (c Api) getDbFileOrCache() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	b, err := ioutil.ReadAll(closer)
+	b, err := io.ReadAll(closer)
 	if err != nil {
 		return "", err
 	}
@@ -406,7 +406,7 @@ func (c Api) getDbFileOrCache() (string, error) {
 }
 
 func (c Api) updateIndex(c2 *gin.Context) {
-	dbPath, err := c.getDbFileOrCache()
+	dbPath, err := c.getDbFileOrCache(true)
 	newDb, _ := NewDb(dbPath)
 	books, _ := newDb.queryBooks()
 	println(len(books))
@@ -485,9 +485,9 @@ func (c Api) recently(r *gin.Context) {
 	}
 
 	r.JSON(http.StatusOK, gin.H{
-		"totalHits": search.TotalHits,
-		"totalPages": search.TotalPages,
-		"hitsPerPage": search.HitsPerPage,
+		"totalHits":          search.TotalHits,
+		"totalPages":         search.TotalPages,
+		"hitsPerPage":        search.HitsPerPage,
 		"estimatedTotalHits": search.EstimatedTotalHits,
 		"offset":             search.Offset,
 		"limit":              search.Limit,

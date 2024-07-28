@@ -20,6 +20,20 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.Default()
+	setPages(r, conf)
+	calibre.NewClient(conf).SetupRouter(r)
+	if l, err := lanzou.NewClient(); err == nil {
+		l.SetupRouter(r)
+	}
+	// print router
+	for _, route := range r.Routes() {
+		log.Infof("route: %s %s", route.Method, route.Path)
+	}
+	log.Infof("server listen on %s", conf.Address)
+	r.Run(conf.Address)
+}
+
+func setPages(r *gin.Engine, conf *calibre.Config) {
 	// 配置静态文件目录
 	r.Static("/static", conf.StaticDir)
 
@@ -47,16 +61,6 @@ func main() {
 	r.GET("/detail/:id", func(c *gin.Context) {
 		c.File(conf.TemplateDir + "/detail.html")
 	})
-	calibre.NewClient(conf).SetupRouter(r)
-	if l, err := lanzou.NewClient(); err == nil {
-		l.SetupRouter(r)
-	}
-	// print router
-	for _, route := range r.Routes() {
-		log.Infof("route: %s %s", route.Method, route.Path)
-	}
-	log.Infof("server listen on %s", conf.Address)
-	r.Run(conf.Address)
 }
 
 func initConfig() *calibre.Config {
