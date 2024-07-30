@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
-	"github.com/jianyun8023/calibre-api/internal/lanzou"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 	"github.com/spf13/viper"
 	"strings"
@@ -22,9 +21,9 @@ func main() {
 	r := gin.Default()
 	setPages(r, conf)
 	calibre.NewClient(conf).SetupRouter(r)
-	if l, err := lanzou.NewClient(); err == nil {
-		l.SetupRouter(r)
-	}
+	//if l, err := lanzou.NewClient(); err == nil {
+	//	l.SetupRouter(r)
+	//}
 	// print router
 	for _, route := range r.Routes() {
 		log.Infof("route: %s %s", route.Method, route.Path)
