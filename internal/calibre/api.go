@@ -34,6 +34,7 @@ func (c Api) SetupRouter(r *gin.Engine) {
 	base.GET("/read/:id/toc", c.getBookToc)
 	base.GET("/read/:id/file/*path", c.getBookContent)
 	base.GET("/book/:id", c.getBook)
+	base.POST("/book/:id/delete", c.deleteBook)
 	base.GET("/search", c.search)
 	base.POST("/search", c.search)
 	// 最近更新Recently
@@ -192,6 +193,18 @@ func (c Api) getBook(r *gin.Context) {
 	book.Cover = "/api/get/cover/" + id + ".jpg"
 	book.FilePath = "/api/get/book/" + id + ".epub"
 	r.JSON(http.StatusOK, book)
+
+}
+
+func (c Api) deleteBook(r *gin.Context) {
+	id := r.Param("id")
+	_, err := c.bookIndex.DeleteDocument(id)
+	if err != nil {
+		// 返回文件找不到
+		r.JSON(http.StatusNotFound, "book not found"+err.Error())
+		return
+	}
+	r.JSON(http.StatusOK, "success")
 
 }
 
