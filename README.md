@@ -5,8 +5,8 @@
 
 ## TODO
 - 使用 [bleve](https://github.com/blevesearch/bleve) 替换掉 meilisearch 搜索，降低依赖
-- 支持直接读取calibre db数据到bleve
-- 支持EPUB虚拟路径
+- ~支持直接读取calibre db数据~
+- ~支持EPUB虚拟路径~
 
 ## 接口
 
