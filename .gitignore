@@ -23,3 +23,6 @@ dist/
 # vendor/
 .idea
 .files
+
+app/calibre-pages/dist
+app/calibre-pages/node_modules
