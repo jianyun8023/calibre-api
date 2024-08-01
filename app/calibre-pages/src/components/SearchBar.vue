@@ -1,5 +1,5 @@
 <template>
-  <el-input v-model="searchQuery" @keyup.enter="redirectToSearch" placeholder="书名, 作者, ISBN">
+  <el-input v-model="searchQuery" @keyup.enter="redirectToSearch" placeholder="书名、作者、ISBN">
     <template #append>
       <el-button @click="redirectToSearch">搜索</el-button>
     </template>

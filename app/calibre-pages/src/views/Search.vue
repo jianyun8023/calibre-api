@@ -4,7 +4,7 @@
       v-model="searchQuery"
       @input="fetchBooks"
       type="text"
-      placeholder="书名, 作者, ISBN"
+      placeholder="书名、作者、ISBN"
       class="w-1/2 px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500"
     />
   </div>

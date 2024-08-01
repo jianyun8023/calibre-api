@@ -117,7 +117,7 @@ func ensureIndexExists(client *meilisearch.Client, indexName string) (*meilisear
 		_, err = index.UpdateSettings(&meilisearch.Settings{
 			DisplayedAttributes:  []string{"*"},
 			FilterableAttributes: []string{"authors", "file_path", "id", "last_modified", "pubdate", "publisher", "isbn", "tags"},
-			SearchableAttributes: []string{"title", "authors"},
+			SearchableAttributes: []string{"title", "authors", "isbn"},
 			SortableAttributes:   []string{"authors_sort", "id", "last_modified", "pubdate", "publisher"},
 		})
 		if err != nil {
