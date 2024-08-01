@@ -439,7 +439,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 		return
 	}
 
-	resp, err := c.client.SwapIndexes(
+	_, err = c.client.SwapIndexes(
 		[]meilisearch.SwapIndexesParams{
 			{
 				Indexes: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
@@ -449,7 +449,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 	c2.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
-		"data":    resp,
+		"data":    len(books),
 	})
 }
 

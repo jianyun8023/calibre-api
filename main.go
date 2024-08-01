@@ -34,7 +34,7 @@ func main() {
 
 func setPages(r *gin.Engine, conf *calibre.Config) {
 	// 配置静态文件目录
-	r.Static("/static", conf.StaticDir)
+	r.Static("/assets", conf.TemplateDir+"/assets")
 
 	// 配置模板目录
 	//r.LoadHTMLGlob(conf.TemplateDir + "/*")
@@ -42,24 +42,38 @@ func setPages(r *gin.Engine, conf *calibre.Config) {
 		//c.HTML(http.StatusOK, "index.html", nil)
 		c.File(conf.TemplateDir + "/index.html")
 	})
-	// Serve the settings page
-	r.GET("/setting", func(c *gin.Context) {
-		c.File(conf.TemplateDir + "/setting.html")
-		//c.HTML(http.StatusOK, "setting.html", nil)
+	r.GET("/index", func(c *gin.Context) {
+		//c.HTML(http.StatusOK, "index.html", nil)
+		c.File(conf.TemplateDir + "/index.html")
+	})
+	r.GET("/favico.ico", func(c *gin.Context) {
+		//c.HTML(http.StatusOK, "index.html", nil)
+		c.File(conf.TemplateDir + "/favico.ico")
 	})
 
-	r.GET("/books", func(c *gin.Context) {
-		c.File(conf.TemplateDir + "/books.html")
-		//c.HTML(http.StatusOK, "setting.html", nil)
+	// Serve the index.html file for all other routes
+	r.NoRoute(func(c *gin.Context) {
+		c.File(conf.TemplateDir + "/index.html")
 	})
 
-	r.GET("/search", func(c *gin.Context) {
-		c.File(conf.TemplateDir + "/search.html")
-		//c.HTML(http.StatusOK, "search.html", nil)
-	})
-	r.GET("/detail/:id", func(c *gin.Context) {
-		c.File(conf.TemplateDir + "/detail.html")
-	})
+	//// Serve the settings page
+	//r.GET("/setting", func(c *gin.Context) {
+	//	c.File(conf.TemplateDir + "/setting.html")
+	//	//c.HTML(http.StatusOK, "setting.html", nil)
+	//})
+	//
+	//r.GET("/books", func(c *gin.Context) {
+	//	c.File(conf.TemplateDir + "/books.html")
+	//	//c.HTML(http.StatusOK, "setting.html", nil)
+	//})
+	//
+	//r.GET("/search", func(c *gin.Context) {
+	//	c.File(conf.TemplateDir + "/search.html")
+	//	//c.HTML(http.StatusOK, "search.html", nil)
+	//})
+	//r.GET("/detail/:id", func(c *gin.Context) {
+	//	c.File(conf.TemplateDir + "/detail.html")
+	//})
 }
 
 func initConfig() *calibre.Config {
