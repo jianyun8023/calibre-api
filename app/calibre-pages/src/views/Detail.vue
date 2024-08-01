@@ -1,4 +1,4 @@
-<template xmlns="http://www.w3.org/1999/html">
+<template>
   <el-row class="detail-header">
     <SearchBar/>
   </el-row>
@@ -59,15 +59,17 @@
           <el-row class="book-buttons">
             <el-button
                 type="primary"
+                :xs="24"
                 plain
                 :disabled="!book.file_path"
                 @click="redirectToDownload(book.file_path)"
+
             >
               下载书籍
             </el-button>
             <el-popconfirm title="确定删除?" @confirm="deleteBook(book.id)">
               <template #reference>
-                <el-button class="delete-button">删除书籍</el-button>
+                <el-button :xs="24" class="delete-button">删除书籍</el-button>
               </template>
             </el-popconfirm>
           </el-row>
