@@ -10,14 +10,14 @@
         </el-col>
       </el-row>
       <el-row :gutter="20">
-        <el-col v-for="book in recentBooks" :key="book.id" :span="6">
+        <el-col v-for="book in recentBooks" :key="book.id" :span="6" :lg="6" :sm="8" :xs="24">
           <BookCard :book="book" />
         </el-col>
       </el-row>
       <el-row class="mt-4" justify="center">
-        <el-button @click="prevPage" :disabled="offset === 0">上一页</el-button>
+        <el-button @click="prevPage" :disabled="offset === 0"><el-icon><ArrowLeftBold /></el-icon>上一页</el-button>
         <el-button @click="nextPage" :disabled="offset + limit >= estimatedTotalHits"
-          >下一页</el-button
+          >下一页<el-icon><ArrowRightBold /></el-icon></el-button
         >
       </el-row>
     </section>

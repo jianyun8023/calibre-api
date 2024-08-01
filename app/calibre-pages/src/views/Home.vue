@@ -1,15 +1,15 @@
 <template>
   <el-row>
-    <SearchBar />
+    <SearchBar/>
   </el-row>
   <el-row>
     <el-row class="full-width-row">
       <h2>最近更新</h2>
-      <el-link href="/books" class="text-right">更多</el-link>
+      <el-link href="/books" class="text-right">更多 <el-icon><More /></el-icon></el-link>
     </el-row>
     <el-row :gutter="20">
-      <el-col v-for="book in recentBooks" :key="book.id" :span="6">
-        <BookCard :book="book" />
+      <el-col v-for="book in recentBooks" :key="book.id" :span="6" :lg="6" :sm="8" :xs="24">
+        <BookCard :book="book"/>
       </el-col>
     </el-row>
   </el-row>
@@ -35,7 +35,7 @@
 </template>
 
 <script>
-import { ElButton, ElCard, ElCol, ElContainer, ElInput, ElLink, ElRow } from 'element-plus'
+import {ElButton, ElCard, ElCol, ElContainer, ElInput, ElLink, ElRow} from 'element-plus'
 import SearchBar from '@/components/SearchBar.vue'
 import BookCard from '@/components/BookCard.vue'
 
