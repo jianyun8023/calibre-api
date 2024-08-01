@@ -1,9 +1,8 @@
 <template>
   <el-container>
     <el-main>
-      <h1>设置</h1>
-      <el-container class="mt-8 w-full md:w-2/3">
-        <h2 class="text-xl font-bold mb-4">Settings</h2>
+      <h2 class="text-xl font-bold mb-4">设置</h2>
+      <el-container class="mt-8 w-full">
         <el-table :data="settings" style="width: 100%">
           <el-table-column prop="name" label="Setting" width="180"></el-table-column>
           <el-table-column prop="description" label="Value"></el-table-column>
@@ -45,15 +44,16 @@ export default {
       try {
         const response = await fetch('/api/index/update', {method: 'POST'})
         if (response.ok) {
+          const responseData = await response.json();
           ElNotification({
             title: 'Index updated successfully.',
-            message: h('i', {style: 'color: teal'}, '共计' + response.data + '本书'),
+            message: h('i', {style: 'color: teal'}, '共计' + responseData.data + '本书'),
             type: 'success',
           })
         } else {
           ElNotification({
             title: 'Failed to update index.',
-            message: h('i', {style: 'color: red'}, response.json().data),
+            message: h('i', {style: 'color: red'}, 'Error: ' + response.statusText),
             type: 'error',
           })
         }

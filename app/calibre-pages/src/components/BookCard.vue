@@ -1,33 +1,22 @@
 <template>
-  <el-card @click="redirectToDetail(book.id)">
-    <el-row>
-      <el-col :span="12">
-        <el-image
+  <el-card class="book-card" @click="redirectToDetail(book.id)">
+    <el-row type="flex" align="middle">
+      <el-col :span="6" class="cover-container">
+        <img
             class="book-cover"
-            style="width: 60%; height: fit-content"
             :src="book.cover"
-            fit="cover"
+            alt="book cover"
         />
       </el-col>
-      <el-col :span="12">
-        <el-row>
-          <el-text tag="b" class="mx-1" size="large">{{ truncateText(book.title) }}</el-text>
-        </el-row>
-        <el-row align="middle">
-          <el-text class="mx-1" v-if="book.authors && book.authors.length">
-            {{ truncateText(book.authors.join(', ')) }}
-          </el-text>
-        </el-row>
-        <el-row align="middle">
-          <el-text class="mx-1">
-            {{ book.publisher }}
-          </el-text>
-        </el-row>
-        <el-row align="middle" v-if="more_info">
-          <el-text class="mx-1" v-if="book.pubdate">
-            {{ new Date(book.pubdate).toLocaleDateString() }}
-          </el-text>
-        </el-row>
+      <el-col :span="18" class="info-container">
+        <div class="info-item title">{{ truncateText(book.title) }}</div>
+        <div class="info-item author" v-if="book.authors && book.authors.length">
+          {{ truncateText(book.authors.join(', ')) }}
+        </div>
+        <div class="info-item publisher" v-if="more_info">{{ book.publisher }}</div>
+        <div class="info-item pubdate" v-if="book.pubdate">
+          {{ new Date(book.pubdate).toLocaleDateString() }}
+        </div>
       </el-col>
     </el-row>
   </el-card>
@@ -61,12 +50,60 @@ export default {
 }
 </script>
 <style scoped>
-.book-cover {
-  width: 100px; /* Adjust the width as needed */
-  height: 140px; /* Adjust the height as needed */
+.book-card {
+  width: 100%;
+  height: 150px; /* 固定卡片高度 */
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
 }
 
-.mx-1 {
-  margin-bottom: 5px;
+.cover-container {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-cover {
+  width: 96px;
+  height: 139px; /* 固定卡片高度 */
+}
+
+.info-container {
+  height: 139px; /* 固定卡片高度 */
+  width: 192px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.info-item {
+  line-height: 1.5;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  margin-left: 20px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+}
+
+.author, .publisher, .pubdate {
+  font-size: 14px;
+  color: #666;
+}
+
+.el-card {
+  cursor: pointer;
+  transition: box-shadow 0.3s;
+}
+
+.el-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 </style>

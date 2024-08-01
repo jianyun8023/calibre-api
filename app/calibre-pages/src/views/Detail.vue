@@ -1,89 +1,97 @@
 <template xmlns="http://www.w3.org/1999/html">
-  <el-row style="margin-bottom: 10px; margin-top: 10px">
+  <el-row class="detail-header">
     <SearchBar/>
   </el-row>
-  <el-row style="margin-bottom: 10px; margin-top: 10px">
-    <el-text v-if="book">{{ book.title }}</el-text>
-    <el-text class="tag-spacing" v-if="book"
-    ><strong> ID:</strong> {{ book.id }}
+  <el-row class="detail-header">
+    <el-text class="book-title" v-if="book">{{ book.title }}</el-text>
+    <el-text class="book-id" v-if="book">
+      <strong>ID: </strong> {{ book.id }}
       <el-button plain @click="copyToClipboard(book.id)">📋</el-button>
     </el-text>
   </el-row>
-  <el-row style="margin-bottom: 10px; margin-top: 10px">
-    <el-col :span="8">
-      <el-image style="width: 60%; height: fit-content" :src="book.cover" fit="cover"/>
-    </el-col>
-    <el-col :span="16">
-      <div class="md:ml-6 items-stretch">
-        <p class="flex gap-2">
-          <strong>Authors:</strong>
-          <el-tag
-              class="tag-spacing"
-              v-for="item in book.authors"
-              :key="item"
-              effect="dark"
-              @click="searchByAuthor(item)"
-          >
-            {{ item }}
-          </el-tag>
-          <!--          <span v-for="(author, index) in book.authors" :key="author" @click="searchByAuthor(author)"-->
-          <!--                :class="{'text-blue-600': index % 2 === 0, 'text-orange-600': index % 2 !== 0}"-->
-          <!--                class="cursor-pointer mr-2">{{ author }} </span>-->
-        </p>
-        <p class="text-gray-700 mb-2 self-auto">
-          <strong class="font-mono">Publisher:</strong
-          ><span @click="searchByPublisher" class="tag-spacing">{{ book.publisher }}</span>
-        </p>
-        <p class="text-gray-700 mb-2 self-auto font-serif">
-          <strong>ISBN:</strong>
-          <span class="tag-spacing">{{ book.isbn }}</span>
-        </p>
-        <p class="text-gray-700 mb-2 self-auto" font-serif>
-          <strong>Published Date:</strong>
-          <span class="tag-spacing">{{ new Date(book.pubdate).toLocaleDateString() }}</span>
-        </p>
-        <p class="text-gray-700 mb-2 self-auto" font-serif>
-          <strong v-if="book.tags && book.tags.length">Tags:</strong>
-          <el-tag v-for="item in book.tags" :key="item" effect="dark" round>
-            {{ item }}
-          </el-tag>
-        </p>
-        <p class="text-gray-700 mb-2 self-auto" font-serif>
-          <strong> File Size:</strong> {{ formatFileSize(book.size) }}
-        </p>
+  <article class="detail-content">
+    <el-row class="detail-row">
+      <el-col :span="8" class="cover-container">
+        <img
+            class="book-cover"
+            :src="book.cover"
+            alt="book cover"
+        />
+      </el-col>
+<!--      <el-col :span="8">-->
+<!--        <el-image class="book-cover" :src="book.cover" fit="cover"/>-->
+<!--      </el-col>-->
+      <el-col :span="16">
+        <div class="book-info">
+          <p class="info-item">
+            <strong>Authors:</strong>
+            <el-tag
+                class="tag-spacing"
+                v-for="item in book.authors"
+                :key="item"
+                effect="dark"
+                @click="searchByAuthor(item)"
+            >
+              {{ item }}
+            </el-tag>
+          </p>
+          <p class="info-item">
+            <strong class="font-mono">Publisher:</strong>
+            <span @click="searchByPublisher" class="tag-spacing">{{ book.publisher }}</span>
+          </p>
+          <p class="info-item font-serif">
+            <strong>ISBN:</strong>
+            <span class="tag-spacing">{{ book.isbn }}</span>
+          </p>
+          <p class="info-item font-serif">
+            <strong>Published Date:</strong>
+            <span class="tag-spacing">{{ new Date(book.pubdate).toLocaleDateString() }}</span>
+          </p>
+          <p class="info-item font-serif" v-if="book.tags && book.tags.length">
+            <strong>Tags:</strong>
+            <el-tag v-for="item in book.tags" :key="item" effect="dark" round>
+              {{ item }}
+            </el-tag>
+          </p>
+          <p class="info-item font-serif">
+            <strong>File Size:</strong> {{ formatFileSize(book.size) }}
+          </p>
+          <el-row class="book-buttons">
+            <el-button
+                type="primary"
+                plain
+                :disabled="!book.file_path"
+                @click="redirectToDownload(book.file_path)"
+            >
+              下载书籍
+            </el-button>
+            <el-popconfirm title="确定删除?" @confirm="deleteBook(book.id)">
+              <template #reference>
+                <el-button class="delete-button">删除书籍</el-button>
+              </template>
+            </el-popconfirm>
+          </el-row>
 
-        <el-button
-            type="primary"
-            plain
-            :disabled="!book.file_path"
-            @click="redirectToDownload(book.file_path)"
-        >
-          下载书籍
-        </el-button>
-        <el-popconfirm title="确定删除?" @confirm="deleteBook(book.id)">
-          <template #reference>
-            <el-button class="mt-4 inline-block text-gray-700 px-4 py-2">删除书籍</el-button>
-          </template>
-        </el-popconfirm>
-      </div>
-    </el-col>
-  </el-row>
-  <el-row>
-    <article v-if="book.comments" class="mt-8">
-      <h2 class="text-xl font-bold mb-4">简介</h2>
-      <p class="text-gray-700 mb-2 font-serif text-prett text-lg indent-8">{{ book.comments }}</p>
-    </article>
-  </el-row>
+        </div>
+      </el-col>
+    </el-row>
+    <el-row>
+      <article v-if="book.comments" class="book-comments">
+        <h2 class="comments-title">简介</h2>
+        <p class="comments-text">{{ book.comments }}</p>
+      </article>
+    </el-row>
+  </article>
 </template>
 
 <script>
 import {h} from 'vue'
-import {ElButton, ElInput, ElMessage, ElNotification, ElRow} from 'element-plus'
+import {ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow} from 'element-plus'
 import SearchBar from '@/components/SearchBar.vue'
 
 export default {
   name: 'Detail',
-  components: {SearchBar, ElRow, ElButton, ElInput, ElNotification, ElMessage},
+  components: {ElCol, SearchBar, ElRow, ElButton, ElInput, ElNotification, ElMessage},
   data() {
     return {
       id: '',
@@ -207,9 +215,85 @@ export default {
 </script>
 
 <style scoped>
-.tag-spacing {
-  margin-right: 8px; /* Adjust the value as needed */
-  margin-bottom: 8px; /* Adjust the value as needed */
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  margin-top: 10px;
+}
+
+.book-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+  margin-right: 20px;
   margin-left: 10px;
+}
+
+.book-id {
+  display: flex;
+  align-items: center;
+  margin-left: 10px;
+}
+
+
+.detail-content {
+  padding: 20px;
+}
+
+.detail-row {
+  margin-bottom: 10px;
+  margin-top: 10px;
+}
+
+.cover-container {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-cover {
+  width: 50%; /* 固定宽度 */
+  height: auto; /* 固定高度 */
+}
+
+.book-info {
+  padding-left: 20px;
+}
+
+.info-item {
+  margin-bottom: 10px;
+}
+
+.tag-spacing {
+  margin-right: 8px;
+  margin-bottom: 8px;
+  margin-left: 10px;
+}
+
+.delete-button {
+  color: #ff4d4f;
+}
+
+.book-comments {
+  margin-top: 20px;
+}
+
+.book-buttons {
+  margin-top: 40px;
+}
+
+.comments-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.comments-text {
+  font-size: 1.125rem;
+  color: #4a4a4a;
+  text-indent: 2em;
 }
 </style>
