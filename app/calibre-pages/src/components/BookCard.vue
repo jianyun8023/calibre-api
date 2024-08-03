@@ -14,6 +14,7 @@
           {{ truncateText(book.authors.join(', ')) }}
         </div>
         <div class="info-item publisher" v-if="more_info">{{ book.publisher }}</div>
+        <div class="info-item publisher" v-if="more_info">{{ book.isbn }}</div>
         <div class="info-item pubdate" v-if="book.pubdate">
           {{ new Date(book.pubdate).toLocaleDateString() }}
         </div>

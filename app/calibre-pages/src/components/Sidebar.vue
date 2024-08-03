@@ -22,9 +22,6 @@
 <script>
 export default {
   name: 'Sidebar',
-  props: {
-    mode: String
-  },
   methods: {
     handleSelect(key, keyPath) {
       console.log(key, keyPath)

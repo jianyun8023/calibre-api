@@ -8,7 +8,7 @@
       <el-link href="/books" class="text-right">更多 <el-icon><More /></el-icon></el-link>
     </el-row>
     <el-row :gutter="20">
-      <el-col v-for="book in recentBooks" :key="book.id" :span="6" :lg="6" :sm="8" :xs="24">
+      <el-col v-for="book in recentBooks" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24">
         <BookCard :book="book"/>
       </el-col>
     </el-row>

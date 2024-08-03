@@ -38,6 +38,40 @@ LEFT JOIN
     identifiers ON books.id = identifiers.book AND identifiers.type = 'isbn'
 GROUP BY
     books.id`
+
+	queryBooks = `SELECT 
+    books.id AS id,
+    books.timestamp AS last_modified,
+    books.pubdate AS pubdate,
+    books.title AS title,
+    comments.text AS comments,
+    group_concat(DISTINCT authors.name) AS authors,
+    group_concat(DISTINCT authors.sort) AS authors_sort,
+    group_concat(DISTINCT publishers.name) AS publisher,
+    books.path || '/' || data.name || '.epub' AS file_path,
+    books.path || '/' || 'cover.jpg' AS cover,
+    data.uncompressed_size AS size,
+    identifiers.val AS isbn
+FROM
+    books
+LEFT JOIN
+    books_authors_link ON books.id = books_authors_link.book
+LEFT JOIN
+    authors ON books_authors_link.author = authors.id
+LEFT JOIN
+    comments ON comments.book = books.id
+LEFT JOIN
+    books_publishers_link ON books.id = books_publishers_link.book
+LEFT JOIN
+    publishers ON books_publishers_link.publisher = publishers.id
+LEFT JOIN
+    data ON books.id = data.book AND data.format = 'EPUB'
+LEFT JOIN
+    identifiers ON books.id = identifiers.book AND identifiers.type = 'isbn'
+WHERE
+		books.id IN (?)
+GROUP BY
+    books.id`
 )
 
 type Db struct {
@@ -65,12 +99,28 @@ func (d *Db) Close() error {
 	return d.db.Close()
 }
 
-func (d Db) queryBooks() (books []Book, err error) {
+func (d Db) queryAllBooks() (*[]Book, error) {
 	rows, err := d.db.Query(queryAllBooks)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+	return d.queryRows(rows)
+}
+
+func (d Db) queryBooks(ids []string) (*[]Book, error) {
+	rows, err := d.db.Query(queryBooks, strings.Join(ids, ","))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return d.queryRows(rows)
+}
+
+func (d Db) queryRows(rows *sql.Rows) (*[]Book, error) {
+
+	var books []Book
 	// rows to books
 	for rows.Next() {
 		var book BookRaw
@@ -102,5 +152,5 @@ func (d Db) queryBooks() (books []Book, err error) {
 		}
 		books = append(books, newBook)
 	}
-	return books, nil
+	return &books, nil
 }

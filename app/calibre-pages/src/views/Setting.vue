@@ -7,7 +7,15 @@
           <el-table-column prop="name" label="Setting" width="180"></el-table-column>
           <el-table-column prop="description" label="Value"></el-table-column>
           <el-table-column label="Action" width="180">
-            <el-button type="primary" @click="updateIndex">Update Index</el-button>
+            <template #default="scope">
+              <el-button v-loading="scope.row.loading"
+                         element-loading-background="rgba(122, 122, 122, 0.8)"
+                         type="primary"
+                         size="large"
+                         @click="updateIndex(scope.row)">
+                Update Index
+              </el-button>
+            </template>
           </el-table-column>
         </el-table>
       </el-container>
@@ -34,15 +42,18 @@ export default {
       settings: [
         {
           name: 'Update Index',
-          description: 'Click to update the search index'
+          description: 'Click to update the search index',
+          loading: false,
         }
-      ]
+      ],
     }
   },
   methods: {
-    async updateIndex() {
+    async updateIndex(config) {
+      config.loading = true
       try {
         const response = await fetch('/api/index/update', {method: 'POST'})
+        config.loading = false
         if (response.ok) {
           const responseData = await response.json();
           ElNotification({
@@ -58,6 +69,7 @@ export default {
           })
         }
       } catch (error) {
+        config.loading = false
         ElNotification({
           title: 'Failed to update index.',
           message: h('i', {style: 'color: red'}, 'Error: ' + error.message),

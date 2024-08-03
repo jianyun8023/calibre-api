@@ -3,3 +3,15 @@ a {
   color: var(--el-color-primary);
   text-decoration: none;
 }
+
+.affix-container {
+  text-align: center;
+  height: 50px;
+  border-radius: 4px;
+  background: var(--el-color-primary-light-9);
+  flex: 1;
+  width: 100%;
+}
+.affix-container .el-input{
+  height: 50px;
+}

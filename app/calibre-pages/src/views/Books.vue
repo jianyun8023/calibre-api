@@ -11,7 +11,7 @@
       </el-row>
       <el-row :gutter="20">
         <el-col v-for="book in recentBooks" :key="book.id" :span="6" :lg="6" :sm="8" :xs="24">
-          <BookCard :book="book" />
+          <BookCard :book="book" :more_info="true" />
         </el-col>
       </el-row>
       <el-row class="mt-4" justify="center">
