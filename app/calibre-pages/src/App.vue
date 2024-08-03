@@ -4,8 +4,8 @@
       <Header />
     </el-header>
     <el-container>
-      <el-aside width="200px" class="sidebar" v-show="isSidebarVisible">
-        <Sidebar :mode="'vertical'" />
+      <el-aside width="200px" class="sidebar hidden-sm-and-down">
+        <Sidebar/>
       </el-aside>
       <el-container>
         <el-main>
@@ -16,7 +16,6 @@
     <el-footer>
       <Footer />
     </el-footer>
-    <el-button class="toggle-sidebar" @click="toggleSidebar">☰</el-button>
   </el-container>
 </template>
 
@@ -50,24 +49,9 @@ export default {
   display: block;
 }
 
-.toggle-sidebar {
-  display: none;
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 1000;
-}
-
 @media (max-width: 768px) {
   .sidebar {
     display: none;
-  }
-  .toggle-sidebar {
-    display: block;
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1000;
   }
 }
 </style>

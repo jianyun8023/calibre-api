@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/jianyun8023/calibre-api/pkg/client"
+	"github.com/jianyun8023/calibre-api/pkg/content"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 	"github.com/kapmahc/epub"
 	"github.com/meilisearch/meilisearch-go"
@@ -16,10 +18,12 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Api struct {
 	config     *Config
+	contentApi *content.Api
 	client     *meilisearch.Client
 	bookIndex  *meilisearch.Index
 	fileClient FileClient
@@ -35,7 +39,10 @@ func (c Api) SetupRouter(r *gin.Engine) {
 	base.GET("/read/:id/file/*path", c.getBookContent)
 	base.GET("/book/:id", c.getBook)
 	base.POST("/book/:id/delete", c.deleteBook)
+	base.POST("/book/:id/update", c.updateMetadata)
 	base.GET("/search", c.search)
+	base.GET("/metadata/isbn/:isbn", c.getIsbn)
+	base.GET("/metadata/search", c.queryMetadata)
 	base.POST("/search", c.search)
 	// 最近更新Recently
 	base.GET("/recently", c.recently)
@@ -76,12 +83,17 @@ func NewClient(config *Config) Api {
 	if err != nil {
 		log.Fatal(err)
 	}
+	newClient, err := content.NewClient(config.ContentServer)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return Api{
 		config:     config,
 		client:     client,
 		bookIndex:  index,
 		fileClient: fileClient,
 		baseDir:    config.Storage.TmpDir,
+		contentApi: &newClient,
 	}
 }
 
@@ -198,14 +210,19 @@ func (c Api) getBook(r *gin.Context) {
 
 func (c Api) deleteBook(r *gin.Context) {
 	id := r.Param("id")
-	_, err := c.bookIndex.DeleteDocument(id)
+
+	err := c.contentApi.DeleteBooks([]string{id}, "")
+	if err != nil {
+		r.JSON(http.StatusNotFound, "book not found"+err.Error())
+		return
+	}
+	_, err = c.bookIndex.DeleteDocument(id)
 	if err != nil {
 		// 返回文件找不到
 		r.JSON(http.StatusNotFound, "book not found"+err.Error())
 		return
 	}
 	r.JSON(http.StatusOK, "success")
-
 }
 
 func (c Api) getBookToc(r *gin.Context) {
@@ -312,37 +329,8 @@ func (c Api) stat(filepath string) (os.FileInfo, error) {
 func (c Api) getBookFile(r *gin.Context) {
 	filesuffix := path.Ext(r.Param("id"))
 	id := strings.TrimSuffix(r.Param("id"), filesuffix)
-	var book Book
-	err := c.bookIndex.GetDocument(id, nil, &book)
-	if err != nil {
-		log.Warn(err)
-		r.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "book not found",
-		})
-	} else {
-		info, reader, _ := c.getFile(book.FilePath)
-		defer reader.Close()
-		r.DataFromReader(http.StatusOK, info.Size(), "application/epub+zip", reader, nil)
-	}
-}
 
-func (c Api) getCover(r *gin.Context) {
-	id := strings.TrimSuffix(r.Param("id"), ".jpg")
-
-	var book Book
-	err := c.bookIndex.GetDocument(id, nil, &book)
-
-	if err != nil {
-		log.Warn(err)
-		r.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "book not found",
-		})
-		return
-	}
-
-	info, reader, err := c.getFile(c.fixPath(book.Cover))
+	size, reader, err := c.contentApi.GetBook(id, "library")
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -351,7 +339,21 @@ func (c Api) getCover(r *gin.Context) {
 		return
 	}
 	defer reader.Close()
-	r.DataFromReader(http.StatusOK, info.Size(), "image/jpeg", reader, nil)
+	r.DataFromReader(http.StatusOK, size, "application/epub+zip", reader, nil)
+}
+
+func (c Api) getCover(r *gin.Context) {
+	id := strings.TrimSuffix(r.Param("id"), ".jpg")
+	size, reader, err := c.contentApi.GetCover(id, "library")
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": err.Error(),
+		})
+		return
+	}
+	defer reader.Close()
+	r.DataFromReader(http.StatusOK, size, "image/jpeg", reader, nil)
 }
 
 func (c Api) getFileOrCache(filepath string, id string) (string, error) {
@@ -388,10 +390,11 @@ func (c Api) getDbFileOrCache(flush bool) (string, error) {
 		return "", err
 	}
 
-	if !flush && Exists(filename) {
+	if !flush || Exists(filename) {
 		log.Info("cached metadata.db")
 		log.Infof("local file size: %d, remote file size: %d", info.Size(), remoteInfo.Size())
-		if info.Size() == remoteInfo.Size() {
+		log.Infof("local file time: %d, remote file time: %d", info.ModTime().Unix(), remoteInfo.ModTime().Unix())
+		if info.ModTime().Unix() == remoteInfo.ModTime().Unix() && info.Size() == remoteInfo.Size() {
 			return filename, nil
 		} else {
 			log.Info("remove cached metadata.db")
@@ -419,10 +422,9 @@ func (c Api) getDbFileOrCache(flush bool) (string, error) {
 }
 
 func (c Api) updateIndex(c2 *gin.Context) {
-	dbPath, err := c.getDbFileOrCache(true)
+	dbPath, err := c.getDbFileOrCache(false)
 	newDb, _ := NewDb(dbPath)
-	books, _ := newDb.queryBooks()
-	println(len(books))
+	books, _ := newDb.queryAllBooks()
 
 	index := c.client.Index(c.config.Search.Index + "-bak")
 	_, err = index.DeleteAllDocuments()
@@ -432,7 +434,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 		return
 	}
 
-	_, err = index.UpdateDocumentsInBatches(books, 1000)
+	_, err = index.UpdateDocumentsInBatches(*books, 1000)
 	if err != nil {
 		log.Warn(err)
 		c2.JSON(http.StatusInternalServerError, err)
@@ -449,7 +451,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 	c2.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
-		"data":    len(books),
+		"data":    len(*books),
 	})
 }
 
@@ -508,4 +510,155 @@ func (c Api) recently(r *gin.Context) {
 		"query":              search.Query,
 		"hits":               &books,
 	})
+}
+
+func (c Api) updateMetadata(r *gin.Context) {
+	id := r.Param("id")
+	book := &Book{}
+	err := r.Bind(book)
+
+	data, err := c.contentApi.UpdateMetaData(id, parseParams(book), "")
+	if err != nil {
+		r.JSON(http.StatusNotFound, gin.H{
+			"code":  500,
+			"error": err.Error(),
+			"msg":   "元数据更新失败",
+		})
+		return
+	}
+
+	var books []Book
+	books, err = convertContentToBooks(data)
+	if err != nil {
+		r.JSON(http.StatusNotFound, gin.H{
+			"code":  500,
+			"error": err.Error(),
+			"msg":   "书籍元数据翻译失败，请刷新索引",
+		})
+		return
+	}
+	_, err = c.bookIndex.UpdateDocuments(books)
+	if err != nil {
+		// 返回文件找不到
+		r.JSON(http.StatusNotFound, gin.H{
+			"code":  500,
+			"error": err.Error(),
+			"msg":   "元数据更新成功，但是索引更新失败，请刷新索引",
+		})
+		return
+	}
+	r.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+	})
+}
+
+func convertContentToBooks(content map[string]content.Content) ([]Book, error) {
+	var books []Book
+	for id, c := range content {
+		i, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		// 2023-12-31T16:00:00+00:00 to time.Time
+		//c.LastModified
+		//c.Pubdate
+
+		lastModified, err := time.Parse(time.RFC3339, c.LastModified)
+		if err != nil {
+			return nil, err
+		}
+
+		pubdate, err := time.Parse(time.RFC3339, c.Pubdate)
+		if err != nil {
+			return nil, err
+		}
+
+		book := Book{
+			// Map fields from Content to Book
+			AuthorSort:   c.AuthorSort,
+			Authors:      c.Authors,
+			Comments:     c.Comments,
+			ID:           i,
+			Isbn:         c.Isbn,
+			Languages:    c.Languages,
+			LastModified: lastModified,
+			Pubdate:      pubdate,
+			Publisher:    c.Publisher,
+			SeriesIndex:  c.SeriesIndex,
+			Size:         c.Size,
+			Title:        c.Title,
+		}
+		books = append(books, book)
+	}
+	return books, nil
+}
+
+func (c Api) getIsbn(c2 *gin.Context) {
+	isbn := c2.Param("isbn")
+	//https://douban_isbn.yihy8023.workers.dev/v2/book/isbn/9787308242936
+	resp, err := http.Get("https://douban_isbn.yihy8023.workers.dev/v2/book/isbn/" + isbn)
+	if err != nil {
+		c2.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		c2.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c2.JSON(http.StatusOK, body)
+}
+
+func (c Api) queryMetadata(c2 *gin.Context) {
+	query := c2.Query("query")
+	//http://192.168.2.236:8085/v2/book/search?q=xxx
+	//url encode
+
+	api, err := client.New(&client.Config{
+		Host:  "192.168.2.236:8085",
+		HTTPS: false,
+	})
+	if err != nil {
+		c2.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	var jsonData map[string]interface{}
+
+	resp, err := api.R().SetResult(&jsonData).SetQueryParam("q", query).Get("/v2/book/search")
+	log.Infof(resp.Request.URL)
+	if err != nil {
+		c2.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c2.JSON(http.StatusOK, resp.Result())
+}
+
+func parseParams(book *Book) map[string]interface{} {
+	///cdb/delete-books/264728/library
+	metadata := map[string]interface{}{}
+	if book.Comments != "" {
+		metadata["comments"] = book.Comments
+	}
+	if book.Isbn != "" {
+		metadata["identifiers"] = map[string]string{"isbn": book.Isbn}
+	}
+	if book.Title != "" {
+		metadata["title"] = book.Title
+	}
+	if book.Publisher != "" {
+		metadata["publisher"] = book.Publisher
+	}
+	//pubdate:"2024-05-01T12:00:00+00:00"
+
+	if !book.Pubdate.IsZero() {
+		metadata["pubdate"] = book.Pubdate.Format("2006-01-02T15:04:05+00:00")
+	}
+	if book.Authors != nil {
+		metadata["authors"] = book.Authors
+	}
+	return metadata
 }

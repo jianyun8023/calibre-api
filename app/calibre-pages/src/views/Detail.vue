@@ -2,60 +2,63 @@
   <el-row class="detail-header">
     <SearchBar/>
   </el-row>
-  <el-row class="detail-header">
-    <el-text class="book-title" v-if="book">{{ book.title }}</el-text>
-    <el-text class="book-id" v-if="book">
-      <strong>ID: </strong> {{ book.id }}
-      <el-button plain @click="copyToClipboard(book.id)">📋</el-button>
-    </el-text>
-  </el-row>
+<!--  <el-row class="detail-header">-->
+<!--    <el-text class="book-title" v-if="book">{{ book.title }}</el-text>-->
+<!--    <el-text class="book-id" v-if="book">-->
+<!--      <strong>ID: </strong> {{ book.id }}-->
+<!--      <el-button plain @click="copyToClipboard(book.id)">📋</el-button>-->
+<!--    </el-text>-->
+<!--  </el-row>-->
   <article class="detail-content">
     <el-row class="detail-row">
-      <el-col :span="8" class="cover-container">
+      <el-col :span="8" class="cover-container" :xs="24">
         <img
             class="book-cover"
             :src="book.cover"
             alt="book cover"
         />
       </el-col>
-<!--      <el-col :span="8">-->
-<!--        <el-image class="book-cover" :src="book.cover" fit="cover"/>-->
-<!--      </el-col>-->
-      <el-col :span="16">
+      <!--      <el-col :span="8">-->
+      <!--        <el-image class="book-cover" :src="book.cover" fit="cover"/>-->
+      <!--      </el-col>-->
+      <el-col :span="16" :xs="24">
         <div class="book-info">
-          <p class="info-item">
-            <strong>Authors:</strong>
-            <el-tag
-                class="tag-spacing"
-                v-for="item in book.authors"
-                :key="item"
-                effect="dark"
-                @click="searchByAuthor(item)"
-            >
-              {{ item }}
-            </el-tag>
-          </p>
-          <p class="info-item">
-            <strong class="font-mono">Publisher:</strong>
-            <span @click="searchByPublisher" class="tag-spacing">{{ book.publisher }}</span>
-          </p>
-          <p class="info-item font-serif">
-            <strong>ISBN:</strong>
-            <span class="tag-spacing">{{ book.isbn }}</span>
-          </p>
-          <p class="info-item font-serif">
-            <strong>Published Date:</strong>
-            <span class="tag-spacing">{{ new Date(book.pubdate).toLocaleDateString() }}</span>
-          </p>
-          <p class="info-item font-serif" v-if="book.tags && book.tags.length">
-            <strong>Tags:</strong>
-            <el-tag v-for="item in book.tags" :key="item" effect="dark" round>
-              {{ item }}
-            </el-tag>
-          </p>
-          <p class="info-item font-serif">
-            <strong>File Size:</strong> {{ formatFileSize(book.size) }}
-          </p>
+          <el-descriptions :title="book.title" column="1" size="large" border>
+            <template #extra>
+              <el-button type="primary" plain @click="dialogSearchVisible = true">
+                更新元数据
+              </el-button>
+            </template>
+            <el-descriptions-item label="ID">
+
+              <el-button text bg @click="copyToClipboard(book.id)">{{ book.id }}📋</el-button>
+            </el-descriptions-item>
+            <el-descriptions-item label="Authors">
+              <el-tag
+                  class="tag-spacing"
+                  v-for="item in book.authors"
+                  :key="item"
+                  effect="dark"
+                  @click="searchByAuthor(item)">
+                {{ item }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="Publisher">
+              <span @click="searchByPublisher" >{{ book.publisher }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="ISBN">{{ book.isbn }}</el-descriptions-item>
+            <el-descriptions-item label="Published Date">
+              <span class="tag-spacing">{{ new Date(book.pubdate).toLocaleDateString() }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item v-if="book.tags && book.tags.length" label="Tags">
+              <el-tag v-for="item in book.tags" :key="item" effect="dark" round>
+                {{ item }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="File Size">
+              {{ formatFileSize(book.size) }}
+            </el-descriptions-item>
+          </el-descriptions>
           <el-row class="book-buttons">
             <el-button
                 type="primary"
@@ -80,33 +83,73 @@
     <el-row>
       <article v-if="book.comments" class="book-comments">
         <h2 class="comments-title">简介</h2>
-        <p class="comments-text">{{ book.comments }}</p>
+        <p class="comments-text" v-html="book.comments"></p>
       </article>
     </el-row>
   </article>
+
+  <el-dialog v-model="dialogSearchVisible" title="搜索元数据" :close-on-click-modal="false"
+             :close-on-press-escape="false" :width="isPhone?'100%':'50%'">
+    <MetadataSearch :book="book" @current-metadata="handleCurrentMeta"/>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="dialogSearchVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleClose">
+          确认
+        </el-button>
+      </div>
+    </template>
+  </el-dialog>
+  <el-dialog v-model="dialogEditVisible" title="更新元数据" :close-on-click-modal="false"
+             :close-on-press-escape="false" :width="isPhone?'100%':'50%'">
+    <MetadataEdit :book="book" :new-book="currentRow" :update-metadata-flag="triggerUpdate"/>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="dialogEditVisible = false">取消</el-button>
+        <el-button type="primary" @click="triggerUpdate = true">更新</el-button>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
 <script>
 import {h} from 'vue'
 import {ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow} from 'element-plus'
 import SearchBar from '@/components/SearchBar.vue'
+import MetadataSearch from "@/components/MetadataSearch.vue";
+import MetadataEdit from "@/components/MetadataEdit.vue";
+
 
 export default {
   name: 'Detail',
-  components: {ElCol, SearchBar, ElRow, ElButton, ElInput, ElNotification, ElMessage},
+  components: {MetadataEdit, MetadataSearch, ElCol, SearchBar, ElRow, ElButton, ElInput, ElNotification, ElMessage},
+  props: {
+    id: {
+      type: String,
+      required: true
+    }
+  },
   data() {
     return {
-      id: '',
-      book: {}
+      book: {},
+      dialogSearchVisible: false,
+      dialogEditVisible: false,
+      formLabelWidth: '140px',
+      currentRow: {},
+      triggerUpdate: false,
+      isPhone: document.documentElement.clientWidth < 993
     }
   },
   created() {
     this.fetchBook(this.$route.params.id)
   },
-  // mounted() {
-  //   console.log('ID:', this.$route.params.id);
-  //   this.fetchBook(this.$route.params.id);
-  // },
+  mounted() {
+    window.addEventListener('resize', () => {
+      this.isPhone = document.documentElement.clientWidth < 993 // 小于993视为平板及手机
+      console.log("isPhone: " + this.isPhone)
+    })
+  },
+
   methods: {
     async fetchBook(id) {
       try {
@@ -155,6 +198,15 @@ export default {
         }
       })
     },
+    handleCurrentMeta(currentMeta) {
+      this.currentRow = currentMeta
+      console.log(this.currentRow)
+    },
+    handleClose() {
+      this.dialogSearchVisible = false
+      console.log(this.currentRow)
+      this.dialogEditVisible = true
+    },
     redirectToHome() {
       this.$router.push('/')
     },
@@ -166,51 +218,27 @@ export default {
       return tags.join(', ')
     },
     async deleteBook(bookId) {
-      const url = `https://lib.pve.icu/cdb/delete-books/${bookId}`
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-        if (response.ok) {
-
-          const response2 = await fetch(`/api/book/${bookId}/delete`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          })
-          if (response2.ok) {
-            ElNotification({
-              title: 'Book deleted successfully',
-              message: this.book.title,
-              type: 'success',
-            })
-          } else {
-            ElNotification({
-              title: '删除书籍成功，但索引删除失败',
-              message: h('i', {style: 'color: red'}, this.book.title),
-              type: 'error',
-            })
-          }
-          this.$router.go(-1)
-          // 这里可以添加其他逻辑，例如刷新页面或更新视图
-        } else {
-          ElNotification({
-            title: 'Failed to delete book',
-            message: h('i', {style: 'color: red'}, this.book.title),
-            type: 'error',
-          })
+      const response = await fetch(`/api/book/${bookId}/delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         }
-      } catch (error) {
+      })
+      if (response.ok) {
         ElNotification({
-          title: 'An error occurred while deleting the book',
-          message: h('i', {style: 'color: red'}, this.book.title + ' Error: ' + error.message),
+          title: 'Book deleted successfully',
+          message: this.book.title,
+          type: 'success',
+        })
+        this.$router.back()
+      } else {
+        ElNotification({
+          title: '删除书籍失败',
+          message: h('i', {style: 'color: red'}, this.book.title),
           type: 'error',
         })
       }
+
     }
   }
 }
@@ -261,6 +289,20 @@ export default {
   height: auto; /* 固定高度 */
 }
 
+@media (max-width: 768px) {
+  .book-cover {
+    width: 60%; /* 手机上宽度60% */
+  }
+  .detail-content {
+    padding: 20px 0;
+  }
+
+  .book-info {
+    padding-top: 30px;
+    padding-left: 30px;
+  }
+}
+
 .book-info {
   padding-left: 20px;
 }
@@ -270,9 +312,7 @@ export default {
 }
 
 .tag-spacing {
-  margin-right: 8px;
-  margin-bottom: 8px;
-  margin-left: 10px;
+  margin-right: 10px;
 }
 
 .delete-button {

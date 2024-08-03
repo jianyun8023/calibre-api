@@ -1,12 +1,19 @@
 <template>
   <div class="flex justify-center mb-8">
-    <el-input
-      v-model="searchQuery"
-      @input="fetchBooks"
-      type="text"
-      placeholder="书名、作者、ISBN"
-      class="w-1/2 px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-    />
+
+    <div class="affix-container">
+      <el-affix target=".affix-container">
+        <el-input
+            v-model="searchQuery"
+            @input="fetchBooks"
+            type="text"
+            placeholder="书名、作者、ISBN"
+            class=""
+        />
+      </el-affix>
+    </div>
+
+
   </div>
   <h2 class="text-xl font-bold mb-4">
     搜索结果：
@@ -30,11 +37,11 @@
 
 <script>
 import BookCard from '@/components/BookCard.vue'
-import { ElButton, ElCol, ElRow } from 'element-plus'
+import {ElButton, ElCol, ElInput, ElRow} from 'element-plus'
 
 export default {
   name: 'Search',
-  components: { ElButton, ElRow, ElCol, BookCard },
+  components: {ElInput, ElButton, ElRow, ElCol, BookCard },
   data() {
     return {
       searchQuery: '',

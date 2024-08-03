@@ -1,9 +1,13 @@
 <template>
-  <el-input v-model="searchQuery" @keyup.enter="redirectToSearch" placeholder="书名、作者、ISBN">
-    <template #append>
-      <el-button @click="redirectToSearch">搜索</el-button>
-    </template>
-  </el-input>
+  <div class="affix-container">
+  <el-affix target=".affix-container">
+    <el-input v-model="searchQuery" @keyup.enter="redirectToSearch" placeholder="书名、作者、ISBN">
+      <template #append>
+        <el-button size="large" @click="redirectToSearch">搜索</el-button>
+      </template>
+    </el-input>
+  </el-affix>
+  </div>
 </template>
 
 <script>
@@ -26,4 +30,6 @@ export default {
   }
 }
 </script>
-<style scoped></style>
+<style scoped>
+
+</style>
