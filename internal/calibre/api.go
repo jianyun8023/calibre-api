@@ -83,7 +83,7 @@ func NewClient(config *Config) Api {
 	if err != nil {
 		log.Fatal(err)
 	}
-	newClient, err := content.NewClient(config.ContentServer)
+	newClient, err := content.NewClient(config.Content.Server)
 	if err != nil {
 		log.Fatal(err)
 	}
