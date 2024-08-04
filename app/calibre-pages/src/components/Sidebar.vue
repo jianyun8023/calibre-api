@@ -17,22 +17,22 @@
       <span>Setting</span>
     </el-menu-item>
   </el-menu>
-   <el-menu class="hidden-md-and-up" default-active="1" @select="handleSelect" :router="true" mode="horizontal" >
+   <el-menu class="hidden-md-and-up" style="width: 100%;" default-active="1" @select="handleSelect" :router="true" mode="horizontal" >
     <el-menu-item index="/">
       <el-icon><House /></el-icon>
-      <span>Home</span>
+<!--      <span>Home</span>-->
     </el-menu-item>
     <el-menu-item index="/books">
       <el-icon><Files /></el-icon>
-      <span>Books</span>
+<!--      <span>Books</span>-->
     </el-menu-item>
     <el-menu-item index="/search">
       <el-icon><Search /></el-icon>
-      <span>Search</span>
+<!--      <span>Search</span>-->
     </el-menu-item>
     <el-menu-item index="/setting">
       <el-icon><Setting /></el-icon>
-      <span>Setting</span>
+<!--      <span>Setting</span>-->
     </el-menu-item>
   </el-menu>
 
