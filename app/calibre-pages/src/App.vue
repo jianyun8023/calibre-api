@@ -38,23 +38,6 @@ export default {
     Sidebar,
     Footer
   },
-  data() {
-    return {
-      isSidebarVisible: true,
-      isPhone: document.documentElement.clientWidth < 993
-    }
-  },
-  mounted() {
-    window.addEventListener('resize', () => {
-      this.isPhone = document.documentElement.clientWidth < 993 // 小于993视为平板及手机
-      console.log("isPhone: " + this.isPhone)
-    })
-  },
-  methods: {
-    toggleSidebar() {
-      this.isSidebarVisible = !this.isSidebarVisible
-    }
-  }
 }
 </script>
 
