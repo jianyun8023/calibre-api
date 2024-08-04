@@ -422,7 +422,7 @@ func (c Api) getDbFileOrCache(flush bool) (string, error) {
 }
 
 func (c Api) updateIndex(c2 *gin.Context) {
-	dbPath, err := c.getDbFileOrCache(false)
+	dbPath, err := c.getDbFileOrCache(true)
 	newDb, _ := NewDb(dbPath)
 	books, _ := newDb.queryAllBooks()
 
