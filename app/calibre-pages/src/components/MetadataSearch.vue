@@ -38,10 +38,6 @@ export default {
   name: 'MetadataSearch',
   components: {ElButton, ElInput},
   props: {
-    formLabelWidth: {
-      type: String,
-      default: '140px'
-    },
     book: {
       type: Object,
       default: () => ({})
