@@ -1,36 +1,34 @@
 <template>
-  <el-container>
-    <el-main>
-      <h2 class="text-xl font-bold mb-4">设置</h2>
-      <el-container class="mt-8 w-full">
-        <el-table :data="settings" style="width: 100%">
-          <el-table-column prop="name" label="Setting" width="180"></el-table-column>
-          <el-table-column prop="description" label="Value"></el-table-column>
-          <el-table-column label="Action" width="180">
-            <template #default="scope">
-              <el-button v-loading="scope.row.loading"
-                         element-loading-background="rgba(122, 122, 122, 0.8)"
-                         type="primary"
-                         size="large"
-                         @click="updateIndex(scope.row)">
-                Update Index
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-container>
-    </el-main>
-  </el-container>
+
+  <el-row :gutter="10">
+    <h2 class="text-xl">设置</h2>
+    <el-table :data="settings" style="width: 100%">
+      <el-table-column prop="name" label="Setting"></el-table-column>
+      <el-table-column prop="description" label="Value"></el-table-column>
+      <el-table-column label="Action">
+        <template #default="scope">
+          <el-button v-loading="scope.row.loading"
+                     element-loading-background="rgba(122, 122, 122, 0.8)"
+                     type="primary"
+                     size="default"
+                     @click="updateIndex(scope.row)">
+            Update Index
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </el-row>
 </template>
 
 <script>
 import {h} from 'vue'
 
-import {ElButton, ElContainer, ElMain, ElNotification, ElTable, ElTableColumn} from 'element-plus'
+import {ElButton, ElContainer, ElMain, ElNotification, ElRow, ElTable, ElTableColumn} from 'element-plus'
 
 export default {
   name: 'Setting',
   components: {
+    ElRow,
     ElContainer,
     ElMain,
     ElTable,
