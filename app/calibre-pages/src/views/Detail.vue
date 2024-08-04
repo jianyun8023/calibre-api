@@ -29,8 +29,15 @@
                 更新元数据
               </el-button>
             </template>
-            <el-descriptions-item label="ID">
-
+            <el-descriptions-item>
+              <template #label>
+                <div class="cell-item">
+                  <el-icon :style="iconStyle">
+                    <Box />
+                  </el-icon>
+                  ID
+                </div>
+              </template>
               <el-button text bg @click="copyToClipboard(book.id)">{{ book.id }}📋</el-button>
             </el-descriptions-item>
             <el-descriptions-item>
@@ -62,7 +69,17 @@
               </template>
               <span @click="searchByPublisher" >{{ book.publisher }}</span>
             </el-descriptions-item>
-            <el-descriptions-item label="ISBN">{{ book.isbn }}</el-descriptions-item>
+            <el-descriptions-item>
+              <template #label>
+                <div class="cell-item">
+                  <el-icon class="el-icon">
+                    <Key />
+                  </el-icon>
+                  ISBN
+                </div>
+              </template>
+              {{ book.isbn }}
+            </el-descriptions-item>
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
@@ -79,7 +96,15 @@
                 {{ item }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="File Size">
+            <el-descriptions-item>
+              <template #label>
+                <div class="cell-item">
+                  <el-icon :style="iconStyle">
+                    <Document />
+                  </el-icon>
+                  File Size
+                </div>
+              </template>
               {{ formatFileSize(book.size) }}
             </el-descriptions-item>
           </el-descriptions>
@@ -159,7 +184,6 @@ export default {
       book: {},
       dialogSearchVisible: false,
       dialogEditVisible: false,
-      formLabelWidth: '140px',
       currentRow: {},
       triggerUpdate: false,
       isPhone: document.documentElement.clientWidth < 993
@@ -307,10 +331,11 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 80px;
 }
 
 .book-cover {
-  width: 50%; /* 固定宽度 */
+  width: 60%; /* 固定宽度 */
   height: auto; /* 固定高度 */
 }
 
@@ -325,6 +350,9 @@ export default {
   .book-info {
     padding-top: 30px;
     padding-left: 30px;
+  }
+  .cover-container {
+    padding-top: 10px;
   }
 }
 
@@ -362,5 +390,19 @@ export default {
   font-size: 1.125rem;
   color: #4a4a4a;
   text-indent: 2em;
+}
+
+.el-descriptions {
+  margin-top: 20px;
+}
+.cell-item {
+  display: flex;
+  align-items: center;
+}
+.el-icon {
+  padding-right: 5px;
+}
+.margin-top {
+  margin-top: 20px;
 }
 </style>
