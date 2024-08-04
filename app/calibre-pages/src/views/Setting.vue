@@ -2,10 +2,10 @@
 
   <el-row :gutter="10">
     <h2 class="text-xl">设置</h2>
-    <el-table :data="settings" style="width: 100%">
+    <el-table :data="settings" style="width: 100%" stripe>
       <el-table-column prop="name" label="Setting"></el-table-column>
       <el-table-column prop="description" label="Value"></el-table-column>
-      <el-table-column label="Action">
+      <el-table-column fixed="right" label="Action">
         <template #default="scope">
           <el-button v-loading="scope.row.loading"
                      element-loading-background="rgba(122, 122, 122, 0.8)"
@@ -40,7 +40,7 @@ export default {
       settings: [
         {
           name: 'Update Index',
-          description: 'Click to update the search index',
+          description: '更新MeiliSearch索引',
           loading: false,
         }
       ],
