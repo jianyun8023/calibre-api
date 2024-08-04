@@ -44,13 +44,12 @@ type BookRaw struct {
 }
 
 type Config struct {
-	Address     string  `mapstructure:"address"`
-	Debug       bool    `mapstructure:"debug"`
-	StaticDir   string  `mapstructure:"static_dir"`
-	TemplateDir string  `mapstructure:"template_dir"`
-	Content     Content `mapstructure:"content"`
-	Search      Search  `mapstructure:"search"`
-	Storage     Storage `mapstructure:"storage"`
+	Address   string  `mapstructure:"address"`
+	Debug     bool    `mapstructure:"debug"`
+	StaticDir string  `mapstructure:"staticDir"`
+	Content   Content `mapstructure:"content"`
+	Search    Search  `mapstructure:"search"`
+	Storage   Storage `mapstructure:"storage"`
 }
 
 type Content struct {

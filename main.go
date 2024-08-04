@@ -21,10 +21,6 @@ func main() {
 	r := gin.Default()
 	setPages(r, conf)
 	calibre.NewClient(conf).SetupRouter(r)
-	//if l, err := lanzou.NewClient(); err == nil {
-	//	l.SetupRouter(r)
-	//}
-	// print router
 	for _, route := range r.Routes() {
 		log.Infof("route: %s %s", route.Method, route.Path)
 	}
@@ -34,26 +30,26 @@ func main() {
 
 func setPages(r *gin.Engine, conf *calibre.Config) {
 	// 配置静态文件目录
-	r.Static("/assets", conf.TemplateDir+"/assets")
+	r.Static("/assets", conf.StaticDir+"/assets")
 
 	// 配置模板目录
 	//r.LoadHTMLGlob(conf.TemplateDir + "/*")
 	r.GET("/", func(c *gin.Context) {
 		//c.HTML(http.StatusOK, "index.html", nil)
-		c.File(conf.TemplateDir + "/index.html")
+		c.File(conf.StaticDir + "/index.html")
 	})
 	r.GET("/index", func(c *gin.Context) {
 		//c.HTML(http.StatusOK, "index.html", nil)
-		c.File(conf.TemplateDir + "/index.html")
+		c.File(conf.StaticDir + "/index.html")
 	})
 	r.GET("/favico.ico", func(c *gin.Context) {
 		//c.HTML(http.StatusOK, "index.html", nil)
-		c.File(conf.TemplateDir + "/favico.ico")
+		c.File(conf.StaticDir + "/favico.ico")
 	})
 
 	// Serve the index.html file for all other routes
 	r.NoRoute(func(c *gin.Context) {
-		c.File(conf.TemplateDir + "/index.html")
+		c.File(conf.StaticDir + "/index.html")
 	})
 
 	//// Serve the settings page
@@ -83,8 +79,7 @@ func initConfig() *calibre.Config {
 	viper.AddConfigPath("$HOME/.calibre-api")
 	viper.AddConfigPath(".")
 	viper.SetDefault("address", ":8080")
-	viper.SetDefault("static_dir", "./pages/static")
-	viper.SetDefault("template_dir", "./pages/templates")
+	viper.SetDefault("staticDir", "./static")
 	viper.SetEnvPrefix("CALIBRE")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()

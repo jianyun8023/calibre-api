@@ -33,7 +33,15 @@
 
               <el-button text bg @click="copyToClipboard(book.id)">{{ book.id }}📋</el-button>
             </el-descriptions-item>
-            <el-descriptions-item label="Authors">
+            <el-descriptions-item>
+              <template #label>
+                <div class="cell-item">
+                  <el-icon :style="iconStyle">
+                    <user />
+                  </el-icon>
+                  Authors
+                </div>
+              </template>
               <el-tag
                   class="tag-spacing"
                   v-for="item in book.authors"
@@ -43,11 +51,27 @@
                 {{ item }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="Publisher">
+            <el-descriptions-item>
+              <template #label>
+                <div class="cell-item">
+                  <el-icon :style="iconStyle">
+                    <Discount />
+                  </el-icon>
+                  Publisher
+                </div>
+              </template>
               <span @click="searchByPublisher" >{{ book.publisher }}</span>
             </el-descriptions-item>
             <el-descriptions-item label="ISBN">{{ book.isbn }}</el-descriptions-item>
-            <el-descriptions-item label="Published Date">
+            <el-descriptions-item>
+              <template #label>
+                <div class="cell-item">
+                  <el-icon :style="iconStyle">
+                    <Timer />
+                  </el-icon>
+                  Published Date
+                </div>
+              </template>
               <span class="tag-spacing">{{ new Date(book.pubdate).toLocaleDateString() }}</span>
             </el-descriptions-item>
             <el-descriptions-item v-if="book.tags && book.tags.length" label="Tags">
@@ -61,8 +85,9 @@
           </el-descriptions>
           <el-row class="book-buttons">
             <el-button
-                type="primary"
+                color="#626aef"
                 :xs="24"
+                :icon="Download"
                 plain
                 :disabled="!book.file_path"
                 @click="redirectToDownload(book.file_path)"
@@ -72,7 +97,7 @@
             </el-button>
             <el-popconfirm title="确定删除?" @confirm="deleteBook(book.id)">
               <template #reference>
-                <el-button :xs="24" class="delete-button">删除书籍</el-button>
+                <el-button :icon="Delete" :xs="24" class="delete-button">删除书籍</el-button>
               </template>
             </el-popconfirm>
           </el-row>
