@@ -2,13 +2,6 @@
   <el-row class="detail-header">
     <SearchBar/>
   </el-row>
-<!--  <el-row class="detail-header">-->
-<!--    <el-text class="book-title" v-if="book">{{ book.title }}</el-text>-->
-<!--    <el-text class="book-id" v-if="book">-->
-<!--      <strong>ID: </strong> {{ book.id }}-->
-<!--      <el-button plain @click="copyToClipboard(book.id)">📋</el-button>-->
-<!--    </el-text>-->
-<!--  </el-row>-->
   <article class="detail-content">
     <el-row class="detail-row">
       <el-col :span="8" class="cover-container" :xs="24">
@@ -25,7 +18,7 @@
         <div class="book-info">
           <el-descriptions :title="book.title" column="1" size="large" border>
             <template #extra>
-              <el-button type="primary" plain @click="dialogSearchVisible = true">
+              <el-button type="primary" plain @click="dialogSearchVisible = true" :icon="Edit">
                 更新元数据
               </el-button>
             </template>
@@ -33,7 +26,7 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon :style="iconStyle">
-                    <Box />
+                    <Box/>
                   </el-icon>
                   ID
                 </div>
@@ -44,7 +37,7 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon :style="iconStyle">
-                    <user />
+                    <user/>
                   </el-icon>
                   Authors
                 </div>
@@ -62,18 +55,18 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon :style="iconStyle">
-                    <Discount />
+                    <Discount/>
                   </el-icon>
                   Publisher
                 </div>
               </template>
-              <span @click="searchByPublisher" >{{ book.publisher }}</span>
+              <span @click="searchByPublisher">{{ book.publisher }}</span>
             </el-descriptions-item>
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
                   <el-icon class="el-icon">
-                    <Key />
+                    <Key/>
                   </el-icon>
                   ISBN
                 </div>
@@ -84,14 +77,22 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon :style="iconStyle">
-                    <Timer />
+                    <Timer/>
                   </el-icon>
                   Published Date
                 </div>
               </template>
               <span class="tag-spacing">{{ new Date(book.pubdate).toLocaleDateString() }}</span>
             </el-descriptions-item>
-            <el-descriptions-item v-if="book.tags && book.tags.length" label="Tags">
+            <el-descriptions-item v-if="book.tags && book.tags.length">
+              <template #label>
+                <div class="cell-item">
+                  <el-icon :style="iconStyle">
+                    <CollectionTag />
+                  </el-icon>
+                  Tags
+                </div>
+              </template>
               <el-tag v-for="item in book.tags" :key="item" effect="dark" round>
                 {{ item }}
               </el-tag>
@@ -100,7 +101,7 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon :style="iconStyle">
-                    <Document />
+                    <Document/>
                   </el-icon>
                   File Size
                 </div>
@@ -108,6 +109,18 @@
               {{ formatFileSize(book.size) }}
             </el-descriptions-item>
           </el-descriptions>
+          <el-row class="book-buttons">
+            <el-button
+                color="#626aef"
+                :xs="24"
+                :icon="Menu"
+                plain
+                @click="showBookMenu"
+
+            >
+              预览目录
+            </el-button>
+          </el-row>
           <el-row class="book-buttons">
             <el-button
                 color="#626aef"
@@ -160,6 +173,24 @@
       </div>
     </template>
   </el-dialog>
+
+  <el-dialog v-model="dialogMenuVisible" title="查看目录" :close-on-click-modal="false"
+             :close-on-press-escape="false" :width="isPhone?'100%':'50%'">
+
+    <el-row class="margin-top">
+      <el-tree
+          style="max-width: 600px"
+          :data="bookMenu"
+          :props="defaultProps"
+          @node-click="handleNodeClick"
+      />
+    </el-row>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="dialogMenuVisible = false">OK</el-button>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
 <script>
@@ -168,10 +199,29 @@ import {ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow} from 'elemen
 import SearchBar from '@/components/SearchBar.vue'
 import MetadataSearch from "@/components/MetadataSearch.vue";
 import MetadataEdit from "@/components/MetadataEdit.vue";
+import {Delete, Download, Edit, Menu} from "@element-plus/icons-vue";
 
+// interface Tree {
+//   label: string
+//   children?: Tree[]
+// }
 
 export default {
   name: 'Detail',
+  computed: {
+    Edit() {
+      return Edit
+    },
+    Delete() {
+      return Delete
+    },
+    Download() {
+      return Download
+    },
+    Menu() {
+      return Menu
+    }
+  },
   components: {MetadataEdit, MetadataSearch, ElCol, SearchBar, ElRow, ElButton, ElInput, ElNotification, ElMessage},
   props: {
     id: {
@@ -182,8 +232,14 @@ export default {
   data() {
     return {
       book: {},
+      bookMenu: {},
+      defaultProps: {
+        children: 'points',
+        label: 'text',
+      },
       dialogSearchVisible: false,
       dialogEditVisible: false,
+      dialogMenuVisible: false,
       currentRow: {},
       triggerUpdate: false,
       isPhone: document.documentElement.clientWidth < 993
@@ -212,6 +268,34 @@ export default {
     formatFileSize(size) {
       if (size < 1024 * 1024) return (size / 1024).toFixed(2) + ' KB'
       return (size / 1024 / 1024).toFixed(2) + ' MB'
+    },
+
+    async showBookMenu() {
+
+      this.dialogMenuVisible = true
+
+      try {
+        const response = await fetch(`/api/read/${this.book.id}/toc`)
+        if (!response.ok) throw new Error('Network response was not ok')
+        const data = await response.json()
+        this.bookMenu = data.points
+        if (!data.points){
+          ElNotification({
+            title: 'ID copied ' + text,
+            message:  'ID copied to clipboard',
+            type: 'warning',
+          })
+          this.dialogMenuVisible = false
+        }
+        console.log(data.points)
+
+      } catch (error) {
+        console.error('There was a problem with the fetch operation:', error)
+      }
+    },
+
+    handleNodeClick(data) {
+      console.log(data)
     },
     copyToClipboard(text) {
       navigator.clipboard
@@ -343,6 +427,7 @@ export default {
   .book-cover {
     width: 60%; /* 手机上宽度60% */
   }
+
   .detail-content {
     padding: 20px 0;
   }
@@ -351,6 +436,7 @@ export default {
     padding-top: 30px;
     padding-left: 30px;
   }
+
   .cover-container {
     padding-top: 10px;
   }
@@ -395,13 +481,16 @@ export default {
 .el-descriptions {
   margin-top: 20px;
 }
+
 .cell-item {
   display: flex;
   align-items: center;
 }
+
 .el-icon {
   padding-right: 5px;
 }
+
 .margin-top {
   margin-top: 20px;
 }
