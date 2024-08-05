@@ -1,24 +1,27 @@
 # Calibre-Api
 
-基于meilisearch搭建的calibre书籍搜索、下载、预览
-文件存储支持webdav、local、s3
+基于 MeiliSearch 搭建的 calibre 书籍搜索、下载、预览
+数据来源 Calibre Content Server
 
-## TODO
-- 使用 [bleve](https://github.com/blevesearch/bleve) 替换掉 meilisearch 搜索，降低依赖
-- ~支持直接读取calibre db数据~
-- ~支持EPUB虚拟路径~
+## 特性
+- 使用 Calibre Content Server 作为数据来源
+- MeiliSearch 增强查询响应速度
+- 支持书籍元数据读取
+- 支持下载、编辑元数据、删除书籍
+- 支持在线搜索元数据
+
 
 ## 接口
 
 ```text
-GET    /get/cover/:id            --> 获取书籍封面
-GET    /get/book/:id             --> 下载书籍文件
-GET    /read/:id/toc             --> 获取书籍目录（包含元信息、目录和地址）
-GET    /read/:id/file/*path      --> 读取书籍中的文件
-GET    /book/:id                 --> 获取书籍信息
-GET    /search                   --> 搜索书籍(参数q 搜索词，更多参数参考[meilisearch search](https://docs.meilisearch.com/reference/api/search.html))
-POST   /search                   --> 搜索书籍(参数q 搜索词，更多参数参考[meilisearch search](https://docs.meilisearch.com/reference/api/search.html))
-POST   /index/update             --> 读取calibre数据库更新索引
+GET    /api/get/cover/:id            --> 获取书籍封面
+GET    /api/get/book/:id             --> 下载书籍文件
+GET    /api/read/:id/toc             --> 获取书籍目录（包含元信息、目录和地址）
+GET    /api/read/:id/file/*path      --> 读取书籍中的文件
+GET    /api/book/:id                 --> 获取书籍信息
+GET    /api/search                   --> 搜索书籍(参数q 搜索词，更多参数参考[meilisearch search](https://docs.meilisearch.com/reference/api/search.html))
+POST   /api/search                   --> 搜索书籍(参数q 搜索词，更多参数参考[meilisearch search](https://docs.meilisearch.com/reference/api/search.html))
+POST   /api/index/update             --> 更新索引
 ```
 
 ## 数据导入
