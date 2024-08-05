@@ -80,6 +80,7 @@ func initConfig() *calibre.Config {
 	viper.AddConfigPath(".")
 	viper.SetDefault("address", ":8080")
 	viper.SetDefault("staticDir", "./static")
+	viper.SetDefault("tmpDir", "./static")
 	viper.SetEnvPrefix("CALIBRE")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()

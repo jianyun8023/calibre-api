@@ -1,17 +1,10 @@
 address: :8080
 debug: false
-static_dir: "./pages/static"
-template_dir: "./pages/templates"
+staticDir: "/app/static"
+tmpDir: ".files"
+content:
+  server: https://lib.pve.icu
 search:
   host: http://127.0.0.1:7700
   apikey:
   index: books
-  trimPath: /data/book/calibre/library
-storage:
-  use: webdav
-  tmpdir: ".files"
-  webdav:
-    host: http://xxxxxx
-    user: xxxxx
-    password: "xxxxxxxxxxxxx"
-    path: /book/calibre/library

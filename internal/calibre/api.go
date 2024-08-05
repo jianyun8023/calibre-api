@@ -1,7 +1,6 @@
 package calibre
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -18,7 +17,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Api struct {
@@ -26,7 +24,6 @@ type Api struct {
 	contentApi *content.Api
 	client     *meilisearch.Client
 	bookIndex  *meilisearch.Index
-	fileClient FileClient
 	baseDir    string
 }
 
@@ -55,25 +52,11 @@ func NewClient(config *Config) Api {
 		APIKey: config.Search.APIKey,
 	})
 
-	baseDir := config.Storage.TmpDir
+	baseDir := config.TmpDir
 	if !Exists(baseDir) {
 		os.MkdirAll(baseDir, fs.ModePerm)
 	}
-	var fileClient FileClient
-	switch config.Storage.Use {
-	case "webdav":
-		fileClient = NewWebDavClient(config.Storage.Webdav)
-	case "local":
-		fileClient = NewLocalClient(config.Storage.Local)
-	case "minio":
-		t, err := NewMinioClient(config.Storage.Minio, context.Background())
-		fileClient = t
-		if err != nil {
-			log.Fatal(err)
-		}
-	default:
-		log.Fatal(fmt.Errorf("不支持的存储类型 %q", config.Storage.Use))
-	}
+
 	//index := client.Index(config.Search.Index)
 	index, err := ensureIndexExists(client, config.Search.Index)
 	if err != nil {
@@ -91,8 +74,7 @@ func NewClient(config *Config) Api {
 		config:     config,
 		client:     client,
 		bookIndex:  index,
-		fileClient: fileClient,
-		baseDir:    config.Storage.TmpDir,
+		baseDir:    config.TmpDir,
 		contentApi: &newClient,
 	}
 }
@@ -172,9 +154,6 @@ func (c Api) search(r *gin.Context) {
 			fmt.Println(err)
 			return
 		}
-		id := book.ID
-		book.Cover = "/api/get/cover/" + strconv.FormatInt(id, 10) + ".jpg"
-		book.FilePath = "/api/get/book/" + strconv.FormatInt(id, 10) + ".epub"
 		books[i] = book
 	}
 
@@ -202,8 +181,6 @@ func (c Api) getBook(r *gin.Context) {
 		r.JSON(http.StatusNotFound, "book not found")
 		return
 	}
-	book.Cover = "/api/get/cover/" + id + ".jpg"
-	book.FilePath = "/api/get/book/" + id + ".epub"
 	r.JSON(http.StatusOK, book)
 
 }
@@ -227,38 +204,30 @@ func (c Api) deleteBook(r *gin.Context) {
 
 func (c Api) getBookToc(r *gin.Context) {
 	id := strings.TrimSuffix(r.Param("id"), ".epub")
-	var book Book
-	err := c.bookIndex.GetDocument(id, nil, &book)
-	if err != nil {
-		r.JSON(http.StatusInternalServerError, err)
-	} else {
-		filepath, _ := c.getFileOrCache(book.FilePath, id)
-		book, _ := epub.Open(filepath)
-		points := c.expansionTree(book.Ncx.Points)
-		var p []epub.NavPoint
-		for i := range points {
-			point := points[i]
-			p = append(p, epub.NavPoint{
-				Text: point.Text,
-				Content: epub.Content{
-					Src: path.Join("/read/"+id+"/file", path.Dir(book.Container.Rootfile.Path), point.Content.Src),
-				},
-			})
-		}
 
-		defer book.Close()
-
-		r.JSON(http.StatusOK, gin.H{
-			"points":   p,
-			"metadata": book.Opf.Metadata,
-			"manifest": book.Opf.Manifest,
-			"baseDir":  path.Dir(book.Container.Rootfile.Path),
+	filepath, _ := c.getFileOrCache(id)
+	book, _ := epub.Open(filepath)
+	points := c.expansionTree(book.Ncx.Points)
+	var p []epub.NavPoint
+	for i := range points {
+		point := points[i]
+		p = append(p, epub.NavPoint{
+			Text: point.Text,
+			Content: epub.Content{
+				Src: path.Join("/read/"+id+"/file", path.Dir(book.Container.Rootfile.Path), point.Content.Src),
+			},
 		})
 	}
-}
 
-func (c Api) fixPath(s string) string {
-	return strings.TrimPrefix(s, c.config.Search.TrimPath)
+	defer book.Close()
+
+	r.JSON(http.StatusOK, gin.H{
+		"points":   p,
+		"metadata": book.Opf.Metadata,
+		"manifest": book.Opf.Manifest,
+		"baseDir":  path.Dir(book.Container.Rootfile.Path),
+	})
+
 }
 
 func (c Api) expansionTree(ori []epub.NavPoint) []epub.NavPoint {
@@ -283,7 +252,7 @@ func (c Api) getBookContent(r *gin.Context) {
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, err)
 	} else {
-		filepath, _ := c.getFileOrCache(book.FilePath, id)
+		filepath, _ := c.getFileOrCache(id)
 
 		destDir := path.Join(c.baseDir, id)
 
@@ -307,23 +276,9 @@ func (c Api) getBookContent(r *gin.Context) {
 	}
 }
 
-func (c Api) getFile(filepath string) (os.FileInfo, io.ReadCloser, error) {
-	targetPath := path.Join(c.config.Storage.Webdav.Path, filepath)
-	info, err := c.fileClient.Stat(targetPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	reader, err := c.fileClient.ReadStream(targetPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	return info, reader, nil
-}
-
-func (c Api) stat(filepath string) (os.FileInfo, error) {
-	targetPath := path.Join(c.config.Storage.Webdav.Path, filepath)
-	info, err := c.fileClient.Stat(targetPath)
-	return info, err
+func (c Api) getFile(id string) (int64, io.ReadCloser, error) {
+	size, reader, err := c.contentApi.GetBook(id, "library")
+	return size, reader, err
 }
 
 func (c Api) getBookFile(r *gin.Context) {
@@ -356,17 +311,17 @@ func (c Api) getCover(r *gin.Context) {
 	r.DataFromReader(http.StatusOK, size, "image/jpeg", reader, nil)
 }
 
-func (c Api) getFileOrCache(filepath string, id string) (string, error) {
+func (c Api) getFileOrCache(id string) (string, error) {
 	filename := path.Join(c.baseDir, id+".epub")
 	_, err := os.Stat(filename)
 	if Exists(filename) {
 		return filename, nil
 	}
-	_, closer, err := c.getFile(filepath)
+	_, closer, err := c.getFile(id)
 	if err != nil {
 		return "", err
 	}
-	b, err := ioutil.ReadAll(closer)
+	b, err := io.ReadAll(closer)
 	if err != nil {
 		return "", err
 	}
@@ -382,66 +337,46 @@ func (c Api) getFileOrCache(filepath string, id string) (string, error) {
 	return filename, err
 }
 
-func (c Api) getDbFileOrCache(flush bool) (string, error) {
-	filename := path.Join(c.baseDir, "metadata.db")
-	info, err := os.Stat(filename)
-	remoteInfo, err := c.stat("metadata.db")
-	if err != nil {
-		return "", err
-	}
-
-	if !flush || Exists(filename) {
-		log.Info("cached metadata.db")
-		log.Infof("local file size: %d, remote file size: %d", info.Size(), remoteInfo.Size())
-		log.Infof("local file time: %d, remote file time: %d", info.ModTime().Unix(), remoteInfo.ModTime().Unix())
-		if info.ModTime().Unix() == remoteInfo.ModTime().Unix() && info.Size() == remoteInfo.Size() {
-			return filename, nil
-		} else {
-			log.Info("remove cached metadata.db")
-			_ = os.Remove(filename)
-		}
-	}
-	_, closer, err := c.getFile("metadata.db")
-	if err != nil {
-		return "", err
-	}
-	b, err := io.ReadAll(closer)
-	if err != nil {
-		return "", err
-	}
-	defer closer.Close()
-
-	f, err := os.Create(filename)
-	defer f.Close()
-	if err != nil {
-		fmt.Println(err.Error())
-	} else {
-		_, err = f.Write(b)
-	}
-	return filename, err
-}
-
 func (c Api) updateIndex(c2 *gin.Context) {
-	dbPath, err := c.getDbFileOrCache(true)
-	newDb, _ := NewDb(dbPath)
-	books, _ := newDb.queryAllBooks()
+	booksIds, err2 := c.contentApi.GetAllBooksIds()
+	if err2 != nil {
+		c2.JSON(http.StatusInternalServerError, err2)
+		return
+	}
 
 	index := c.client.Index(c.config.Search.Index + "-bak")
-	_, err = index.DeleteAllDocuments()
+	_, err := index.DeleteAllDocuments()
 	if err != nil {
 		log.Warn(err)
-		c2.JSON(http.StatusInternalServerError, err)
+		c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
 		return
 	}
 
-	_, err = index.UpdateDocumentsInBatches(*books, 1000)
-	if err != nil {
-		log.Warn(err)
-		c2.JSON(http.StatusInternalServerError, err)
-		return
+	// 按 2000 分段 booksIds,查询书籍，更新索引
+	var books []Book
+	for i := 0; i < len(booksIds); i += 2000 {
+		ids := booksIds[i:min(i+2000, len(booksIds))]
+		log.Infof("update index %d [%d - %d]", i, ids[0], ids[len(ids)-1])
+
+		data, err := c.contentApi.GetBookMetaDatas(ids, "")
+		if err != nil {
+			log.Warnf("get book metadata error: %v", err)
+			c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+			return
+		}
+		books, err = convertContentBooks(data)
+		if err != nil {
+			c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+			return
+		}
+		_, err = index.UpdateDocumentsInBatches(books, len(ids))
+		if err != nil {
+			c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+			return
+		}
 	}
 
-	_, err = c.client.SwapIndexes(
+	_, _ = c.client.SwapIndexes(
 		[]meilisearch.SwapIndexesParams{
 			{
 				Indexes: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
@@ -451,7 +386,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 	c2.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
-		"data":    len(*books),
+		"data":    len(booksIds),
 	})
 }
 
@@ -493,9 +428,6 @@ func (c Api) recently(r *gin.Context) {
 			r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		id := book.ID
-		book.Cover = "/api/get/cover/" + strconv.FormatInt(id, 10) + ".jpg"
-		book.FilePath = "/api/get/book/" + strconv.FormatInt(id, 10) + ".epub"
 		books[i] = book
 	}
 
@@ -517,7 +449,18 @@ func (c Api) updateMetadata(r *gin.Context) {
 	book := &Book{}
 	err := r.Bind(book)
 
-	data, err := c.contentApi.UpdateMetaData(id, parseParams(book), "")
+	oldBook := &Book{}
+	err = c.bookIndex.GetDocument(id, nil, oldBook)
+	if err != nil {
+		r.JSON(http.StatusNotFound, gin.H{
+			"code":  500,
+			"error": err.Error(),
+			"msg":   "元数据更新失败",
+		})
+		return
+	}
+
+	data, err := c.contentApi.UpdateMetaData(id, parseParams(book, oldBook), "")
 	if err != nil {
 		r.JSON(http.StatusNotFound, gin.H{
 			"code":  500,
@@ -553,24 +496,38 @@ func (c Api) updateMetadata(r *gin.Context) {
 	})
 }
 
+func convertContentBooks(content []content.Book) ([]Book, error) {
+	var books []Book
+	for _, c := range content {
+		book := Book{
+			// Map fields from Content to Book
+			AuthorSort:   c.AuthorSort,
+			Authors:      c.Authors,
+			Comments:     c.Comments,
+			ID:           c.ID,
+			Isbn:         c.Isbn,
+			Languages:    c.Languages,
+			LastModified: c.LastModified,
+			PubDate:      c.PubDate,
+			Publisher:    c.Publisher,
+			SeriesIndex:  c.SeriesIndex,
+			Size:         c.Size,
+			Title:        c.Title,
+			Tags:         c.Tags,
+			Rating:       c.Rating,
+			Identifiers:  c.Identifiers,
+			Cover:        "/api/get/cover/" + strconv.FormatInt(c.ID, 10) + ".jpg",
+			FilePath:     "/api/get/book/" + strconv.FormatInt(c.ID, 10) + ".epub",
+		}
+		books = append(books, book)
+	}
+	return books, nil
+}
+
 func convertContentToBooks(content map[string]content.Content) ([]Book, error) {
 	var books []Book
 	for id, c := range content {
 		i, err := strconv.ParseInt(id, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-
-		// 2023-12-31T16:00:00+00:00 to time.Time
-		//c.LastModified
-		//c.Pubdate
-
-		lastModified, err := time.Parse(time.RFC3339, c.LastModified)
-		if err != nil {
-			return nil, err
-		}
-
-		pubdate, err := time.Parse(time.RFC3339, c.Pubdate)
 		if err != nil {
 			return nil, err
 		}
@@ -583,12 +540,16 @@ func convertContentToBooks(content map[string]content.Content) ([]Book, error) {
 			ID:           i,
 			Isbn:         c.Isbn,
 			Languages:    c.Languages,
-			LastModified: lastModified,
-			Pubdate:      pubdate,
+			LastModified: c.LastModified,
+			PubDate:      c.PubDate,
 			Publisher:    c.Publisher,
 			SeriesIndex:  c.SeriesIndex,
 			Size:         c.Size,
 			Title:        c.Title,
+			//Tags: c,
+			Identifiers: c.Identifiers,
+			Cover:       "/api/get/cover/" + strconv.FormatInt(i, 10) + ".jpg",
+			FilePath:    "/api/get/book/" + strconv.FormatInt(i, 10) + ".epub",
 		}
 		books = append(books, book)
 	}
@@ -637,14 +598,16 @@ func (c Api) queryMetadata(c2 *gin.Context) {
 	c2.JSON(http.StatusOK, resp.Result())
 }
 
-func parseParams(book *Book) map[string]interface{} {
+func parseParams(book *Book, oldBook *Book) map[string]interface{} {
 	///cdb/delete-books/264728/library
 	metadata := map[string]interface{}{}
 	if book.Comments != "" {
 		metadata["comments"] = book.Comments
 	}
 	if book.Isbn != "" {
-		metadata["identifiers"] = map[string]string{"isbn": book.Isbn}
+		identifiers := oldBook.Identifiers
+		identifiers["isbn"] = book.Isbn
+		metadata["identifiers"] = identifiers
 	}
 	if book.Title != "" {
 		metadata["title"] = book.Title
@@ -654,8 +617,8 @@ func parseParams(book *Book) map[string]interface{} {
 	}
 	//pubdate:"2024-05-01T12:00:00+00:00"
 
-	if !book.Pubdate.IsZero() {
-		metadata["pubdate"] = book.Pubdate.Format("2006-01-02T15:04:05+00:00")
+	if !book.PubDate.IsZero() {
+		metadata["pubdate"] = book.PubDate.Format("2006-01-02T15:04:05+00:00")
 	}
 	if book.Authors != nil {
 		metadata["authors"] = book.Authors
