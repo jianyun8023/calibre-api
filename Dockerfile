@@ -28,7 +28,7 @@ ENV CALIBRE_STATIC_DIR=/app/static
 
 WORKDIR /app
 COPY --from=build /calibre-api ./calibre-api
-COPY config.yaml ./config-example.yaml
+COPY config.yaml ./config.yaml
 
 COPY --from=app /app/dist/ /app/static
 

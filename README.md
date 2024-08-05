@@ -91,36 +91,14 @@ curl -X "POST" "http://localhost:8080/index/update" -H 'Content-Type: applicatio
 ```yaml
 address: :8080
 debug: false
+staticDir: "/app/static"
+tmpDir: ".files"
+content:
+  server: https://lib.pve.icu
 search:
   host: http://127.0.0.1:7700
   apikey:
   index: books
-  trimPath: /data/book/calibre/library
-storage:
-  ## 选择文件存储的位置 webdav\local\minio
-  use: webdav
-  tmpdir: ".files"
-  ## webdav配置
-  webdav:
-    host: http://xxxxxx:2344
-    user: xxxxx
-    password: "xxxxxxxxxxxxx"
-    path: /book/calibre/library
-  ## 本地路径
-  local:
-    path: /book/calibre/library
-  ## minio s3或者s3兼容存储
-  minio:
-    endpoint: xxx
-    accessKeyID: xxx
-    secretAccessKey: xxxx
-    useSSL: true
-    bucketName: bucket
-    path: /book/calibre/library
-
-
-
-
 ```
 
 ### 环境变量
@@ -130,24 +108,13 @@ storage:
 ```text
 CALIBRE_ADDRESS
 CALIBRE_DEBUG
-CALIBRE_STATIC_DIR
-CALIBRE_TEMPLATE_DIR
+CALIBRE_STATICDIR
+CALIBRE_TMP_DIR
 
 ## search
 CALIBRE_SEARCH_HOST
 CALIBRE_SEARCH_APIKEY
 CALIBRE_SEARCH_INDEX
-CALIBRE_SEARCH_TRIMPATH
-
-## storage
-CALIBRE_STORAGE_USE
-CALIBRE_STORAGE_TMPDIR
-
-## webdav
-CALIBRE_STORAGE_WEBDAV_HOST
-CALIBRE_STORAGE_WEBDAV_USER
-CALIBRE_STORAGE_WEBDAV_PASSWORD
-CALIBRE_STORAGE_WEBDAV_PATH
 ```
 
 ## 适配阅读书源

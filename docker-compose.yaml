@@ -1,25 +1,22 @@
 services:
   # main service
   calibre-api:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
     restart: unless-stopped
     container_name: calibre-api
     image: ghcr.io/jianyun8023/calibre-api:latest
-    volumes:
-      - /book/calibre/library:/book/calibre/library
     ports:
       - "8080:8080"
     environment:
       - TZ=Asia/Shanghai
       - CALIBRE_DEBUG=true
-      - CALIBRE_STATIC_DIR=/app/static
-      - CALIBRE_TEMPLATE_DIR=/app/templates
+      - CALIBRE_CONTENT_SERVER=https://lib.pve.icu
       - CALIBRE_SEARCH_HOST=http://meilisearch:7700
       #- CALIBRE_SEARCH_APIKEY=
       - CALIBRE_SEARCH_INDEX=books
-      - CALIBRE_SEARCH_TRIMPATH=/data/calibre/library
-      - CALIBRE_STORAGE_USE=local
-      - CALIBRE_STORAGE_TMPDIR=/tmp
-      - CALIBRE_STORAGE_LOCAL_PATH=/book/calibre/library
+      - CALIBRE_TMPDIR=/tmp
     depends_on:
       - meilisearch
   meilisearch:
@@ -27,7 +24,8 @@ services:
     container_name: meilisearch
     image: getmeili/meilisearch:v1.9
     volumes:
-      - ./meili_data:/meili_data
+      - meili_data:/meili_data
     ports:
       - "7700:7700"
-
+volumes:
+  meili_data:
