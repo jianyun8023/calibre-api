@@ -221,6 +221,7 @@ export default {
             type: 'error',
           })
           this.loading = false
+          this.updateMetadataFlag = false
         }
       } catch (e) {
         ElNotification({
@@ -229,6 +230,7 @@ export default {
           type: 'error',
         })
         this.loading = false
+        this.updateMetadataFlag = false
       }
 
 
