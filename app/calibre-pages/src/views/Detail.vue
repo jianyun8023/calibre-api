@@ -177,7 +177,7 @@
   <el-dialog v-model="dialogMenuVisible" title="查看目录" :close-on-click-modal="false"
              :close-on-press-escape="false" :width="isPhone?'100%':'50%'">
 
-    <el-row class="margin-top">
+    <el-row class="margin-top" v-loading="menuLoding">
       <el-tree
           style="max-width: 600px"
           :data="bookMenu"
@@ -233,6 +233,7 @@ export default {
     return {
       book: {},
       bookMenu: {},
+      menuLoding: false,
       defaultProps: {
         children: 'points',
         label: 'text',
@@ -274,11 +275,13 @@ export default {
 
       this.dialogMenuVisible = true
 
+      this.menuLoding = true
       try {
         const response = await fetch(`/api/read/${this.book.id}/toc`)
         if (!response.ok) throw new Error('Network response was not ok')
         const data = await response.json()
         this.bookMenu = data.points
+        this.menuLoding = false
         if (!data.points){
           ElNotification({
             title: 'ID copied ' + text,
@@ -290,6 +293,7 @@ export default {
         console.log(data.points)
 
       } catch (error) {
+        this.menuLoding = false
         console.error('There was a problem with the fetch operation:', error)
       }
     },
