@@ -82,7 +82,7 @@
             text-color="#ff9900"
             :max="5"
             allow-half
-            :score-template="`${form.rating/2}分`">
+            :score-template="`${form.rating}分`">
         </el-rate>
       </el-col>
       <el-col :span="6">

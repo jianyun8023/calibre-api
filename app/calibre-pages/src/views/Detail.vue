@@ -98,7 +98,7 @@
                   text-color="#ff9900"
                   :max="5"
                   allow-half
-                  :score-template="`${book.rating/2}分`">
+                  :score-template="`${book.rating}分`">
               </el-rate>
             </el-descriptions-item>
             <el-descriptions-item v-if="book.tags && book.tags.length">
