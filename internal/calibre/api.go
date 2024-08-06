@@ -26,12 +26,14 @@ type Api struct {
 	client     *meilisearch.Client
 	bookIndex  *meilisearch.Index
 	baseDir    string
+	http       *client.Client
 }
 
 func (c Api) SetupRouter(r *gin.Engine) {
 
 	base := r.Group("/api")
 	base.GET("/get/cover/:id", c.getCover)
+	base.GET("/proxy/cover/*path", c.proxyCover)
 	base.GET("/get/book/:id", c.getBookFile)
 	base.GET("/read/:id/toc", c.getBookToc)
 	base.GET("/read/:id/file/*path", c.getBookContent)
@@ -77,6 +79,7 @@ func NewClient(config *Config) Api {
 		bookIndex:  index,
 		baseDir:    config.TmpDir,
 		contentApi: &newClient,
+		http:       newClient.Client,
 	}
 }
 
@@ -587,26 +590,33 @@ func (c Api) getIsbn(c2 *gin.Context) {
 
 func (c Api) queryMetadata(c2 *gin.Context) {
 	query := c2.Query("query")
-	//http://192.168.2.236:8085/v2/book/search?q=xxx
 	//url encode
-
-	api, err := client.New(&client.Config{
-		Host:  "192.168.2.236:8085",
-		HTTPS: false,
-	})
-	if err != nil {
-		c2.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
 	var jsonData map[string]interface{}
-
-	resp, err := api.R().SetResult(&jsonData).SetQueryParam("q", query).Get("/v2/book/search")
+	resp, err := c.http.R().SetResult(&jsonData).SetQueryParam("q", query).Get(c.config.Metadata.DoubanUrl + "/v2/book/search")
 	log.Infof(resp.Request.URL)
 	if err != nil {
 		c2.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c2.JSON(http.StatusOK, resp.Result())
+}
+
+func (c Api) proxyCover(r *gin.Context) {
+	path := strings.TrimPrefix(r.Param("path"), "/")
+	log.Infof("proxy cover: %s", path)
+	response, err := c.http.R().SetDoNotParseResponse(true).
+		SetHeader("Content-Type", "image/jpeg").
+		SetQueryParamsFromValues(r.Request.URL.Query()).
+		Get(path)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	resp := response.RawResponse
+	length := resp.ContentLength
+	reader := resp.Body
+	defer reader.Close()
+	r.DataFromReader(http.StatusOK, length, "image/jpeg", reader, nil)
 }
 
 func parseParams(book *Book, oldBook *Book) map[string]interface{} {

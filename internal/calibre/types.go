@@ -45,13 +45,18 @@ type BookRaw struct {
 	UUID         string         `json:"uuid"`
 }
 
+type Metadata struct {
+	DoubanUrl string `json:"doubanurl"`
+}
+
 type Config struct {
-	Address   string  `mapstructure:"address"`
-	Debug     bool    `mapstructure:"debug"`
-	StaticDir string  `mapstructure:"staticDir"`
-	TmpDir    string  `mapstructure:"tmpdir"`
-	Content   Content `mapstructure:"content"`
-	Search    Search  `mapstructure:"search"`
+	Address   string   `mapstructure:"address"`
+	Debug     bool     `mapstructure:"debug"`
+	StaticDir string   `mapstructure:"staticDir"`
+	TmpDir    string   `mapstructure:"tmpdir"`
+	Content   Content  `mapstructure:"content"`
+	Search    Search   `mapstructure:"search"`
+	Metadata  Metadata `mapstructure:"metadata"`
 }
 
 type Content struct {

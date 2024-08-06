@@ -9,8 +9,12 @@
           class="w-50"
           placeholder="Please Input"
           @select="handleSelect"
-      />
-      <el-button @click="searchMetadata">搜索</el-button>
+      >
+        <template #append>
+          <el-button @click="searchMetadata">搜索</el-button>
+        </template>
+      </el-autocomplete>
+
     </el-col>
   </el-row>
   <el-table :data="tableData" height="350" style="width: 100%" highlight-current-row
@@ -19,7 +23,7 @@
       <template #default="scope">
         <el-image
             style="width: 100px; height: 150px"
-            :src="scope.row.image"
+            :src="'/api/proxy/cover/' + scope.row.image"
             fit="cover"/>
       </template>
     </el-table-column>
@@ -32,7 +36,6 @@
 </template>
 <script>
 import {ElButton, ElInput, ElNotification} from 'element-plus'
-import {h} from "vue";
 
 export default {
   name: 'MetadataSearch',
@@ -58,10 +61,11 @@ export default {
   emits: ['current-metadata'],
   created() {
     if (this.book.isbn) {
-      this.query = this.book.isbn
+      let isbn = this.book.isbn.replace(/-/g, '');
+      this.query = isbn
       this.options.push({
-        value: this.book.isbn,
-        label: this.book.isbn
+        value: isbn,
+        label: isbn
       })
       this.options.push({
         value: this.book.title,
