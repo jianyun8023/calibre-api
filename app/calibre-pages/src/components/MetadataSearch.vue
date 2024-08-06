@@ -1,7 +1,7 @@
 <template>
 
   <div v-loading="querySearchLoading">
-    <el-row >
+    <el-row>
       <el-col :span="12">
         <el-autocomplete
             v-model="query"
@@ -12,16 +12,14 @@
             @select="handleSelect"
         >
           <template #append>
-            <el-icon @click="searchMetadata">
-              <Search/>
-            </el-icon>
+            <el-button @click="searchMetadata" :icon="Search" type="success">搜索</el-button>
           </template>
         </el-autocomplete>
 
       </el-col>
     </el-row>
     <el-table :data="tableData" height="350" style="width: 100%" highlight-current-row
-              @current-change="handleCurrentChange">
+              @current-change="handleCurrentChange" :fit="false">
       <el-table-column label="封面" width="180">
         <template #default="scope">
           <el-image
@@ -30,7 +28,7 @@
               fit="cover"/>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" width="180"/>
+      <el-table-column prop="title" :formatter="joinTitle" label="标题" width="180"/>
       <el-table-column prop="author" label="作者" width="180"/>
       <el-table-column prop="publisher" label="出版社"/>
       <el-table-column prop="pubdate" label="发布日期"/>
@@ -40,9 +38,15 @@
 </template>
 <script>
 import {ElButton, ElInput, ElNotification} from 'element-plus'
+import {Search} from "@element-plus/icons-vue";
 
 export default {
   name: 'MetadataSearch',
+  computed: {
+    Search() {
+      return Search
+    }
+  },
   components: {ElButton, ElInput},
   props: {
     book: {
@@ -127,6 +131,13 @@ export default {
     },
     handleCurrentChange(val) {
       this.$emit('current-metadata', val)
+    },
+    joinTitle(row) {
+      if (row.sub_title) {
+        return row.title + "：" + row.sub_title
+      } else {
+        return row.title
+      }
     },
     handleSelect(item) {
       console.log(item)

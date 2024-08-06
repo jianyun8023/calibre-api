@@ -1,9 +1,12 @@
 <template>
 
-  <el-form v-loading="loading" :model="form" label-width="120px" class="book-form" style="max-width: 600px">
+  <el-form v-loading="loading" :model="form" label-width="70px" class="book-form" style="max-width: 600px">
     <el-form-item label="书名">
       <el-col :span="18">
         <el-input v-model="form.title" placeholder="请输入书名">
+          <template #suffix v-if="titleNew === '1' && newBook.sub_title">
+            <el-checkbox v-model="useSubTitle">Full</el-checkbox>
+          </template>
         </el-input>
       </el-col>
       <el-col :span="6">
@@ -34,8 +37,9 @@
         <el-input v-model="form.publisher" placeholder="请输入出版社">
         </el-input>
       </el-col>
-      <el-col :span="6" >
-        <el-radio-group class="align-right" v-model="publisherNew" aria-label="label position" placeholder="源" :disabled="!book.publisher || book.publisher === newBook.publisher">
+      <el-col :span="6">
+        <el-radio-group class="align-right" v-model="publisherNew" aria-label="label position" placeholder="源"
+                        :disabled="!book.publisher || book.publisher === newBook.publisher">
           <el-radio-button value="1">新</el-radio-button>
           <el-radio-button value="2">旧</el-radio-button>
         </el-radio-group>
@@ -71,7 +75,7 @@
     </el-form-item>
     <el-form-item label="评分">
       <el-col :span="18">
-        <el-rate v-model="form.rating" max="10" disabled
+        <el-rate v-model="form.rating" :max="10"
                  show-score text-color="#ff9900"
                  score-template="{value} points"/>
       </el-col>
@@ -146,6 +150,7 @@ export default {
       },
       options: [],
       tableData: [],
+      useSubTitle: true,
       titleNew: '1',
       authorsNew: '1',
       authors: [],
@@ -157,7 +162,7 @@ export default {
       tagsNew: '1',
       tags: [],
       loading: false,
-      colors: ['#99A9BF', '#F7BA2A','#F7BA2A', '#FF9900']
+      colors: ['#99A9BF', '#F7BA2A', '#F7BA2A', '#FF9900']
     }
   },
   created() {
@@ -166,7 +171,7 @@ export default {
     // 清理html标签中的class
     this.newBook.summary = this.newBook.summary.replace(/class=".*?"/g, '')
     this.form.comments = this.newBook.summary
-    this.form.title = this.newBook.title
+    this.form.title = this.useSubTitle ? this.joinTitle(this.newBook) : this.newBook.title
     this.form.publisher = this.newBook.publisher
     this.form.isbn = this.newBook.isbn13
 
@@ -183,9 +188,16 @@ export default {
     this.form.rating = Number(this.newBook.rating.average)
   },
   watch: {
+    useSubTitle(val) {
+      if (this.titleNew === '1') {
+        this.form.title = val ? this.joinTitle(this.newBook) : this.newBook.title
+      } else {
+        this.form.title = this.book.title
+      }
+    },
     titleNew(val) {
       if (val === '1') {
-        this.form.title = this.newBook.title
+        this.form.title = this.useSubTitle ? this.joinTitle(this.newBook) : this.newBook.title
       } else {
         this.form.title = this.book.title
       }
@@ -330,7 +342,14 @@ export default {
         return month1 - month2;
       }
       return day1 - day2;
-    }
+    },
+    joinTitle(row) {
+      if (row.sub_title) {
+        return row.title + "：" + row.sub_title
+      } else {
+        return row.title
+      }
+    },
   }
 }
 
