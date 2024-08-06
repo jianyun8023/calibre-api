@@ -16,7 +16,7 @@
       <!--      </el-col>-->
       <el-col :span="16" :xs="24">
         <div class="book-info">
-          <el-descriptions :title="book.title" column="1" size="large" border>
+          <el-descriptions :title="book.title" :column="1" size="large" border>
             <template #extra>
               <el-button type="primary" plain @click="dialogSearchVisible = true" :icon="Edit">
                 更新元数据
@@ -91,7 +91,7 @@
                   Rating
                 </div>
               </template>
-              <el-rate v-model="book.rating" max="10" disabled
+              <el-rate v-model="book.rating" :max="10" disabled
                        show-score text-color="#ff9900"
                        score-template="{value} points"/>
             </el-descriptions-item>
