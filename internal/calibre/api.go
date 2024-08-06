@@ -9,6 +9,7 @@ import (
 	"github.com/jianyun8023/calibre-api/pkg/log"
 	"github.com/kapmahc/epub"
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/spf13/cast"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -448,6 +449,10 @@ func (c Api) updateMetadata(r *gin.Context) {
 	id := r.Param("id")
 	book := &Book{}
 	err := r.Bind(book)
+	if err != nil {
+		r.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	oldBook := &Book{}
 	err = c.bookIndex.GetDocument(id, nil, oldBook)
@@ -459,8 +464,7 @@ func (c Api) updateMetadata(r *gin.Context) {
 		})
 		return
 	}
-
-	data, err := c.contentApi.UpdateMetaData(id, parseParams(book, oldBook), "")
+	_, err = c.contentApi.UpdateMetaData(id, parseParams(book, oldBook), "")
 	if err != nil {
 		r.JSON(http.StatusNotFound, gin.H{
 			"code":  500,
@@ -470,8 +474,13 @@ func (c Api) updateMetadata(r *gin.Context) {
 		return
 	}
 
-	var books []Book
-	books, err = convertContentToBooks(data)
+	data, err := c.contentApi.GetBookMetaDatas([]int64{cast.ToInt64(id)}, "")
+	if err != nil {
+		log.Warnf("get book metadata error: %v", err)
+		r.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		return
+	}
+	books, err := convertContentBooks(data)
 	if err != nil {
 		r.JSON(http.StatusNotFound, gin.H{
 			"code":  500,
@@ -494,6 +503,7 @@ func (c Api) updateMetadata(r *gin.Context) {
 		"code":    200,
 		"message": "success",
 	})
+	return
 }
 
 func convertContentBooks(content []content.Book) ([]Book, error) {
@@ -546,10 +556,11 @@ func convertContentToBooks(content map[string]content.Content) ([]Book, error) {
 			SeriesIndex:  c.SeriesIndex,
 			Size:         c.Size,
 			Title:        c.Title,
-			//Tags: c,
-			Identifiers: c.Identifiers,
-			Cover:       "/api/get/cover/" + strconv.FormatInt(i, 10) + ".jpg",
-			FilePath:    "/api/get/book/" + strconv.FormatInt(i, 10) + ".epub",
+			Tags:         c.Tags,
+			Rating:       c.Rating,
+			Identifiers:  c.Identifiers,
+			Cover:        "/api/get/cover/" + strconv.FormatInt(i, 10) + ".jpg",
+			FilePath:     "/api/get/book/" + strconv.FormatInt(i, 10) + ".epub",
 		}
 		books = append(books, book)
 	}
@@ -622,6 +633,12 @@ func parseParams(book *Book, oldBook *Book) map[string]interface{} {
 	}
 	if book.Authors != nil {
 		metadata["authors"] = book.Authors
+	}
+	if book.Tags != nil {
+		metadata["tags"] = book.Tags
+	}
+	if book.Rating > 0 {
+		metadata["rating"] = book.Rating
 	}
 	return metadata
 }

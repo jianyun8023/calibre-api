@@ -1,28 +1,31 @@
 <template>
 
-  <el-form v-loading="loading" :model="form" label-width="120px" class="book-form"  style="max-width: 600px">
-    <el-form-item label="书名" >
+  <el-form v-loading="loading" :model="form" label-width="120px" class="book-form" style="max-width: 600px">
+    <el-form-item label="书名">
       <el-col :span="18">
         <el-input v-model="form.title" placeholder="请输入书名">
         </el-input>
       </el-col>
-      <el-col :span="6" >
-      <el-radio-group class="align-right" v-model="titleNew" aria-label="label position" placeholder="源" :disabled="!book.title || book.title === newBook.title">
-        <el-radio-button value="1">新</el-radio-button>
-        <el-radio-button value="2">旧</el-radio-button>
-      </el-radio-group>
+      <el-col :span="6">
+        <el-radio-group class="align-right" v-model="titleNew" aria-label="label position" placeholder="源"
+                        :disabled="!book.title || book.title === newBook.title">
+          <el-radio-button value="1">新</el-radio-button>
+          <el-radio-button value="2">旧</el-radio-button>
+        </el-radio-group>
       </el-col>
     </el-form-item>
     <el-form-item label="作者">
       <el-col :span="18">
-        <el-input v-model="form.authors" placeholder="请输入作者">
-        </el-input>
+        <el-checkbox-group v-model="form.authors">
+          <el-checkbox v-for="author in authors" :label="author" :value="author"/>
+        </el-checkbox-group>
       </el-col>
-      <el-col :span="6" >
-      <el-radio-group class="align-right" v-model="authorsNew" aria-label="label position" placeholder="源"  :disabled="!book.authors || arraysEqual(book.authors,newBook.author)">
-        <el-radio-button value="1">新</el-radio-button>
-        <el-radio-button value="2">旧</el-radio-button>
-      </el-radio-group>
+      <el-col :span="6">
+        <el-radio-group class="align-right" v-model="authorsNew" aria-label="label position" placeholder="源"
+                        :disabled="!book.authors || arraysEqual(book.authors,newBook.author)">
+          <el-radio-button value="1">新</el-radio-button>
+          <el-radio-button value="2">旧</el-radio-button>
+        </el-radio-group>
       </el-col>
     </el-form-item>
     <el-form-item label="出版社">
@@ -46,28 +49,57 @@
             placeholder="请选择出版日期"
         />
       </el-col>
-      <el-col :span="6" >
-      <el-radio-group class="align-right" v-model="pubdateNew" aria-label="label position" placeholder="源" >
-        <el-radio-button value="1">新</el-radio-button>
-        <el-radio-button value="2">旧</el-radio-button>
-      </el-radio-group>
+      <el-col :span="6">
+        <el-radio-group class="align-right" v-model="pubdateNew" aria-label="label position" placeholder="源">
+          <el-radio-button value="1">新</el-radio-button>
+          <el-radio-button value="2">旧</el-radio-button>
+        </el-radio-group>
       </el-col>
     </el-form-item>
     <el-form-item label="ISBN">
-
       <el-col :span="18">
         <el-input v-model="form.isbn" placeholder="请输入ISBN">
         </el-input>
       </el-col>
-      <el-col :span="6" >
-        <el-radio-group class="align-right" v-model="isbnNew" aria-label="label position" placeholder="源" :disabled="!book.isbn || book.isbn === newBook.isbn13">
+      <el-col :span="6">
+        <el-radio-group class="align-right" v-model="isbnNew" aria-label="label position" placeholder="源"
+                        :disabled="!book.isbn || book.isbn === newBook.isbn13">
+          <el-radio-button value="1">新</el-radio-button>
+          <el-radio-button value="2">旧</el-radio-button>
+        </el-radio-group>
+      </el-col>
+    </el-form-item>
+    <el-form-item label="评分">
+      <el-col :span="18">
+        <el-rate v-model="form.rating" max="10" disabled
+                 show-score text-color="#ff9900"
+                 score-template="{value} points"/>
+      </el-col>
+      <el-col :span="6">
+        <el-radio-group class="align-right" v-model="ratingNew" aria-label="label position" placeholder="源"
+                        :disabled="book.rating === 0">
+          <el-radio-button value="1">新</el-radio-button>
+          <el-radio-button value="2">旧</el-radio-button>
+        </el-radio-group>
+      </el-col>
+    </el-form-item>
+    <el-form-item label="标签">
+      <el-col :span="18">
+        <el-checkbox-group v-model="form.tags">
+          <el-checkbox v-for="tag in tags" :label="tag" :value="tag"/>
+        </el-checkbox-group>
+      </el-col>
+      <el-col :span="6">
+        <el-radio-group class="align-right" v-model="tagsNew" aria-label="label position" placeholder="源"
+                        :disabled="!book.tags">
           <el-radio-button value="1">新</el-radio-button>
           <el-radio-button value="2">旧</el-radio-button>
         </el-radio-group>
       </el-col>
     </el-form-item>
     <el-form-item label="简介">
-      <el-radio-group class="radio-group" v-if="book.comments && book.comments !== newBook.summary" v-model="commentsNew"
+      <el-radio-group class="radio-group" v-if="book.comments && book.comments !== newBook.summary"
+                      v-model="commentsNew"
                       aria-label="label position" placeholder="源">
         <el-radio-button value="1">新</el-radio-button>
         <el-radio-button value="2">旧</el-radio-button>
@@ -109,16 +141,23 @@ export default {
         pubdate: new Date(),
         isbn: '',
         comments: '',
+        tags: [],
+        rating: 0,
       },
       options: [],
       tableData: [],
       titleNew: '1',
       authorsNew: '1',
+      authors: [],
       publisherNew: '1',
       pubdateNew: '1',
       isbnNew: '1',
       commentsNew: '1',
+      ratingNew: '1',
+      tagsNew: '1',
+      tags: [],
       loading: false,
+      colors: ['#99A9BF', '#F7BA2A','#F7BA2A', '#FF9900']
     }
   },
   created() {
@@ -132,8 +171,16 @@ export default {
     this.form.isbn = this.newBook.isbn13
 
     //parse date string to Date object
-    this.form.pubdate = new Date(this.newBook.pubdate)
+    // 2022-1
+    // 2022-1-21
+
+    this.form.pubdate = this.parseDateString(this.newBook.pubdate)
     this.form.authors = this.newBook.author
+    this.authors = this.newBook.author
+    this.tags = this.newBook.tags.map(tag => tag.name)
+    this.form.tags = this.tags
+    console.log("this.newBook.rating.average" + this.newBook.rating.average)
+    this.form.rating = Number(this.newBook.rating.average)
   },
   watch: {
     titleNew(val) {
@@ -146,8 +193,10 @@ export default {
     authorsNew(val) {
       if (val === '1') {
         this.form.authors = this.newBook.author
+        this.authors = this.newBook.author
       } else {
         this.form.authors = this.book.authors
+        this.authors = this.book.authors
       }
     },
     publisherNew(val) {
@@ -161,8 +210,8 @@ export default {
       if (val === '1') {
         // 2022-4-1
         console.log("新" + this.newBook.pubdate)
-        console.log("新" + new Date(this.newBook.pubdate))
-        this.form.pubdate = new Date(this.newBook.pubdate)
+        console.log("新" + this.parseDateString(this.newBook.pubdate))
+        this.form.pubdate = this.parseDateString(this.newBook.pubdate)
       } else {
         console.log("旧" + this.book.pubdate)
         console.log("旧" + new Date(this.book.pubdate))
@@ -181,6 +230,22 @@ export default {
         this.form.comments = this.newBook.summary
       } else {
         this.form.comments = this.book.comments
+      }
+    },
+    ratingNew(val) {
+      if (val === '1') {
+        this.form.rating = Number(this.newBook.rating.average)
+      } else {
+        this.form.rating = this.book.rating
+      }
+    },
+    tagsNew(val) {
+      if (val === '1') {
+        this.tags = this.newBook.tags.map(tag => tag.name)
+        this.form.tags = this.tags
+      } else {
+        this.form.tags = this.book.tags
+        this.tags = this.book.tags
       }
     },
     updateMetadataFlag(val) {
@@ -221,7 +286,7 @@ export default {
             type: 'error',
           })
           this.loading = false
-          this.updateMetadataFlag = false
+          // this.updateMetadataFlag = false
         }
       } catch (e) {
         ElNotification({
@@ -242,6 +307,30 @@ export default {
       }
       return true;
     },
+    parseDateString(dateString) {
+      const dateParts = dateString.split('-');
+      const year = parseInt(dateParts[0], 10);
+      const month = parseInt(dateParts[1], 10) - 1; // JavaScript months are 0-based
+      const day = dateParts.length === 3 ? parseInt(dateParts[2], 10) : 1; // Default to the first day of the month if day is not provided
+      return new Date(year, month, day);
+    },
+    compareDate(date1, date2) {
+      const year1 = date1.getFullYear();
+      const month1 = date1.getMonth();
+      const day1 = date1.getDate();
+
+      const year2 = date2.getFullYear();
+      const month2 = date2.getMonth();
+      const day2 = date2.getDate();
+
+      if (year1 !== year2) {
+        return year1 - year2;
+      }
+      if (month1 !== month2) {
+        return month1 - month2;
+      }
+      return day1 - day2;
+    }
   }
 }
 
@@ -253,11 +342,13 @@ export default {
   margin: auto;
   padding: 10px;
 }
+
 .radio-group {
   display: flex;
   justify-content: space-between;
   margin-top: 0;
 }
+
 .el-input, .el-date-picker {
   width: 100%;
 }
@@ -266,6 +357,7 @@ export default {
 .el-button {
   margin-right: 10px;
 }
+
 .align-right {
   display: flex;
   justify-content: flex-end;

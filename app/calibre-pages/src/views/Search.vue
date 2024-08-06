@@ -20,18 +20,27 @@
     <strong style="margin-left: 10px">{{ keyword }}</strong>
   </h2>
   <el-text
-    >共计 {{ estimatedTotalHits }} 条, 当前{{ offset }} --
+  >共计 {{ estimatedTotalHits }} 条, 当前{{ offset }} --
     {{ offset + limit >= estimatedTotalHits ? estimatedTotalHits : offset + limit }}
   </el-text>
 
   <el-row :gutter="20">
     <el-col v-for="book in books" :key="book.id" :span="6" :lg="6" :sm="8" :xs="24">
-      <BookCard :book="book" :more_info="true" />
+      <BookCard :book="book" :more_info="true"/>
     </el-col>
   </el-row>
   <el-row class="mt-4" justify="center">
-    <el-button @click="prevPage" :disabled="offset === 0"><el-icon><ArrowLeftBold /></el-icon>上一页</el-button>
-    <el-button @click="nextPage" :disabled="offset + limit >= estimatedTotalHits">下一页<el-icon><ArrowRightBold /></el-icon></el-button>
+    <el-button @click="prevPage" :disabled="offset === 0">
+      <el-icon>
+        <ArrowLeftBold/>
+      </el-icon>
+      上一页
+    </el-button>
+    <el-button @click="nextPage" :disabled="offset + limit >= estimatedTotalHits">下一页
+      <el-icon>
+        <ArrowRightBold/>
+      </el-icon>
+    </el-button>
   </el-row>
 </template>
 
@@ -41,7 +50,7 @@ import {ElButton, ElCol, ElInput, ElRow} from 'element-plus'
 
 export default {
   name: 'Search',
-  components: {ElInput, ElButton, ElRow, ElCol, BookCard },
+  components: {ElInput, ElButton, ElRow, ElCol, BookCard},
   data() {
     return {
       searchQuery: '',
@@ -56,29 +65,28 @@ export default {
     }
   },
   created() {
-    console.log(this.$route)
-    if (this.$route.query.q){
-      this.searchQuery = this.$route.query.q
-    }
-    if (this.$route.query.publisher) {
-      this.publisher = this.$route.query.publisher
-    }
-    if (this.$route.query.author) {
-      this.author = this.$route.query.author
-    }
+    this.initializeFromQueryParams()
   },
   watch: {
     searchQuery() {
-      this.keyword = this.searchQuery
-      this.filter = []
+      this.updateQueryParams()
+      this.fetchBooks()
     },
     publisher() {
-      this.keyword = this.publisher
-      this.filter[0] = 'publisher = "' + this.publisher + '"'
+      this.updateQueryParams()
+      this.fetchBooks()
     },
     author() {
-      this.keyword = this.author
-      this.filter[0] = 'authors = "' + this.author + '"'
+      this.updateQueryParams()
+      this.fetchBooks()
+    },
+    offset() {
+      this.updateQueryParams()
+      this.fetchBooks()
+    },
+    limit() {
+      this.updateQueryParams()
+      this.fetchBooks()
     }
   },
 
@@ -104,12 +112,7 @@ export default {
       url.searchParams.delete('query')
       window.history.replaceState({}, '', url)
     },
-    redirectToDetail(id) {
-      window.location.href = `/detail/${id}`
-    },
-    redirectToHome() {
-      window.location.href = '/'
-    },
+
     prevPage() {
       if (this.offset > 0) {
         this.offset -= this.limit
@@ -120,6 +123,43 @@ export default {
       if (this.offset + this.limit < this.estimatedTotalHits) {
         this.offset += this.limit
         this.fetchBooks()
+      }
+    },
+    updateQueryParams() {
+      let query = {...this.$route.query, offset: this.offset, limit: this.limit};
+      if (this.searchQuery) {
+        query.q = this.searchQuery
+      }
+      if (this.publisher) {
+        query.publisher = this.publisher
+      }
+      if (this.author) {
+        query.author = this.author
+      }
+      this.$router.push({query: query})
+    },
+    initializeFromQueryParams() {
+      const query = this.$route.query
+      if (query.offset) {
+        this.offset = parseInt(query.offset, 10)
+      }
+      if (query.limit) {
+        this.limit = parseInt(query.limit, 10)
+      }
+      if (query.q) {
+        this.searchQuery = query.q
+        this.keyword = this.searchQuery
+        this.filter = []
+      }
+      if (query.publisher) {
+        this.publisher = query.publisher
+        this.keyword = this.publisher
+        this.filter[0] = 'publisher = "' + this.publisher + '"'
+      }
+      if (query.author) {
+        this.author = query.author
+        this.keyword = this.author
+        this.filter[0] = 'authors = "' + this.author + '"'
       }
     }
   },

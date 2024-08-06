@@ -56,7 +56,18 @@ export default {
     }
   },
   created() {
+    this.initializeFromQueryParams()
     this.fetchBooks()
+  },
+  watch: {
+    offset() {
+      this.updateQueryParams()
+      this.fetchBooks()
+    },
+    limit() {
+      this.updateQueryParams()
+      this.fetchBooks()
+    }
   },
   methods: {
     async fetchBooks() {
@@ -77,21 +88,17 @@ export default {
         this.fetchBooks()
       }
     },
-    redirectToSearch() {
-      window.location.href = `/search?query=${encodeURIComponent(this.searchQuery)}`
+    updateQueryParams() {
+      this.$router.push({ query: { ...this.$route.query, offset: this.offset, limit: this.limit } })
     },
-    redirectToDetail(id) {
-      window.location.href = `/detail/${id}`
-    },
-    redirectToHome() {
-      console.log('redirecting to home')
-      window.location.href = '/'
-    },
-    truncateText(text) {
-      if (text === undefined || text === null) {
-        return ''
+    initializeFromQueryParams() {
+      const query = this.$route.query
+      if (query.offset) {
+        this.offset = parseInt(query.offset, 10)
       }
-      return text.length > 20 ? text.substring(0, 16) + '...' : text
+      if (query.limit) {
+        this.limit = parseInt(query.limit, 10)
+      }
     }
   }
 }

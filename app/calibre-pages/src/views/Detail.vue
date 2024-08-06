@@ -25,7 +25,7 @@
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon :style="iconStyle">
+                  <el-icon >
                     <Box/>
                   </el-icon>
                   ID
@@ -36,7 +36,7 @@
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon :style="iconStyle">
+                  <el-icon >
                     <user/>
                   </el-icon>
                   Authors
@@ -54,7 +54,7 @@
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon :style="iconStyle">
+                  <el-icon >
                     <Discount/>
                   </el-icon>
                   Publisher
@@ -76,7 +76,7 @@
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon :style="iconStyle">
+                  <el-icon >
                     <Timer/>
                   </el-icon>
                   Published Date
@@ -84,10 +84,21 @@
               </template>
               <span class="tag-spacing">{{ new Date(book.pubdate).toLocaleDateString() }}</span>
             </el-descriptions-item>
+            <el-descriptions-item>
+              <template #label>
+                <div class="cell-item">
+                  <el-icon><Trophy /></el-icon>
+                  Rating
+                </div>
+              </template>
+              <el-rate v-model="book.rating" max="10" disabled
+                       show-score text-color="#ff9900"
+                       score-template="{value} points"/>
+            </el-descriptions-item>
             <el-descriptions-item v-if="book.tags && book.tags.length">
               <template #label>
                 <div class="cell-item">
-                  <el-icon :style="iconStyle">
+                  <el-icon >
                     <CollectionTag />
                   </el-icon>
                   Tags
@@ -100,7 +111,7 @@
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon :style="iconStyle">
+                  <el-icon >
                     <Document/>
                   </el-icon>
                   File Size
@@ -199,7 +210,7 @@ import {ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow} from 'elemen
 import SearchBar from '@/components/SearchBar.vue'
 import MetadataSearch from "@/components/MetadataSearch.vue";
 import MetadataEdit from "@/components/MetadataEdit.vue";
-import {Delete, Download, Edit, Menu} from "@element-plus/icons-vue";
+import {Delete, Download, Edit, Menu, Rank, Trophy} from "@element-plus/icons-vue";
 
 // interface Tree {
 //   label: string
@@ -222,7 +233,9 @@ export default {
       return Menu
     }
   },
-  components: {MetadataEdit, MetadataSearch, ElCol, SearchBar, ElRow, ElButton, ElInput, ElNotification, ElMessage},
+  components: {
+    Trophy,
+    Rank, MetadataEdit, MetadataSearch, ElCol, SearchBar, ElRow, ElButton, ElInput, ElNotification, ElMessage},
   props: {
     id: {
       type: String,
