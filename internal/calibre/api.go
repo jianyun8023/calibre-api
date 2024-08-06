@@ -18,6 +18,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Api struct {
@@ -358,6 +359,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 
 	// 按 2000 分段 booksIds,查询书籍，更新索引
 	var books []Book
+	var taskIds []string
 	for i := 0; i < len(booksIds); i += 2000 {
 		ids := booksIds[i:min(i+2000, len(booksIds))]
 		log.Infof("update index %d [%d - %d]", i, ids[0], ids[len(ids)-1])
@@ -373,25 +375,68 @@ func (c Api) updateIndex(c2 *gin.Context) {
 			c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
 			return
 		}
-		_, err = index.UpdateDocumentsInBatches(books, len(ids))
+		task, err := index.AddDocumentsInBatches(books, len(ids))
 		if err != nil {
 			c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
 			return
 		}
+		for _, info := range task {
+			taskIds = append(taskIds, info.IndexUID)
+		}
 	}
 
-	_, _ = c.client.SwapIndexes(
-		[]meilisearch.SwapIndexesParams{
-			{
-				Indexes: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
-			},
-		},
-	)
+	err = waitForTask(c, taskIds)
+	if err != nil {
+		c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		return
+	}
+
 	c2.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
 		"data":    len(booksIds),
 	})
+}
+
+func waitForTask(c Api, taskIds []string) error {
+	timeout := time.After(30 * time.Second) // Set timeout duration
+	done := make(chan bool)
+
+	go func() {
+		for {
+			resp, err := c.client.GetTasks(&meilisearch.TasksQuery{
+				Limit:     2,
+				Statuses:  []string{"enqueued", "processing"},
+				IndexUIDS: taskIds,
+			})
+			if err != nil {
+				log.Warn(err)
+				done <- true
+				return
+			}
+			if len(resp.Results) == 0 {
+				done <- true
+				return
+			}
+			time.Sleep(3 * time.Second) // Add a small delay to avoid tight loop
+		}
+	}()
+
+	select {
+	case <-timeout:
+		log.Warn("Timeout reached while waiting for tasks to complete")
+		return fmt.Errorf("Timeout reached while waiting for tasks to complete")
+	case <-done:
+		log.Info("Tasks completed successfully")
+		_, _ = c.client.SwapIndexes(
+			[]meilisearch.SwapIndexesParams{
+				{
+					Indexes: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
+				},
+			},
+		)
+		return nil
+	}
 }
 
 func (c Api) recently(r *gin.Context) {
@@ -492,7 +537,7 @@ func (c Api) updateMetadata(r *gin.Context) {
 		})
 		return
 	}
-	_, err = c.bookIndex.UpdateDocuments(books)
+	_, err = c.bookIndex.AddDocuments(books)
 	if err != nil {
 		// 返回文件找不到
 		r.JSON(http.StatusNotFound, gin.H{
