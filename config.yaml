@@ -1,5 +1,5 @@
 address: :8080
-debug: false
+debug: true
 staticDir: "/app/static"
 tmpDir: ".files"
 content:
@@ -8,3 +8,5 @@ search:
   host: http://127.0.0.1:7700
   apikey:
   index: books
+metadata:
+  doubanurl: https://book.douban.com/
