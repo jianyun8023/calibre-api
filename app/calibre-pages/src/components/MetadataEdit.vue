@@ -75,9 +75,15 @@
     </el-form-item>
     <el-form-item label="评分">
       <el-col :span="18">
-        <el-rate v-model="form.rating" :max="10"
-                 show-score text-color="#ff9900"
-                 score-template="{value} points"/>
+        <el-rate
+            :value="form.rating/2"
+            @input="(val)=>form.rating=val*2"
+            show-score
+            text-color="#ff9900"
+            :max="5"
+            allow-half
+            :score-template="`${form.rating/2}分`">
+        </el-rate>
       </el-col>
       <el-col :span="6">
         <el-radio-group class="align-right" v-model="ratingNew" aria-label="label position" placeholder="源"
