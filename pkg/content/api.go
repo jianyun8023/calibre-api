@@ -170,7 +170,7 @@ func (a *Api) GetBookMetaDatas(ids []int64, library string) ([]Book, error) {
 	isbnMap := cast.ToStringMapString(bookData["isbn"])
 
 	tagsMap := cast.ToStringMapStringSlice(bookData["tags"])
-	ratingMap := cast.ToStringMapInt(bookData["rating"])
+	ratingMap := cast.ToStringMap(bookData["rating"])
 
 	identifiersMap := bookData["identifiers"].(map[string]interface{})
 	languagesMap := cast.ToStringMapStringSlice(bookData["languages"])
@@ -189,7 +189,7 @@ func (a *Api) GetBookMetaDatas(ids []int64, library string) ([]Book, error) {
 		}
 		book.Isbn = isbnMap[strId]
 		book.Tags = tagsMap[strId]
-		book.Rating = ratingMap[strId]
+		book.Rating = cast.ToFloat64(ratingMap[strId])
 		book.Identifiers = cast.ToStringMapString(identifiersMap[strId])
 		book.Languages = languagesMap[strId]
 		books = append(books, book)

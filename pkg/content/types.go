@@ -23,6 +23,8 @@ type Content struct {
 	Isbn                string            `json:"#isbn"`
 	UrlsFromIdentifiers [][]string        `json:"urls_from_identifiers"`
 	LangNames           LangNames         `json:"lang_names"`
+	Tags                []string          `json:"tags"`
+	Rating              float64           `json:"rating"`
 }
 
 type Book struct {
@@ -38,7 +40,7 @@ type Book struct {
 	SeriesIndex  float64           `json:"series_index"`
 	Size         int64             `json:"size"`
 	Tags         []string          `json:"tags"`
-	Rating       int               `json:"rating"`
+	Rating       float64           `json:"rating"`
 	Title        string            `json:"title"`
 	Identifiers  map[string]string `json:"identifiers"`
 }

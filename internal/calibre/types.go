@@ -21,7 +21,7 @@ type Book struct {
 	Size         int64             `json:"size"`
 	Tags         []string          `json:"tags"`
 	Title        string            `json:"title"`
-	Rating       int               `json:"rating"`
+	Rating       float64           `json:"rating"`
 	Identifiers  map[string]string `json:"identifiers"`
 }
 
