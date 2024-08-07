@@ -48,6 +48,7 @@ func (c Api) SetupRouter(r *gin.Engine) {
 	// 最近更新Recently
 	base.GET("/recently", c.recently)
 	base.POST("/index/update", c.updateIndex)
+	base.POST("/index/switch", c.switchIndex)
 }
 
 func NewClient(config *Config) Api {
@@ -342,10 +343,29 @@ func (c Api) getFileOrCache(id string) (string, error) {
 	return filename, err
 }
 
+func (c Api) switchIndex(c2 *gin.Context) {
+	_, err := c.client.SwapIndexes(
+		[]meilisearch.SwapIndexesParams{
+			{
+				Indexes: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
+			},
+		},
+	)
+	if err != nil {
+		log.Warn(err)
+		c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		return
+	}
+	c2.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+	})
+}
 func (c Api) updateIndex(c2 *gin.Context) {
 	booksIds, err2 := c.contentApi.GetAllBooksIds()
 	if err2 != nil {
-		c2.JSON(http.StatusInternalServerError, err2)
+		log.Warn(err2)
+		c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err2.Error()})
 		return
 	}
 
@@ -359,7 +379,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 
 	// 按 2000 分段 booksIds,查询书籍，更新索引
 	var books []Book
-	var taskIds []string
+	var taskIds []int64
 	for i := 0; i < len(booksIds); i += 2000 {
 		ids := booksIds[i:min(i+2000, len(booksIds))]
 		log.Infof("update index %d [%d - %d]", i, ids[0], ids[len(ids)-1])
@@ -381,7 +401,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 			return
 		}
 		for _, info := range task {
-			taskIds = append(taskIds, info.IndexUID)
+			taskIds = append(taskIds, info.TaskUID)
 		}
 	}
 
@@ -398,16 +418,16 @@ func (c Api) updateIndex(c2 *gin.Context) {
 	})
 }
 
-func waitForTask(c Api, taskIds []string) error {
+func waitForTask(c Api, taskIds []int64) error {
 	timeout := time.After(30 * time.Second) // Set timeout duration
 	done := make(chan bool)
 
 	go func() {
 		for {
 			resp, err := c.client.GetTasks(&meilisearch.TasksQuery{
-				Limit:     2,
-				Statuses:  []string{"enqueued", "processing"},
-				IndexUIDS: taskIds,
+				Limit:    2,
+				Statuses: []string{"enqueued", "processing"},
+				UIDS:     taskIds,
 			})
 			if err != nil {
 				log.Warn(err)
