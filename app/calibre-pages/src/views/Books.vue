@@ -15,19 +15,28 @@
         </el-col>
       </el-row>
       <el-row class="mt-4" justify="center">
-        <el-button @click="prevPage" :disabled="offset === 0"><el-icon><ArrowLeftBold /></el-icon>上一页</el-button>
+        <el-button @click="prevPage" :disabled="offset === 0">
+          <el-icon>
+            <ArrowLeftBold />
+          </el-icon>
+          上一页
+        </el-button>
         <el-button @click="nextPage" :disabled="offset + limit >= estimatedTotalHits"
-          >下一页<el-icon><ArrowRightBold /></el-icon></el-button
-        >
+          >下一页
+          <el-icon>
+            <ArrowRightBold />
+          </el-icon>
+        </el-button>
       </el-row>
     </section>
   </el-container>
 </template>
 
-<script>
-import { ElContainer, ElRow, ElCol, ElInput, ElButton, ElCard } from 'element-plus'
+<script lang="ts">
+import { ElButton, ElCard, ElCol, ElContainer, ElInput, ElRow } from 'element-plus'
 import SearchBar from '@/components/SearchBar.vue'
 import BookCard from '@/components/BookCard.vue'
+import { Book } from '@/types/book'
 
 export default {
   name: 'Books',
@@ -44,9 +53,9 @@ export default {
   data() {
     return {
       searchQuery: '',
-      recentBooks: [],
-      limit: 12,
-      offset: 0,
+      recentBooks: [] as Book[],
+      limit: 12 as number,
+      offset: 0 as number,
       estimatedTotalHits: 0
     }
   },
@@ -94,10 +103,10 @@ export default {
     initializeFromQueryParams() {
       const query = this.$route.query
       if (query.offset) {
-        this.offset = parseInt(query.offset, 10)
+        this.offset = parseInt(query.offset as string, 10)
       }
       if (query.limit) {
-        this.limit = parseInt(query.limit, 10)
+        this.limit = parseInt(query.limit as string, 10)
       }
     }
   }

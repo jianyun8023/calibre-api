@@ -1,14 +1,13 @@
 <template>
   <el-container>
     <el-header>
-      <Header/>
-
+      <SiteHeader />
     </el-header>
     <el-container>
       <el-row>
         <el-col :span="4" :sm="24" :xs="24" :lg="2">
           <el-aside class="sidebar">
-            <Sidebar/>
+            <Sidebar />
           </el-aside>
         </el-col>
         <el-col :span="20" :sm="24" :xs="24" :lg="22">
@@ -21,23 +20,23 @@
       </el-row>
     </el-container>
     <el-footer>
-      <Footer/>
+      <SiteFooter />
     </el-footer>
   </el-container>
 </template>
 
-<script>
-import Header from './components/Header.vue'
+<script lang="ts">
+import SiteHeader from './components/Header.vue'
 import Sidebar from './components/Sidebar.vue'
-import Footer from './components/Footer.vue'
+import SiteFooter from './components/Footer.vue'
 
 export default {
   name: 'App',
   components: {
-    Header,
+    SiteHeader,
     Sidebar,
-    Footer
-  },
+    SiteFooter
+  }
 }
 </script>
 

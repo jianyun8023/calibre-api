@@ -637,20 +637,14 @@ func convertContentToBooks(content map[string]content.Content) ([]Book, error) {
 
 func (c Api) getIsbn(c2 *gin.Context) {
 	isbn := c2.Param("isbn")
-	//https://douban_isbn.yihy8023.workers.dev/v2/book/isbn/9787308242936
-	resp, err := http.Get("https://douban_isbn.yihy8023.workers.dev/v2/book/isbn/" + isbn)
+	var jsonData map[string]interface{}
+	resp, err := c.http.R().SetResult(&jsonData).Get(c.config.Metadata.DoubanUrl + "/v2/book/isbn/" + isbn)
+	log.Infof(resp.Request.URL)
 	if err != nil {
 		c2.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		c2.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c2.JSON(http.StatusOK, body)
+	c2.JSON(http.StatusOK, resp.Result())
 }
 
 func (c Api) queryMetadata(c2 *gin.Context) {
