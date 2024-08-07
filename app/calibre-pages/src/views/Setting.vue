@@ -11,8 +11,8 @@
                      element-loading-background="rgba(122, 122, 122, 0.8)"
                      type="primary"
                      size="default"
-                     @click="updateIndex(scope.row)">
-            Update Index
+                     @click="scope.row.func(scope.row)">
+            执行
           </el-button>
         </template>
       </el-table-column>
@@ -39,14 +39,49 @@ export default {
     return {
       settings: [
         {
-          name: 'Update Index',
+          name: '更新索引',
           description: '更新MeiliSearch索引',
           loading: false,
-        }
+          func: this.updateIndex,
+        },
+        {
+          name: '切换主备索引',
+          description: '切换主备索引',
+          loading: false,
+          func: this.switchIndex,
+        },
       ],
     }
   },
   methods: {
+    async switchIndex(config) {
+      config.loading = true
+      try {
+        const response = await fetch('/api/index/switch', {method: 'POST'})
+        config.loading = false
+        if (response.ok) {
+          const responseData = await response.json();
+          ElNotification({
+            title: 'Index switched successfully.',
+            message: h('i', {style: 'color: teal'}, 'Index switched successfully.'),
+            type: 'success',
+          })
+        } else {
+          ElNotification({
+            title: 'Failed to update index.',
+            message: h('i', {style: 'color: red'}, 'Error: ' + response.statusText),
+            type: 'error',
+          })
+        }
+      } catch (error) {
+        config.loading = false
+        ElNotification({
+          title: 'Failed to update index.',
+          message: h('i', {style: 'color: red'}, 'Error: ' + error.message),
+          type: 'error',
+        })
+      }
+    },
     async updateIndex(config) {
       config.loading = true
       try {
