@@ -1,19 +1,12 @@
 <template>
   <el-row class="detail-header">
-    <SearchBar/>
+    <SearchBar />
   </el-row>
   <article class="detail-content">
     <el-row class="detail-row">
       <el-col :span="8" class="cover-container" :xs="24">
-        <img
-            class="book-cover"
-            :src="book.cover"
-            alt="book cover"
-        />
+        <img class="book-cover" :src="book.cover" alt="book cover" />
       </el-col>
-      <!--      <el-col :span="8">-->
-      <!--        <el-image class="book-cover" :src="book.cover" fit="cover"/>-->
-      <!--      </el-col>-->
       <el-col :span="16" :xs="24">
         <div class="book-info">
           <el-descriptions :title="book.title" :column="1" size="large" border>
@@ -25,8 +18,8 @@
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon >
-                    <Box/>
+                  <el-icon>
+                    <Box />
                   </el-icon>
                   ID
                 </div>
@@ -36,26 +29,27 @@
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon >
-                    <user/>
+                  <el-icon>
+                    <user />
                   </el-icon>
                   Authors
                 </div>
               </template>
               <el-tag
-                  class="tag-spacing"
-                  v-for="item in book.authors"
-                  :key="item"
-                  effect="dark"
-                  @click="searchByAuthor(item)">
+                class="tag-spacing"
+                v-for="item in book.authors"
+                :key="item"
+                effect="dark"
+                @click="searchByAuthor(item)"
+              >
                 {{ item }}
               </el-tag>
             </el-descriptions-item>
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon >
-                    <Discount/>
+                  <el-icon>
+                    <Discount />
                   </el-icon>
                   Publisher
                 </div>
@@ -66,7 +60,7 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon class="el-icon">
-                    <Key/>
+                    <Key />
                   </el-icon>
                   ISBN
                 </div>
@@ -76,8 +70,8 @@
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon >
-                    <Timer/>
+                  <el-icon>
+                    <Timer />
                   </el-icon>
                   Published Date
                 </div>
@@ -87,24 +81,27 @@
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon><Trophy /></el-icon>
+                  <el-icon>
+                    <Trophy />
+                  </el-icon>
                   Rating
                 </div>
               </template>
               <el-rate
-                  :value="book.rating/2"
-                  @input="(val)=>book.rating=val*2"
-                  show-score
-                  text-color="#ff9900"
-                  :max="5"
-                  allow-half
-                  :score-template="`${book.rating}分`">
+                :value="book.rating / 2"
+                @input="(val: number) => (book.rating = val * 2)"
+                show-score
+                text-color="#ff9900"
+                :max="5"
+                allow-half
+                :score-template="`${book.rating}分`"
+              >
               </el-rate>
             </el-descriptions-item>
             <el-descriptions-item v-if="book.tags && book.tags.length">
               <template #label>
                 <div class="cell-item">
-                  <el-icon >
+                  <el-icon>
                     <CollectionTag />
                   </el-icon>
                   Tags
@@ -117,8 +114,8 @@
             <el-descriptions-item>
               <template #label>
                 <div class="cell-item">
-                  <el-icon >
-                    <Document/>
+                  <el-icon>
+                    <Document />
                   </el-icon>
                   File Size
                 </div>
@@ -127,26 +124,18 @@
             </el-descriptions-item>
           </el-descriptions>
           <el-row class="book-buttons">
-            <el-button
-                color="#626aef"
-                :xs="24"
-                :icon="Menu"
-                plain
-                @click="showBookMenu"
-
-            >
+            <el-button color="#626aef" :xs="24" :icon="Menu" plain @click="showBookMenu">
               预览目录
             </el-button>
           </el-row>
           <el-row class="book-buttons">
             <el-button
-                color="#626aef"
-                :xs="24"
-                :icon="Download"
-                plain
-                :disabled="!book.file_path"
-                @click="redirectToDownload(book.file_path)"
-
+              color="#626aef"
+              :xs="24"
+              :icon="Download"
+              plain
+              :disabled="!book.file_path"
+              @click="redirectToDownload(book.file_path)"
             >
               下载书籍
             </el-button>
@@ -156,7 +145,6 @@
               </template>
             </el-popconfirm>
           </el-row>
-
         </div>
       </el-col>
     </el-row>
@@ -168,21 +156,29 @@
     </el-row>
   </article>
 
-  <el-dialog v-model="dialogSearchVisible" title="搜索元数据" :close-on-click-modal="false"
-             :close-on-press-escape="false" :width="isPhone?'100%':'50%'">
-    <MetadataSearch :book="book" @current-metadata="handleCurrentMeta"/>
+  <el-dialog
+    v-model="dialogSearchVisible"
+    title="搜索元数据"
+    :close-on-click-modal="false"
+    :close-on-press-escape="false"
+    :width="isPhone ? '100%' : '50%'"
+  >
+    <MetadataSearch :book="book" @current-metadata="handleCurrentMeta" />
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="dialogSearchVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleClose">
-          确认
-        </el-button>
+        <el-button type="primary" @click="handleClose"> 确认</el-button>
       </div>
     </template>
   </el-dialog>
-  <el-dialog v-model="dialogEditVisible" title="更新元数据" :close-on-click-modal="false"
-             :close-on-press-escape="false" :width="isPhone?'100%':'50%'">
-    <MetadataEdit :book="book" :new-book="currentRow" :update-metadata-flag="triggerUpdate"/>
+  <el-dialog
+    v-model="dialogEditVisible"
+    title="更新元数据"
+    :close-on-click-modal="false"
+    :close-on-press-escape="false"
+    :width="isPhone ? '100%' : '50%'"
+  >
+    <MetadataEdit :book="book" :new-book="currentRow" :update-metadata-flag="triggerUpdate" />
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="dialogEditVisible = false">取消</el-button>
@@ -191,15 +187,19 @@
     </template>
   </el-dialog>
 
-  <el-dialog v-model="dialogMenuVisible" title="查看目录" :close-on-click-modal="false"
-             :close-on-press-escape="false" :width="isPhone?'100%':'50%'">
-
+  <el-dialog
+    v-model="dialogMenuVisible"
+    title="查看目录"
+    :close-on-click-modal="false"
+    :close-on-press-escape="false"
+    :width="isPhone ? '100%' : '50%'"
+  >
     <el-row class="margin-top" v-loading="menuLoding">
       <el-tree
-          style="max-width: 600px"
-          :data="bookMenu"
-          :props="defaultProps"
-          @node-click="handleNodeClick"
+        style="max-width: 600px"
+        :data="bookMenu"
+        :props="defaultProps"
+        @node-click="handleNodeClick"
       />
     </el-row>
     <template #footer>
@@ -210,18 +210,14 @@
   </el-dialog>
 </template>
 
-<script>
-import {h} from 'vue'
-import {ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow} from 'element-plus'
+<script lang="ts">
+import { h } from 'vue'
+import { ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow } from 'element-plus'
 import SearchBar from '@/components/SearchBar.vue'
-import MetadataSearch from "@/components/MetadataSearch.vue";
-import MetadataEdit from "@/components/MetadataEdit.vue";
-import {Delete, Download, Edit, Menu, Rank, Trophy} from "@element-plus/icons-vue";
-
-// interface Tree {
-//   label: string
-//   children?: Tree[]
-// }
+import MetadataSearch from '@/components/MetadataSearch.vue'
+import MetadataEdit from '@/components/MetadataEdit.vue'
+import { Delete, Download, Edit, Menu, Rank, Trophy } from '@element-plus/icons-vue'
+import { Book } from '@/types/book'
 
 export default {
   name: 'Detail',
@@ -241,7 +237,17 @@ export default {
   },
   components: {
     Trophy,
-    Rank, MetadataEdit, MetadataSearch, ElCol, SearchBar, ElRow, ElButton, ElInput, ElNotification, ElMessage},
+    Rank,
+    MetadataEdit,
+    MetadataSearch,
+    ElCol,
+    SearchBar,
+    ElRow,
+    ElButton,
+    ElInput,
+    ElNotification,
+    ElMessage
+  },
   props: {
     id: {
       type: String,
@@ -250,33 +256,33 @@ export default {
   },
   data() {
     return {
-      book: {},
-      bookMenu: {},
-      menuLoding: false,
+      book: {} as Book,
+      bookMenu: {} as any,
+      menuLoding: false as boolean,
       defaultProps: {
         children: 'points',
-        label: 'text',
+        label: 'text'
       },
       dialogSearchVisible: false,
-      dialogEditVisible: false,
+      dialogEditVisible: false as boolean,
       dialogMenuVisible: false,
-      currentRow: {},
-      triggerUpdate: false,
+      currentRow: {} as any,
+      triggerUpdate: false as boolean,
       isPhone: document.documentElement.clientWidth < 993
     }
   },
   created() {
-    this.fetchBook(this.$route.params.id)
+    this.fetchBook((this.$route as any).params.id)
   },
   mounted() {
     window.addEventListener('resize', () => {
       this.isPhone = document.documentElement.clientWidth < 993 // 小于993视为平板及手机
-      console.log("isPhone: " + this.isPhone)
+      console.log('isPhone: ' + this.isPhone)
     })
   },
 
   methods: {
-    async fetchBook(id) {
+    async fetchBook(id: string) {
       try {
         const response = await fetch(`/api/book/${id}`)
         if (!response.ok) throw new Error('Network response was not ok')
@@ -285,13 +291,12 @@ export default {
         console.error('There was a problem with the fetch operation:', error)
       }
     },
-    formatFileSize(size) {
+    formatFileSize(size: number) {
       if (size < 1024 * 1024) return (size / 1024).toFixed(2) + ' KB'
       return (size / 1024 / 1024).toFixed(2) + ' MB'
     },
 
     async showBookMenu() {
-
       this.dialogMenuVisible = true
 
       this.menuLoding = true
@@ -301,42 +306,41 @@ export default {
         const data = await response.json()
         this.bookMenu = data.points
         this.menuLoding = false
-        if (!data.points){
+        if (!data.points) {
           ElNotification({
             title: 'ID copied ' + text,
-            message:  'ID copied to clipboard',
-            type: 'warning',
+            message: 'ID copied to clipboard',
+            type: 'warning'
           })
           this.dialogMenuVisible = false
         }
         console.log(data.points)
-
       } catch (error) {
         this.menuLoding = false
         console.error('There was a problem with the fetch operation:', error)
       }
     },
 
-    handleNodeClick(data) {
+    handleNodeClick(data: any) {
       console.log(data)
     },
-    copyToClipboard(text) {
+    copyToClipboard(text: string) {
       navigator.clipboard
-          .writeText(text)
-          .then(() => {
-            ElNotification({
-              title: 'ID copied ' + text,
-              message: h('i', {style: 'color: teal'}, 'ID copied to clipboard'),
-              type: 'success',
-            })
+        .writeText(text)
+        .then(() => {
+          ElNotification({
+            title: 'ID copied ' + text,
+            message: h('i', { style: 'color: teal' }, 'ID copied to clipboard'),
+            type: 'success'
           })
-          .catch((err) => {
-            ElNotification({
-              title: 'ID copied ' + text,
-              message: h('i', {style: 'color: red'}, 'Oops, Could not copy text.'),
-              type: 'error',
-            })
+        })
+        .catch((err) => {
+          ElNotification({
+            title: 'ID copied ' + text,
+            message: h('i', { style: 'color: red' }, 'Oops, Could not copy text.'),
+            type: 'error'
           })
+        })
     },
     searchByPublisher() {
       this.$router.push({
@@ -346,7 +350,7 @@ export default {
         }
       })
     },
-    searchByAuthor(author) {
+    searchByAuthor(author: string) {
       this.$router.push({
         path: '/search',
         query: {
@@ -354,7 +358,7 @@ export default {
         }
       })
     },
-    handleCurrentMeta(currentMeta) {
+    handleCurrentMeta(currentMeta: any) {
       this.currentRow = currentMeta
       console.log(this.currentRow)
     },
@@ -366,14 +370,14 @@ export default {
     redirectToHome() {
       this.$router.push('/')
     },
-    redirectToDownload(url) {
+    redirectToDownload(url: string) {
       window.location.href = url
     },
-    joinTags(tags) {
+    joinTags(tags: string[]) {
       if (tags.length === 0) return ''
       return tags.join(', ')
     },
-    async deleteBook(bookId) {
+    async deleteBook(bookId: string) {
       const response = await fetch(`/api/book/${bookId}/delete`, {
         method: 'POST',
         headers: {
@@ -384,24 +388,22 @@ export default {
         ElNotification({
           title: 'Book deleted successfully',
           message: this.book.title,
-          type: 'success',
+          type: 'success'
         })
         this.$router.back()
       } else {
         ElNotification({
           title: '删除书籍失败',
-          message: h('i', {style: 'color: red'}, this.book.title),
-          type: 'error',
+          message: h('i', { style: 'color: red' }, this.book.title),
+          type: 'error'
         })
       }
-
     }
   }
 }
 </script>
 
 <style scoped>
-
 .detail-header {
   display: flex;
   align-items: center;
@@ -422,7 +424,6 @@ export default {
   align-items: center;
   margin-left: 10px;
 }
-
 
 .detail-content {
   padding: 20px;

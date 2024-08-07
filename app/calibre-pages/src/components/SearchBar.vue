@@ -1,16 +1,20 @@
 <template>
   <div class="affix-container">
-  <el-affix target=".affix-container">
-    <el-input v-model="searchQuery" @keyup.enter="redirectToSearch" placeholder="书名、作者、ISBN">
-      <template #append>
-        <el-button size="large" @click="redirectToSearch">搜索</el-button>
-      </template>
-    </el-input>
-  </el-affix>
+    <el-affix target=".affix-container">
+      <el-input
+        v-model="searchQuery"
+        @keyup.enter="redirectToSearch"
+        placeholder="书名、作者、ISBN"
+      >
+        <template #append>
+          <el-button size="large" @click="redirectToSearch">搜索</el-button>
+        </template>
+      </el-input>
+    </el-affix>
   </div>
 </template>
 
-<script>
+<script lang="ts">
 import { ElButton, ElInput } from 'element-plus'
 
 export default {
@@ -30,6 +34,4 @@ export default {
   }
 }
 </script>
-<style scoped>
-
-</style>
+<style scoped></style>

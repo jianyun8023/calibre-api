@@ -2,11 +2,7 @@
   <el-card class="book-card" @click="redirectToDetail(book.id)">
     <el-row type="flex" align="middle">
       <el-col :span="6" class="cover-container">
-        <img
-            class="book-cover"
-            :src="book.cover"
-            alt="book cover"
-        />
+        <img class="book-cover" :src="proxy_image?('/api/proxy/cover/' + book.cover) :book.cover" alt="book cover"/>
       </el-col>
       <el-col :span="18" class="info-container">
         <div class="info-item title">{{ truncateText(book.title) }}</div>
@@ -23,32 +19,40 @@
   </el-card>
 </template>
 
-<script>
+<script lang="ts">
 import {ElButton, ElCard, ElCol, ElInput, ElRow} from 'element-plus'
+import {defineComponent} from 'vue'
 
-export default {
+import {Book} from '@/types/book'
+
+
+export default defineComponent({
   name: 'BookCard',
   components: {ElRow, ElCard, ElCol, ElButton, ElInput},
   props: {
     book: {
-      type: Object,
+      type: Object as () => Book,
       required: true
     },
     more_info: {
       type: Boolean,
       default: false
+    },
+    proxy_image: {
+      type: Boolean,
+      default: false
     }
   },
   methods: {
-    redirectToDetail(id) {
+    redirectToDetail(id: number) {
       this.$router.push(`/detail/${id}`)
     },
-    truncateText(title) {
+    truncateText(title: string) {
       if (!title) return ''
       return title.length > 20 ? title.substring(0, 16) + '...' : title
     }
   }
-}
+})
 </script>
 <style scoped>
 .book-card {
@@ -94,7 +98,9 @@ export default {
   color: #333;
 }
 
-.author, .publisher, .pubdate {
+.author,
+.publisher,
+.pubdate {
   font-size: 14px;
   color: #666;
 }
