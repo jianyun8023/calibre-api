@@ -63,7 +63,8 @@
       </el-table-column>
     </el-table>
     <div style="margin-top: 20px">
-      <el-button @click="toggleSelection"> 选择有ISBN的书籍</el-button>
+      <el-button @click="toggleSelection">选择有ISBN的书籍</el-button>
+      <el-button @click="exclusionPackage">排除套装</el-button>
       <el-button @click="clearSelection">清除选择</el-button>
       <el-button @click="updateMetaData">更新书籍元数据</el-button>
     </div>
@@ -93,7 +94,8 @@
     </el-button>
   </el-row>
 
-  <el-dialog v-model="metaUpdateDialogVisible" :title="'更新 ' + metaUpdate.index + '/' + metaUpdate.total " width="500" center :close-on-click-modal="false" :close-on-press-escape="false"	>
+  <el-dialog v-model="metaUpdateDialogVisible" :title="'更新 ' + metaUpdate.index + '/' + metaUpdate.total " width="500"
+             center :close-on-click-modal="false" :close-on-press-escape="false">
     <el-row>
       <el-col :span="12">
         <el-text>当前书籍：</el-text>
@@ -101,9 +103,12 @@
       </el-col>
       <el-col :span="12" v-loading="metaUpdate.updating == 0">
         <el-text>新元数据：</el-text>
-        <BookCard v-if="metaUpdate.updating == 1 || metaUpdate.updating == 2" :book="mapMetaBookToBook(metaUpdate.newMeta)" :proxy_image="true" :more_info="true"/>
+        <BookCard v-if="metaUpdate.updating == 1 || metaUpdate.updating == 2"
+                  :book="mapMetaBookToBook(metaUpdate.newMeta)" :proxy_image="true" :more_info="true"/>
         <el-text v-if="metaUpdate.updating == -1">更新失败</el-text>
-        <el-text v-if="metaUpdate.updating == 3">更新完成，成功数量 {{metaUpdate.successCount}}/ {{metaUpdate.total}}</el-text>
+        <el-text v-if="metaUpdate.updating == 3">更新完成，成功数量 {{ metaUpdate.successCount }}/
+          {{ metaUpdate.total }}
+        </el-text>
       </el-col>
 
     </el-row>
@@ -244,6 +249,18 @@ export default {
     clearSelection() {
       ;(this.$refs.multipleTable as any).clearSelection()
     },
+    exclusionPackage() {
+      this.multipleSelection.forEach((row) => {
+        // 套装 共\d+册 全\d+册
+        if (row.isbn && (row.title.includes('套装') || row.title.includes('册'))) {
+          ;(this.$refs.multipleTable as any).toggleRowSelection(row, false)
+        }
+
+        // if (row.isbn && row.title.includes('套装')) {
+        //   ;(this.$refs.multipleTable as any).toggleRowSelection(row, false)
+        // }
+      })
+    },
     toggleSelection() {
       this.books.forEach((row) => {
         if (row.isbn) {
@@ -319,7 +336,8 @@ export default {
 .el-table .warning-row {
   --el-table-tr-bg-color: var(--el-color-success-light-9);
 }
-.w-20{
+
+.w-20 {
   width: 70px;
   margin-right: 10px;
 }
