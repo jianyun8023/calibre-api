@@ -211,7 +211,7 @@ export default {
   created() {
     // this.newBook.summary
     // 清理html标签中的class
-    this.newBook.summary = this.newBook.summary.replace(/class=".*?"/g, '')
+    this.newBook.summary = this.newBook.summary?.replace(/class=".*?"/g, '')
     this.form.comments = this.newBook.summary
     this.form.title = this.useSubTitle ? this.joinTitle(this.newBook) : this.newBook.title
     this.form.publisher = this.newBook.publisher
@@ -221,13 +221,13 @@ export default {
     // 2022-1
     // 2022-1-21
 
-    this.form.pubdate = this.parseDateString(this.newBook.pubdate)
+    this.form.pubdate = this.newBook.pubdate?this.parseDateString(this.newBook.pubdate):new Date(0)
     this.form.authors = this.newBook.author
     this.authors = this.newBook.author
-    this.tags = this.newBook.tags.map((tag) => tag.name)
+    this.tags = this.newBook.tags?.map((tag:any) => tag.name)
     this.form.tags = this.tags
-    console.log('this.newBook.rating.average' + this.newBook.rating.average)
-    this.form.rating = Number(this.newBook.rating.average)
+    console.log('this.newBook.rating.average' + this.newBook.rating?.average)
+    this.form.rating = Number(this.newBook.rating?.average)
   },
   watch: {
     useSubTitle(val) {

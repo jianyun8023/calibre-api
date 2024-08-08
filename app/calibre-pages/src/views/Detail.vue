@@ -11,8 +11,11 @@
         <div class="book-info">
           <el-descriptions :title="book.title" :column="1" size="large" border>
             <template #extra>
-              <el-button type="primary" plain @click="dialogSearchVisible = true" :icon="Edit">
+              <el-button type="primary" plain @click="dialogSearchVisible = true" :icon="Refresh">
                 更新元数据
+              </el-button>
+              <el-button type="primary" plain @click="editBook" :icon="Edit">
+                编辑
               </el-button>
             </template>
             <el-descriptions-item>
@@ -216,12 +219,15 @@ import {ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow} from 'elemen
 import SearchBar from '@/components/SearchBar.vue'
 import MetadataSearch from '@/components/MetadataSearch.vue'
 import MetadataEdit from '@/components/MetadataEdit.vue'
-import {Delete, Download, Edit, Menu, Rank, Trophy} from '@element-plus/icons-vue'
+import {Delete, Download, Edit, Menu, Rank, Refresh, Trophy} from '@element-plus/icons-vue'
 import {Book} from '@/types/book'
 
 export default {
   name: 'Detail',
   computed: {
+    Refresh() {
+      return Refresh
+    },
     Edit() {
       return Edit
     },
@@ -366,6 +372,10 @@ export default {
     handleClose() {
       this.dialogSearchVisible = false
       console.log(this.currentRow)
+      this.dialogEditVisible = true
+    },
+    editBook() {
+      this.currentRow = {}
       this.dialogEditVisible = true
     },
     redirectToHome() {
