@@ -664,7 +664,9 @@ func (c Api) proxyCover(r *gin.Context) {
 	path := strings.TrimPrefix(r.Param("path"), "/")
 	log.Infof("proxy cover: %s", path)
 	response, err := c.http.R().SetDoNotParseResponse(true).
+		SetHeader("Referer", "https://book.douban.com/").
 		SetHeader("Content-Type", "image/jpeg").
+		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3573.0 Safari/537.36").
 		SetQueryParamsFromValues(r.Request.URL.Query()).
 		Get(path)
 	if err != nil {
