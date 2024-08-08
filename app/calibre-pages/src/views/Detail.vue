@@ -1,11 +1,11 @@
 <template>
   <el-row class="detail-header">
-    <SearchBar />
+    <SearchBar/>
   </el-row>
   <article class="detail-content">
     <el-row class="detail-row">
       <el-col :span="8" class="cover-container" :xs="24">
-        <img class="book-cover" :src="book.cover" alt="book cover" />
+        <img class="book-cover" :src="book.cover" alt="book cover"/>
       </el-col>
       <el-col :span="16" :xs="24">
         <div class="book-info">
@@ -19,7 +19,7 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon>
-                    <Box />
+                    <Box/>
                   </el-icon>
                   ID
                 </div>
@@ -30,17 +30,17 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon>
-                    <user />
+                    <user/>
                   </el-icon>
                   Authors
                 </div>
               </template>
               <el-tag
-                class="tag-spacing"
-                v-for="item in book.authors"
-                :key="item"
-                effect="dark"
-                @click="searchByAuthor(item)"
+                  class="tag-spacing"
+                  v-for="item in book.authors"
+                  :key="item"
+                  effect="dark"
+                  @click="searchByAuthor(item)"
               >
                 {{ item }}
               </el-tag>
@@ -49,7 +49,7 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon>
-                    <Discount />
+                    <Discount/>
                   </el-icon>
                   Publisher
                 </div>
@@ -60,7 +60,7 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon class="el-icon">
-                    <Key />
+                    <Key/>
                   </el-icon>
                   ISBN
                 </div>
@@ -71,7 +71,7 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon>
-                    <Timer />
+                    <Timer/>
                   </el-icon>
                   Published Date
                 </div>
@@ -82,19 +82,19 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon>
-                    <Trophy />
+                    <Trophy/>
                   </el-icon>
                   Rating
                 </div>
               </template>
               <el-rate
-                :value="book.rating / 2"
-                @input="(val: number) => (book.rating = val * 2)"
-                show-score
-                text-color="#ff9900"
-                :max="5"
-                allow-half
-                :score-template="`${book.rating}分`"
+                  :value="book.rating / 2"
+                  @input="(val: number) => (book.rating = val * 2)"
+                  show-score
+                  text-color="#ff9900"
+                  :max="5"
+                  allow-half
+                  :score-template="`${book.rating}分`"
               >
               </el-rate>
             </el-descriptions-item>
@@ -102,7 +102,7 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon>
-                    <CollectionTag />
+                    <CollectionTag/>
                   </el-icon>
                   Tags
                 </div>
@@ -115,7 +115,7 @@
               <template #label>
                 <div class="cell-item">
                   <el-icon>
-                    <Document />
+                    <Document/>
                   </el-icon>
                   File Size
                 </div>
@@ -130,12 +130,12 @@
           </el-row>
           <el-row class="book-buttons">
             <el-button
-              color="#626aef"
-              :xs="24"
-              :icon="Download"
-              plain
-              :disabled="!book.file_path"
-              @click="redirectToDownload(book.file_path)"
+                color="#626aef"
+                :xs="24"
+                :icon="Download"
+                plain
+                :disabled="!book.file_path"
+                @click="redirectToDownload(book.file_path)"
             >
               下载书籍
             </el-button>
@@ -157,13 +157,13 @@
   </article>
 
   <el-dialog
-    v-model="dialogSearchVisible"
-    title="搜索元数据"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    :width="isPhone ? '100%' : '50%'"
+      v-model="dialogSearchVisible"
+      title="搜索元数据"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :width="isPhone ? '100%' : '50%'"
   >
-    <MetadataSearch :book="book" @current-metadata="handleCurrentMeta" />
+    <MetadataSearch :book="book" @current-metadata="handleCurrentMeta"/>
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="dialogSearchVisible = false">取消</el-button>
@@ -172,13 +172,13 @@
     </template>
   </el-dialog>
   <el-dialog
-    v-model="dialogEditVisible"
-    title="更新元数据"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    :width="isPhone ? '100%' : '50%'"
+      v-model="dialogEditVisible"
+      title="更新元数据"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :width="isPhone ? '100%' : '50%'"
   >
-    <MetadataEdit :book="book" :new-book="currentRow" :update-metadata-flag="triggerUpdate" />
+    <MetadataEdit :book="book" :new-book="currentRow" :update-metadata-flag="triggerUpdate"/>
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="dialogEditVisible = false">取消</el-button>
@@ -188,18 +188,18 @@
   </el-dialog>
 
   <el-dialog
-    v-model="dialogMenuVisible"
-    title="查看目录"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    :width="isPhone ? '100%' : '50%'"
+      v-model="dialogMenuVisible"
+      title="查看目录"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :width="isPhone ? '100%' : '50%'"
   >
     <el-row class="margin-top" v-loading="menuLoding">
       <el-tree
-        style="max-width: 600px"
-        :data="bookMenu"
-        :props="defaultProps"
-        @node-click="handleNodeClick"
+          style="max-width: 600px"
+          :data="bookMenu"
+          :props="defaultProps"
+          @node-click="handleNodeClick"
       />
     </el-row>
     <template #footer>
@@ -211,13 +211,13 @@
 </template>
 
 <script lang="ts">
-import { h } from 'vue'
-import { ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow } from 'element-plus'
+import {h} from 'vue'
+import {ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow} from 'element-plus'
 import SearchBar from '@/components/SearchBar.vue'
 import MetadataSearch from '@/components/MetadataSearch.vue'
 import MetadataEdit from '@/components/MetadataEdit.vue'
-import { Delete, Download, Edit, Menu, Rank, Trophy } from '@element-plus/icons-vue'
-import { Book } from '@/types/book'
+import {Delete, Download, Edit, Menu, Rank, Trophy} from '@element-plus/icons-vue'
+import {Book} from '@/types/book'
 
 export default {
   name: 'Detail',
@@ -323,24 +323,25 @@ export default {
 
     handleNodeClick(data: any) {
       console.log(data)
+      window.open("/api" + data.content.src, '_blank')
     },
     copyToClipboard(text: string) {
       navigator.clipboard
-        .writeText(text)
-        .then(() => {
-          ElNotification({
-            title: 'ID copied ' + text,
-            message: h('i', { style: 'color: teal' }, 'ID copied to clipboard'),
-            type: 'success'
+          .writeText(text)
+          .then(() => {
+            ElNotification({
+              title: 'ID copied ' + text,
+              message: h('i', {style: 'color: teal'}, 'ID copied to clipboard'),
+              type: 'success'
+            })
           })
-        })
-        .catch((err) => {
-          ElNotification({
-            title: 'ID copied ' + text,
-            message: h('i', { style: 'color: red' }, 'Oops, Could not copy text.'),
-            type: 'error'
+          .catch((err) => {
+            ElNotification({
+              title: 'ID copied ' + text,
+              message: h('i', {style: 'color: red'}, 'Oops, Could not copy text.'),
+              type: 'error'
+            })
           })
-        })
     },
     searchByPublisher() {
       this.$router.push({
@@ -394,7 +395,7 @@ export default {
       } else {
         ElNotification({
           title: '删除书籍失败',
-          message: h('i', { style: 'color: red' }, this.book.title),
+          message: h('i', {style: 'color: red'}, this.book.title),
           type: 'error'
         })
       }
