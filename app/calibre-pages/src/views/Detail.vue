@@ -12,7 +12,7 @@
           <el-descriptions :title="book.title" :column="1" size="large" border>
             <template #extra>
               <el-button type="primary" plain @click="dialogSearchVisible = true" :icon="Refresh">
-                更新元数据
+                更新
               </el-button>
               <el-button type="primary" plain @click="editBook" :icon="Edit">
                 编辑
@@ -130,6 +130,9 @@
             <el-button color="#626aef" :xs="24" :icon="Menu" plain @click="showBookMenu">
               预览目录
             </el-button>
+            <el-button color="#626aef" :xs="24" :icon="Coffee" plain @click="readBook">
+              阅读
+            </el-button>
           </el-row>
           <el-row class="book-buttons">
             <el-button
@@ -175,21 +178,36 @@
     </template>
   </el-dialog>
   <el-dialog
+      v-model="dialogUpdateVisible"
+      title="更新元数据"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :width="isPhone ? '100%' : '50%'"
+  >
+    <MetadataUpdate :book="book" :new-book="currentRow" :update-metadata-flag="triggerUpdate"/>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="dialogUpdateVisible = false">取消</el-button>
+        <el-button type="primary" @click="triggerUpdate = true">更新</el-button>
+      </div>
+    </template>
+  </el-dialog>
+
+  <el-dialog
       v-model="dialogEditVisible"
       title="更新元数据"
       :close-on-click-modal="false"
       :close-on-press-escape="false"
       :width="isPhone ? '100%' : '50%'"
   >
-    <MetadataEdit :book="book" :new-book="currentRow" :update-metadata-flag="triggerUpdate"/>
+    <MetadataEdit :book="book" :new-book="currentRow"/>
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="dialogEditVisible = false">取消</el-button>
-        <el-button type="primary" @click="triggerUpdate = true">更新</el-button>
+        <el-button type="primary">更新</el-button>
       </div>
     </template>
   </el-dialog>
-
   <el-dialog
       v-model="dialogMenuVisible"
       title="查看目录"
@@ -219,12 +237,16 @@ import {ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow} from 'elemen
 import SearchBar from '@/components/SearchBar.vue'
 import MetadataSearch from '@/components/MetadataSearch.vue'
 import MetadataEdit from '@/components/MetadataEdit.vue'
-import {Delete, Download, Edit, Menu, Rank, Refresh, Trophy} from '@element-plus/icons-vue'
+import MetadataUpdate from '@/components/MetadataUpdate.vue'
+import {Coffee, Delete, Download, Edit, Menu, Rank, Refresh, Trophy} from '@element-plus/icons-vue'
 import {Book} from '@/types/book'
 
 export default {
   name: 'Detail',
   computed: {
+    Coffee() {
+      return Coffee
+    },
     Refresh() {
       return Refresh
     },
@@ -242,6 +264,7 @@ export default {
     }
   },
   components: {
+    MetadataUpdate,
     Trophy,
     Rank,
     MetadataEdit,
@@ -270,6 +293,7 @@ export default {
         label: 'text'
       },
       dialogSearchVisible: false,
+      dialogUpdateVisible: false as boolean,
       dialogEditVisible: false as boolean,
       dialogMenuVisible: false,
       currentRow: {} as any,
@@ -372,7 +396,7 @@ export default {
     handleClose() {
       this.dialogSearchVisible = false
       console.log(this.currentRow)
-      this.dialogEditVisible = true
+      this.dialogUpdateVisible = true
     },
     editBook() {
       this.currentRow = {}
@@ -409,6 +433,10 @@ export default {
           type: 'error'
         })
       }
+    },
+    readBook() {
+      // this.$router.push(`/read/${this.id}`)
+      window.open(`/read/${this.id}`, '_blank')
     }
   }
 }
