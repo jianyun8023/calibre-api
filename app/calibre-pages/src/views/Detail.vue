@@ -1,4 +1,14 @@
 <template>
+  <el-row>
+    <el-breadcrumb separator="/">
+      <el-breadcrumb-item :to="{ path: '/' }">homepage</el-breadcrumb-item>
+      <el-breadcrumb-item>
+        <a href="/">promotion management</a>
+      </el-breadcrumb-item>
+      <el-breadcrumb-item>promotion list</el-breadcrumb-item>
+      <el-breadcrumb-item>promotion detail</el-breadcrumb-item>
+    </el-breadcrumb>
+  </el-row>
   <el-row class="detail-header">
     <SearchBar/>
   </el-row>
@@ -195,7 +205,7 @@
 
   <el-dialog
       v-model="dialogEditVisible"
-      title="更新元数据"
+      title="编辑元数据"
       :close-on-click-modal="false"
       :close-on-press-escape="false"
       :width="isPhone ? '100%' : '50%'"
@@ -216,16 +226,38 @@
       :width="isPhone ? '100%' : '50%'"
   >
     <el-row class="margin-top" v-loading="menuLoding">
+      <el-scrollbar height="600px">
       <el-tree
-          style="max-width: 600px"
+          style="max-width: 600px; width: 100%"
           :data="bookMenu"
           :props="defaultProps"
           @node-click="handleNodeClick"
       />
+      </el-scrollbar>
     </el-row>
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="dialogMenuVisible = false">OK</el-button>
+      </div>
+    </template>
+  </el-dialog>
+
+  <el-dialog
+      v-model="dialogPreviewVisible"
+      :title="'预览： ' + currentPreviewTitle"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :width="isPhone ? '100%' : '50%'"
+  >
+    <el-row class="margin-top" v-loading="previewLoding">
+      <iframe :src="currentPreviewUrl" width="100%"  height="600px">
+
+      </iframe>
+      <el-text v-html="currentPreviewContent"></el-text>
+    </el-row>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="dialogPreviewVisible = false">OK</el-button>
       </div>
     </template>
   </el-dialog>
@@ -275,7 +307,7 @@ export default {
     ElButton,
     ElInput,
     ElNotification,
-    ElMessage
+    ElMessage,
   },
   props: {
     id: {
@@ -288,6 +320,7 @@ export default {
       book: {} as Book,
       bookMenu: {} as any,
       menuLoding: false as boolean,
+      previewLoding: false as boolean,
       defaultProps: {
         children: 'points',
         label: 'text'
@@ -296,8 +329,12 @@ export default {
       dialogUpdateVisible: false as boolean,
       dialogEditVisible: false as boolean,
       dialogMenuVisible: false,
+      dialogPreviewVisible: false,
       currentRow: {} as any,
       triggerUpdate: false as boolean,
+      currentPreviewContent: '',
+      currentPreviewUrl: '',
+      currentPreviewTitle: '',
       isPhone: document.documentElement.clientWidth < 993
     }
   },
@@ -351,9 +388,24 @@ export default {
       }
     },
 
-    handleNodeClick(data: any) {
+    async handleNodeClick(data: any) {
       console.log(data)
-      window.open("/api" + data.content.src, '_blank')
+
+      // this.previewLoding = true
+      this.dialogPreviewVisible = true
+      this.currentPreviewUrl = "/api" + data.content.src
+      this.currentPreviewTitle = data.text
+      // fetch("/api" + data.content.src)
+      //     .then(response => response.text())
+      //     .then(data => {
+      //       this.currentPreviewContent = data
+      //       this.previewLoding = false
+      //     })
+      //     .catch(error => {
+      //       this.previewLoding = false
+      //       ElMessage.error('There was a problem with the fetch operation:' + error.message)
+      //     })
+
     },
     copyToClipboard(text: string) {
       navigator.clipboard

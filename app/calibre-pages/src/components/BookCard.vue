@@ -19,40 +19,29 @@
   </el-card>
 </template>
 
-<script lang="ts">
-import {ElButton, ElCard, ElCol, ElInput, ElRow} from 'element-plus'
-import {defineComponent} from 'vue'
+<script setup lang="ts">
+import {ElCard, ElCol, ElRow} from 'element-plus'
+import {useRouter} from 'vue-router';
+
 
 import {Book} from '@/types/book'
 
+const props = defineProps<{
+  book: Book;
+  more_info: boolean;
+  proxy_image: boolean;
+}>();
 
-export default defineComponent({
-  name: 'BookCard',
-  components: {ElRow, ElCard, ElCol, ElButton, ElInput},
-  props: {
-    book: {
-      type: Object as () => Book,
-      required: true
-    },
-    more_info: {
-      type: Boolean,
-      default: false
-    },
-    proxy_image: {
-      type: Boolean,
-      default: false
-    }
-  },
-  methods: {
-    redirectToDetail(id: number) {
-      this.$router.push(`/detail/${id}`)
-    },
-    truncateText(title: string) {
-      if (!title) return ''
-      return title.length > 20 ? title.substring(0, 16) + '...' : title
-    }
-  }
-})
+const router = useRouter();
+
+const redirectToDetail = (id: number) => {
+  router.push(`/detail/${id}`);
+};
+
+const truncateText = (title: string) => {
+  if (!title) return '';
+  return title.length > 20 ? title.substring(0, 16) + '...' : title;
+};
 </script>
 <style scoped>
 .book-card {

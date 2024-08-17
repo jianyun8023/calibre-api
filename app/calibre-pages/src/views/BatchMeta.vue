@@ -17,13 +17,29 @@
         </el-select>
       </el-col>
       <el-col :span="8" :offset="1">
-        <el-input
+
+        <el-autocomplete
             v-model="keyword"
             @input="fetchBooks"
-            type="text"
+            :fetch-suggestions="querySearch"
+            :trigger-on-focus="false"
+            clearable
+            class="inline-input w-50"
             placeholder="书名、作者、ISBN"
-            class=""
-        />
+            @select="handleSearchSelect"
+        >
+          <template #default="{ item }">
+            <div class="value">{{ item }}</div>
+          </template>
+        </el-autocomplete>
+
+        <!--        <el-input-->
+        <!--            v-model="keyword"-->
+        <!--            @input="fetchBooks"-->
+        <!--            type="text"-->
+        <!--            placeholder="书名、作者、ISBN"-->
+        <!--            class=""-->
+        <!--        />-->
       </el-col>
     </el-row>
   </div>
@@ -60,6 +76,23 @@
           label="出版日期"
           :formatter="(row: Book) => new Date(row.pubdate).toLocaleDateString()"
       >
+      </el-table-column>
+      <el-table-column fixed="right" label="Operations" min-width="120">
+        <template #default="scope">
+          <el-button
+              link
+              type="primary"
+              size="small"
+              @click="updateEditBook(scope.row)"
+          >
+            编辑
+          </el-button>
+          <el-popconfirm title="确定删除?" @confirm="deleteBook(scope.row)">
+            <template #reference>
+              <el-button link :icon="Delete"  size="small" :xs="24" class="delete-button">删除</el-button>
+            </template>
+          </el-popconfirm>
+        </template>
       </el-table-column>
     </el-table>
     <div style="margin-top: 20px">
@@ -121,16 +154,40 @@
       </div>
     </template>
   </el-dialog>
+
+  <el-dialog
+      v-model="dialogEditVisible"
+      title="编辑元数据"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :width="'50%'"
+  >
+    <MetadataEdit :book="editBook"/>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="dialogEditVisible = false">取消</el-button>
+        <el-button type="primary">更新</el-button>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
 <script lang="ts">
 import {Book, mapMetaBookToBook, MetaBook} from '@/types/book'
 import BookCard from '@/components/BookCard.vue'
-import {ElButton, ElCol, ElInput, ElRow, ElTable} from 'element-plus'
+import {ElButton, ElCol, ElInput, ElNotification, ElRow, ElTable} from 'element-plus'
+import MetadataEdit from "@/components/MetadataEdit.vue";
+import {Delete} from "@element-plus/icons-vue";
+import {h} from "vue";
 
 export default {
   name: 'BatchMeta',
-  components: {ElInput, ElButton, ElRow, ElCol, BookCard},
+  computed: {
+    Delete() {
+      return Delete
+    }
+  },
+  components: {MetadataEdit, ElInput, ElButton, ElRow, ElCol, BookCard},
   data() {
     return {
       filterType: 'publisher' as string,
@@ -150,10 +207,14 @@ export default {
         updating: 0,
         newMeta: {} as MetaBook,
       },
+      allPublishers: [] as string[],
+      dialogEditVisible: false,
+      editBook: {} as Book
     }
   },
   created() {
     this.initializeFromQueryParams()
+    this.fetchPublishers()
   },
   watch: {
     keyword() {
@@ -175,6 +236,11 @@ export default {
   },
 
   methods: {
+    async fetchPublishers() {
+      const response = await fetch('/api/publisher')
+      const publishers = await response.json()
+      this.allPublishers = publishers.data
+    },
     mapMetaBookToBook,
     async fetchBooks() {
       if (this.filterType === 'publisher') {
@@ -203,6 +269,23 @@ export default {
       this.estimatedTotalHits = data.estimatedTotalHits
     },
 
+    async querySearch(queryString: string, cb: (arg0: string[]) => void) {
+      if (this.filterType === 'publisher') {
+        const results = queryString ? this.allPublishers.filter(this.createFilter(queryString)) : []
+        console.log(results)
+        cb(results)
+      } else {
+        cb([])
+      }
+    },
+    createFilter(queryString: string) {
+      return (restaurant: string) => {
+        return (restaurant.toLowerCase().indexOf(queryString.toLowerCase()) === 0)
+      }
+    },
+    handleSearchSelect(item: string) {
+      this.keyword = item
+    },
     prevPage() {
       if (this.offset > 0) {
         this.offset -= this.limit
@@ -261,6 +344,35 @@ export default {
         // }
       })
     },
+    async deleteBook(book: Book) {
+      const response = await fetch(`/api/book/${book.id}/delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      if (response.ok) {
+        ElNotification({
+          title: 'Book deleted successfully',
+          message: book.title,
+          type: 'success'
+        })
+        this.$router.back()
+      } else {
+        ElNotification({
+          title: '删除书籍失败',
+          message: h('i', {style: 'color: red'}, book.title),
+          type: 'error'
+        })
+      }
+    },
+    updateEditBook(book: Book) {
+      // console.log(book)
+      // updateBook(book, this.editBook)
+      this.editBook = book
+      // metadataEdit.book.value = book
+      this.dialogEditVisible = true
+    },
     toggleSelection() {
       this.books.forEach((row) => {
         if (row.isbn) {
@@ -271,6 +383,11 @@ export default {
     handleSelectionChange(val: Book[]) {
       console.log(val)
       this.multipleSelection = val
+    },
+    async batchDelete() {
+      for (const book of this.multipleSelection) {
+
+      }
     },
     async updateMetaData() {
       this.metaUpdateDialogVisible = true
@@ -289,7 +406,8 @@ export default {
           continue
         }
         try {
-          const response = await fetch('/api/metadata/isbn/' + book.isbn, {
+          let isbn = book.isbn.replace(/-/g, '')
+          const response = await fetch('/api/metadata/isbn/' + isbn, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'

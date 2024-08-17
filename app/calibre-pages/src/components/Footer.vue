@@ -4,10 +4,8 @@
   </el-row>
 </template>
 
-<script lang="ts">
-export default {
-  name: 'SiteFooter'
-}
+<script setup lang="ts">
+
 </script>
 
 <style scoped></style>

@@ -62,6 +62,20 @@ export function mapMetaBookToBook(metaBook: MetaBook): Book {
     };
 }
 
+export function updateBook(source: Book, target: Book){
+    target.title = source.title
+    target.authors = source.authors
+    target.isbn = source.isbn
+    target.publisher = source.publisher
+    target.pubdate = source.pubdate
+    target.rating = source.rating
+    target.tags = source.tags
+    target.comments = source.comments
+    target.cover = source.cover
+    target.id = source.id
+}
+
+
 function joinTitle(title: string, subTitle: string) {
     if (!subTitle) {
         return title

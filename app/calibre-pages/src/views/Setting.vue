@@ -57,6 +57,12 @@ export default {
           description: '切换主备索引',
           loading: false,
           func: this.switchIndex
+        },
+        {
+          name: '批量管理',
+          description: '批量管理书籍',
+          loading: false,
+          func: this.redirectToManagerPage
         }
       ]
     }
@@ -117,7 +123,10 @@ export default {
           type: 'error'
         })
       }
-    }
+    },
+    redirectToManagerPage(config: { loading: boolean }) {
+      this.$router.push('/metadata/manager')
+    },
   }
 }
 </script>
