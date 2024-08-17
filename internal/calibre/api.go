@@ -25,7 +25,6 @@ type Api struct {
 	config     *Config
 	contentApi *content.Api
 	client     *meilisearch.Client
-	bookIndex  *meilisearch.Index
 	baseDir    string
 	http       *client.Client
 }
@@ -45,10 +44,15 @@ func (c Api) SetupRouter(r *gin.Engine) {
 	base.GET("/metadata/isbn/:isbn", c.getIsbn)
 	base.GET("/metadata/search", c.queryMetadata)
 	base.POST("/search", c.search)
+	base.GET("/publisher", c.listPublisher)
 	// 最近更新Recently
 	base.GET("/recently", c.recently)
 	base.POST("/index/update", c.updateIndex)
 	base.POST("/index/switch", c.switchIndex)
+}
+
+func (c Api) currentIndex() *meilisearch.Index {
+	return c.client.Index(c.config.Search.Index)
 }
 
 func NewClient(config *Config) Api {
@@ -63,7 +67,7 @@ func NewClient(config *Config) Api {
 	}
 
 	//index := client.Index(config.Search.Index)
-	index, err := ensureIndexExists(client, config.Search.Index)
+	_, err := ensureIndexExists(client, config.Search.Index)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +82,6 @@ func NewClient(config *Config) Api {
 	return Api{
 		config:     config,
 		client:     client,
-		bookIndex:  index,
 		baseDir:    config.TmpDir,
 		contentApi: &newClient,
 		http:       newClient.Client,
@@ -115,9 +118,10 @@ func ensureIndexExists(client *meilisearch.Client, indexName string) (*meilisear
 		// Update index settings
 		log.Infof("Updating index settings for %q", indexName)
 		_, err = index.UpdateSettings(&meilisearch.Settings{
+			//RankingRules:         []string{"typo", "words", "proximity", "attribute", "exactness"},
 			DisplayedAttributes:  []string{"*"},
 			FilterableAttributes: []string{"authors", "file_path", "id", "last_modified", "pubdate", "publisher", "isbn", "tags"},
-			SearchableAttributes: []string{"title", "authors", "isbn"},
+			SearchableAttributes: []string{"title", "authors", "isbn", "publisher"},
 			SortableAttributes:   []string{"authors_sort", "id", "last_modified", "pubdate", "publisher"},
 		})
 		if err != nil {
@@ -133,16 +137,13 @@ func (c Api) search(r *gin.Context) {
 	if err2 != nil {
 		log.Infof("====== Only Bind By Query String ======\n%v", err2)
 	}
-	if len(req.Sort) == 0 {
-		req.Sort = []string{"id:desc"}
-	}
 	log.Infof("search request: %v", req)
 	q := r.Query("q")
 	if q == "" {
 		q = r.PostForm("q")
 	}
 	log.Infof("search query: %s", q)
-	search, err := c.bookIndex.Search(q, &req)
+	search, err := c.currentIndex().Search(q, &req)
 
 	books := make([]Book, len(search.Hits))
 	for i := range search.Hits {
@@ -180,7 +181,7 @@ func (c Api) search(r *gin.Context) {
 func (c Api) getBook(r *gin.Context) {
 	id := r.Param("id")
 	var book Book
-	err := c.bookIndex.GetDocument(id, nil, &book)
+	err := c.currentIndex().GetDocument(id, nil, &book)
 
 	if err != nil {
 		// 返回文件找不到
@@ -199,7 +200,7 @@ func (c Api) deleteBook(r *gin.Context) {
 		r.JSON(http.StatusNotFound, "book not found"+err.Error())
 		return
 	}
-	_, err = c.bookIndex.DeleteDocument(id)
+	_, err = c.currentIndex().DeleteDocument(id)
 	if err != nil {
 		// 返回文件找不到
 		r.JSON(http.StatusNotFound, "book not found"+err.Error())
@@ -254,7 +255,7 @@ func (c Api) getBookContent(r *gin.Context) {
 	//path1 := path.Join(c.Query("baseDir"), c.Query("path"))
 	path1 := r.Param("path")
 	var book Book
-	err := c.bookIndex.GetDocument(id, nil, &book)
+	err := c.currentIndex().GetDocument(id, nil, &book)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, err)
 	} else {
@@ -477,7 +478,9 @@ func (c Api) recently(r *gin.Context) {
 		Offset: int64(offset),
 	}
 
-	search, err := c.bookIndex.Search("", &searchRequest)
+	c.client.Index(c.config.Search.Index).Search("", &searchRequest)
+
+	search, err := c.currentIndex().Search("", &searchRequest)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -523,7 +526,7 @@ func (c Api) updateMetadata(r *gin.Context) {
 	}
 
 	oldBook := &Book{}
-	err = c.bookIndex.GetDocument(id, nil, oldBook)
+	err = c.currentIndex().GetDocument(id, nil, oldBook)
 	if err != nil {
 		r.JSON(http.StatusNotFound, gin.H{
 			"code":  500,
@@ -557,7 +560,7 @@ func (c Api) updateMetadata(r *gin.Context) {
 		})
 		return
 	}
-	_, err = c.bookIndex.AddDocuments(books)
+	_, err = c.currentIndex().AddDocuments(books)
 	if err != nil {
 		// 返回文件找不到
 		r.JSON(http.StatusNotFound, gin.H{
@@ -678,6 +681,20 @@ func (c Api) proxyCover(r *gin.Context) {
 	reader := resp.Body
 	defer reader.Close()
 	r.DataFromReader(http.StatusOK, length, "image/jpeg", reader, nil)
+}
+
+func (c Api) listPublisher(context *gin.Context) {
+	publishers, err := c.contentApi.GetAllPublisher()
+
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	context.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"data": publishers,
+	})
+
 }
 
 func parseParams(book *Book, oldBook *Book) map[string]interface{} {

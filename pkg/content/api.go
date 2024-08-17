@@ -114,6 +114,16 @@ func (a *Api) GetAllBooksIds() ([]int64, error) {
 	return bookIds, nil
 }
 
+func (a *Api) GetAllPublisher() ([]string, error) {
+	///interface-data/field-names/publisher?library_id=library
+	var publishers []string
+	resp, err := a.R().SetResult(&publishers).
+		SetQueryParam("library_id", "library").
+		Get("/interface-data/field-names/publisher")
+	log.Infof(resp.Request.URL + " " + resp.Status())
+	return publishers, err
+}
+
 func (a *Api) GetBookMetaDatas(ids []int64, library string) ([]Book, error) {
 	///cdb/cmd/list/0
 	if library == "" {
