@@ -158,7 +158,7 @@
   </el-form>
 </template>
 <script setup lang="ts">
-import {ElInput, ElNotification} from 'element-plus'
+import {ElNotification} from 'element-plus'
 import {h, reactive, ref, watch} from 'vue'
 import {Book} from '@/types/book'
 
