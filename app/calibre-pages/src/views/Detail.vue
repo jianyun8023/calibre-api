@@ -137,7 +137,7 @@
             </el-descriptions-item>
           </el-descriptions>
           <el-row class="book-buttons">
-            <el-button color="#626aef" :xs="24" :icon="Menu" plain @click="showBookMenu">
+            <el-button color="#626aef" :xs="24" :icon="Menu" plain @click="dialogPreviewVisible = true">
               预览目录
             </el-button>
             <el-button color="#626aef" :xs="24" :icon="Coffee" plain @click="readBook">
@@ -172,95 +172,17 @@
     </el-row>
   </article>
 
-  <el-dialog
-      v-model="dialogSearchVisible"
-      title="搜索元数据"
-      :close-on-click-modal="false"
-      :close-on-press-escape="false"
-      :width="isPhone ? '100%' : '50%'"
-  >
-    <MetadataSearch :book="book" @current-metadata="handleCurrentMeta"/>
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="dialogSearchVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleClose"> 确认</el-button>
-      </div>
-    </template>
-  </el-dialog>
-  <el-dialog
-      v-model="dialogUpdateVisible"
-      title="更新元数据"
-      :close-on-click-modal="false"
-      :close-on-press-escape="false"
-      :width="isPhone ? '100%' : '50%'"
-  >
-    <MetadataUpdate :book="book" :new-book="currentRow" :update-metadata-flag="triggerUpdate"/>
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="dialogUpdateVisible = false">取消</el-button>
-        <el-button type="primary" @click="triggerUpdate = true">更新</el-button>
-      </div>
-    </template>
-  </el-dialog>
 
-  <el-dialog
-      v-model="dialogEditVisible"
-      title="编辑元数据"
-      :close-on-click-modal="false"
-      :close-on-press-escape="false"
-      :width="isPhone ? '100%' : '50%'"
-  >
-    <MetadataEdit :book="book" :new-book="currentRow"/>
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="dialogEditVisible = false">取消</el-button>
-        <el-button type="primary">更新</el-button>
-      </div>
-    </template>
-  </el-dialog>
-  <el-dialog
-      v-model="dialogMenuVisible"
-      title="查看目录"
-      :close-on-click-modal="false"
-      :close-on-press-escape="false"
-      :width="isPhone ? '100%' : '50%'"
-  >
-    <el-row class="margin-top" v-loading="menuLoding">
-      <el-scrollbar height="600px">
-      <el-tree
-          style="max-width: 600px; width: 100%"
-          :data="bookMenu"
-          :props="defaultProps"
-          @node-click="handleNodeClick"
-      />
-      </el-scrollbar>
-    </el-row>
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="dialogMenuVisible = false">OK</el-button>
-      </div>
-    </template>
-  </el-dialog>
+  <MetadataSearch :book="book"
+                  :dialogSearchVisible="dialogSearchVisible"
+                  @dialogSearchVisible="dialogSearchVisible = $event"/>
 
-  <el-dialog
-      v-model="dialogPreviewVisible"
-      :title="'预览： ' + currentPreviewTitle"
-      :close-on-click-modal="false"
-      :close-on-press-escape="false"
-      :width="isPhone ? '100%' : '50%'"
-  >
-    <el-row class="margin-top" v-loading="previewLoding">
-      <iframe :src="currentPreviewUrl" width="100%"  height="600px">
 
-      </iframe>
-      <el-text v-html="currentPreviewContent"></el-text>
-    </el-row>
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="dialogPreviewVisible = false">OK</el-button>
-      </div>
-    </template>
-  </el-dialog>
+  <MetadataEdit :book="book" :dialogEditVisible="dialogEditVisible"
+                @dialogEditVisible="dialogEditVisible = $event"/>
+  <PreviewBook :book="book" :dialog-preview-visible="dialogPreviewVisible"
+               @dialog-preview-visible="dialogPreviewVisible = $event"/>
+
 </template>
 
 <script lang="ts">
@@ -272,6 +194,7 @@ import MetadataEdit from '@/components/MetadataEdit.vue'
 import MetadataUpdate from '@/components/MetadataUpdate.vue'
 import {Coffee, Delete, Download, Edit, Menu, Rank, Refresh, Trophy} from '@element-plus/icons-vue'
 import {Book} from '@/types/book'
+import PreviewBook from "@/components/PreviewBook.vue";
 
 export default {
   name: 'Detail',
@@ -296,6 +219,7 @@ export default {
     }
   },
   components: {
+    PreviewBook,
     MetadataUpdate,
     Trophy,
     Rank,
@@ -309,6 +233,29 @@ export default {
     ElNotification,
     ElMessage,
   },
+  // setup() {
+  //   const book = ref<Book>({} as Book)
+  //   const route = useRoute()
+  //   const fetchBook = async (id: string) => {
+  //     try {
+  //       const response = await fetch(`/api/book/${id}`)
+  //       if (!response.ok) throw new Error('Network response was not ok')
+  //       book.value = await response.json()
+  //     } catch (error) {
+  //       console.error('There was a problem with the fetch operation:', error)
+  //     }
+  //   }
+  //
+  //   onMounted(() => {
+  //     fetchBook(route.params.id as string)
+  //   })
+  //
+  //   provide('book', book)
+  //
+  //   return {
+  //     book
+  //   }
+  // },
   props: {
     id: {
       type: String,
@@ -318,23 +265,11 @@ export default {
   data() {
     return {
       book: {} as Book,
-      bookMenu: {} as any,
-      menuLoding: false as boolean,
-      previewLoding: false as boolean,
-      defaultProps: {
-        children: 'points',
-        label: 'text'
-      },
+
       dialogSearchVisible: false,
-      dialogUpdateVisible: false as boolean,
       dialogEditVisible: false as boolean,
-      dialogMenuVisible: false,
       dialogPreviewVisible: false,
       currentRow: {} as any,
-      triggerUpdate: false as boolean,
-      currentPreviewContent: '',
-      currentPreviewUrl: '',
-      currentPreviewTitle: '',
       isPhone: document.documentElement.clientWidth < 993
     }
   },
@@ -363,50 +298,7 @@ export default {
       return (size / 1024 / 1024).toFixed(2) + ' MB'
     },
 
-    async showBookMenu() {
-      this.dialogMenuVisible = true
 
-      this.menuLoding = true
-      try {
-        const response = await fetch(`/api/read/${this.book.id}/toc`)
-        if (!response.ok) throw new Error('Network response was not ok')
-        const data = await response.json()
-        this.bookMenu = data.points
-        this.menuLoding = false
-        if (!data.points) {
-          ElNotification({
-            title: 'ID copied ' + text,
-            message: 'ID copied to clipboard',
-            type: 'warning'
-          })
-          this.dialogMenuVisible = false
-        }
-        console.log(data.points)
-      } catch (error) {
-        this.menuLoding = false
-        console.error('There was a problem with the fetch operation:', error)
-      }
-    },
-
-    async handleNodeClick(data: any) {
-      console.log(data)
-
-      // this.previewLoding = true
-      this.dialogPreviewVisible = true
-      this.currentPreviewUrl = "/api" + data.content.src
-      this.currentPreviewTitle = data.text
-      // fetch("/api" + data.content.src)
-      //     .then(response => response.text())
-      //     .then(data => {
-      //       this.currentPreviewContent = data
-      //       this.previewLoding = false
-      //     })
-      //     .catch(error => {
-      //       this.previewLoding = false
-      //       ElMessage.error('There was a problem with the fetch operation:' + error.message)
-      //     })
-
-    },
     copyToClipboard(text: string) {
       navigator.clipboard
           .writeText(text)
@@ -441,17 +333,7 @@ export default {
         }
       })
     },
-    handleCurrentMeta(currentMeta: any) {
-      this.currentRow = currentMeta
-      console.log(this.currentRow)
-    },
-    handleClose() {
-      this.dialogSearchVisible = false
-      console.log(this.currentRow)
-      this.dialogUpdateVisible = true
-    },
     editBook() {
-      this.currentRow = {}
       this.dialogEditVisible = true
     },
     redirectToHome() {

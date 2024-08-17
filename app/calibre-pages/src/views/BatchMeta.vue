@@ -83,13 +83,21 @@
               link
               type="primary"
               size="small"
+              @click="updateBook(scope.row)"
+          >
+            更新
+          </el-button>
+          <el-button
+              link
+              type="primary"
+              size="small"
               @click="updateEditBook(scope.row)"
           >
             编辑
           </el-button>
           <el-popconfirm title="确定删除?" @confirm="deleteBook(scope.row)">
             <template #reference>
-              <el-button link :icon="Delete"  size="small" :xs="24" class="delete-button">删除</el-button>
+              <el-button link :icon="Delete" size="small" :xs="24" class="delete-button">删除</el-button>
             </template>
           </el-popconfirm>
         </template>
@@ -132,7 +140,7 @@
     <el-row>
       <el-col :span="12">
         <el-text>当前书籍：</el-text>
-        <BookCard :book="metaUpdate.currentBook" :more_info="true"/>
+        <BookCard :book="metaUpdate.currentBook" :more_info="true" :proxy_image="false"/>
       </el-col>
       <el-col :span="12" v-loading="metaUpdate.updating == 0">
         <el-text>新元数据：</el-text>
@@ -155,21 +163,13 @@
     </template>
   </el-dialog>
 
-  <el-dialog
-      v-model="dialogEditVisible"
-      title="编辑元数据"
-      :close-on-click-modal="false"
-      :close-on-press-escape="false"
-      :width="'50%'"
-  >
-    <MetadataEdit :book="editBook"/>
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="dialogEditVisible = false">取消</el-button>
-        <el-button type="primary">更新</el-button>
-      </div>
-    </template>
-  </el-dialog>
+  <MetadataSearch :book="editBook"
+                  :dialogSearchVisible="dialogSearchVisible"
+                  @dialogSearchVisible="dialogSearchVisible = $event"/>
+
+
+  <MetadataEdit :book="editBook" :dialogEditVisible="dialogEditVisible"
+                @dialogEditVisible="dialogEditVisible = $event"/>
 </template>
 
 <script lang="ts">
@@ -179,6 +179,7 @@ import {ElButton, ElCol, ElInput, ElNotification, ElRow, ElTable} from 'element-
 import MetadataEdit from "@/components/MetadataEdit.vue";
 import {Delete} from "@element-plus/icons-vue";
 import {h} from "vue";
+import MetadataSearch from "@/components/MetadataSearch.vue";
 
 export default {
   name: 'BatchMeta',
@@ -187,7 +188,7 @@ export default {
       return Delete
     }
   },
-  components: {MetadataEdit, ElInput, ElButton, ElRow, ElCol, BookCard},
+  components: {MetadataSearch, MetadataEdit, ElInput, ElButton, ElRow, ElCol, BookCard},
   data() {
     return {
       filterType: 'publisher' as string,
@@ -208,6 +209,7 @@ export default {
         newMeta: {} as MetaBook,
       },
       allPublishers: [] as string[],
+      dialogSearchVisible: false,
       dialogEditVisible: false,
       editBook: {} as Book
     }
@@ -372,6 +374,13 @@ export default {
       this.editBook = book
       // metadataEdit.book.value = book
       this.dialogEditVisible = true
+    },
+    updateBook(book: Book) {
+      // console.log(book)
+      // updateBook(book, this.editBook)
+      this.editBook = book
+      // metadataEdit.book.value = book
+      this.dialogSearchVisible = true
     },
     toggleSelection() {
       this.books.forEach((row) => {

@@ -1,96 +1,111 @@
 <template>
-  <el-form
-      v-loading="loading"
-      :model="form"
-      label-width="70px"
-      class="book-form"
-      style="max-width: 600px"
+  <el-dialog
+      :model-value="dialogEditVisible"
+      @update:model-value="val => emit('dialogEditVisible', val)"
+      title="编辑元数据"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :width="isPhone ? '100%' : '50%'"
   >
-    <el-form-item label="书名">
-      <el-col :span="18">
-        <el-input v-model="form.title" placeholder="请输入书名">
+    <el-form
+        v-loading="loading"
+        :model="form"
+        label-width="70px"
+        class="book-form"
+        style="max-width: 600px"
+    >
+      <el-form-item label="书名">
+        <el-col :span="18">
+          <el-input v-model="form.title" placeholder="请输入书名">
+          </el-input>
+        </el-col>
+      </el-form-item>
+      <el-form-item label="作者">
+        <el-col :span="18">
+          <el-select
+              v-model="form.authors"
+              multiple
+              filterable
+              placeholder="Select"
+              allow-create
+              style="width: 240px"
+          >
+            <el-option
+                v-for="item in book.authors"
+                :key="item"
+                :label="item"
+                :value="item"
+            />
+          </el-select>
+        </el-col>
+      </el-form-item>
+      <el-form-item label="出版社">
+        <el-col :span="18">
+          <el-input v-model="form.publisher" placeholder="请输入出版社"></el-input>
+        </el-col>
+
+      </el-form-item>
+      <el-form-item label="出版日期">
+        <el-col :span="18">
+          <el-date-picker v-model="form.pubdate" type="date" placeholder="请选择出版日期"/>
+        </el-col>
+
+      </el-form-item>
+      <el-form-item label="ISBN">
+        <el-col :span="18">
+          <el-input v-model="form.isbn" placeholder="请输入ISBN"></el-input>
+        </el-col>
+
+      </el-form-item>
+      <el-form-item label="评分">
+        <el-col :span="18">
+          <el-rate
+              :value="form.rating / 2"
+              @input="(val: number) => (form.rating = val * 2)"
+              show-score
+              text-color="#ff9900"
+              :max="5"
+              allow-half
+              :score-template="`${form.rating}分`"
+          >
+          </el-rate>
+        </el-col>
+      </el-form-item>
+      <el-form-item label="标签">
+        <el-col :span="18">
+          <el-select
+              v-model="form.tags"
+              multiple
+              filterable
+              placeholder="Select"
+              allow-create
+              style="width: 240px"
+          >
+            <el-option
+                v-for="item in book.tags"
+                :key="item"
+                :label="item"
+                :value="item"
+            />
+          </el-select>
+        </el-col>
+
+      </el-form-item>
+      <el-form-item label="简介">
+        <el-input :rows="6" v-model="form.comments" placeholder="请输入简介" type="textarea">
         </el-input>
-      </el-col>
-    </el-form-item>
-    <el-form-item label="作者">
-      <el-col :span="18">
-        <el-select
-            v-model="form.authors"
-            multiple
-            filterable
-            placeholder="Select"
-            allow-create
-            style="width: 240px"
-        >
-          <el-option
-              v-for="item in book.authors"
-              :key="item"
-              :label="item"
-              :value="item"
-          />
-        </el-select>
-      </el-col>
-    </el-form-item>
-    <el-form-item label="出版社">
-      <el-col :span="18">
-        <el-input v-model="form.publisher" placeholder="请输入出版社"></el-input>
-      </el-col>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="emit('dialogEditVisible', false)">取消</el-button>
+        <el-button type="primary" @click="updateMetadata" :loading="loading" >更新</el-button>
+      </div>
+    </template>
+  </el-dialog>
 
-    </el-form-item>
-    <el-form-item label="出版日期">
-      <el-col :span="18">
-        <el-date-picker v-model="form.pubdate" type="date" placeholder="请选择出版日期"/>
-      </el-col>
 
-    </el-form-item>
-    <el-form-item label="ISBN">
-      <el-col :span="18">
-        <el-input v-model="form.isbn" placeholder="请输入ISBN"></el-input>
-      </el-col>
 
-    </el-form-item>
-    <el-form-item label="评分">
-      <el-col :span="18">
-        <el-rate
-            :value="form.rating / 2"
-            @input="(val: number) => (form.rating = val * 2)"
-            show-score
-            text-color="#ff9900"
-            :max="5"
-            allow-half
-            :score-template="`${form.rating}分`"
-        >
-        </el-rate>
-      </el-col>
-    </el-form-item>
-    <el-form-item label="标签">
-      <el-col :span="18">
-        <el-select
-            v-model="form.tags"
-            multiple
-            filterable
-            placeholder="Select"
-            allow-create
-            style="width: 240px"
-        >
-          <el-option
-              v-for="item in book.tags"
-              :key="item"
-              :label="item"
-              :value="item"
-          />
-        </el-select>
-      </el-col>
-
-    </el-form-item>
-    <el-form-item label="简介">
-      <el-input :rows="6" v-model="form.comments" placeholder="请输入简介" type="textarea">
-      </el-input>
-    </el-form-item>
-    <el-form-item class="align-right">
-      <el-button type="info" @click="updateMetadata" :loading="loading">更新</el-button>
-    </el-form-item>
-  </el-form>
 </template>
 <script setup lang="ts">
 import {h, reactive, ref, watch} from 'vue';
@@ -99,16 +114,17 @@ import {Book} from '@/types/book';
 
 const props = defineProps<{
   book: Book;
+  dialogEditVisible: boolean;
 }>();
 
-const emit = defineEmits(['update:book']);
-
+const emit = defineEmits(['dialogEditVisible']);
+const isPhone = window.innerWidth < 768;
 
 const form = reactive({
   title: props.book.title,
   authors: props.book.authors,
   publisher: props.book.publisher,
-  pubdate: new Date(props.book.pubdate).toISOString().split('T')[0],
+  pubdate: props.book.pubdate,
   isbn: props.book.isbn,
   comments: props.book.comments,
   tags: props.book.tags,
