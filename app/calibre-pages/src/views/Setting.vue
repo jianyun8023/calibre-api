@@ -7,13 +7,13 @@
       <el-table-column fixed="right" label="Action">
         <template #default="scope">
           <el-button
-            v-loading="scope.row.loading"
-            element-loading-background="rgba(122, 122, 122, 0.8)"
-            type="primary"
-            size="default"
-            @click="scope.row.func(scope.row)"
+              v-loading="scope.row.loading"
+              element-loading-background="rgba(122, 122, 122, 0.8)"
+              type="primary"
+              size="default"
+              @click="scope.row.func(scope.row)"
           >
-            执行
+            {{scope.row.operator}}
           </el-button>
         </template>
       </el-table-column>
@@ -22,16 +22,8 @@
 </template>
 
 <script lang="ts">
-import { h } from 'vue'
-import {
-  ElButton,
-  ElContainer,
-  ElMain,
-  ElNotification,
-  ElRow,
-  ElTable,
-  ElTableColumn
-} from 'element-plus'
+import {h} from 'vue'
+import {ElButton, ElContainer, ElMain, ElNotification, ElRow, ElTable, ElTableColumn} from 'element-plus'
 
 export default {
   name: 'Setting',
@@ -50,19 +42,22 @@ export default {
           name: '更新索引',
           description: '更新MeiliSearch索引',
           loading: false,
-          func: this.updateIndex
+          func: this.updateIndex,
+          operator: '执行'
         },
         {
           name: '切换主备索引',
           description: '切换主备索引',
           loading: false,
-          func: this.switchIndex
+          func: this.switchIndex,
+          operator: '执行'
         },
         {
           name: '批量管理',
           description: '批量管理书籍',
           loading: false,
-          func: this.redirectToManagerPage
+          func: this.redirectToManagerPage,
+          operator: '前往'
         }
       ]
     }
@@ -71,19 +66,19 @@ export default {
     async switchIndex(config: { loading: boolean }) {
       config.loading = true
       try {
-        const response = await fetch('/api/index/switch', { method: 'POST' })
+        const response = await fetch('/api/index/switch', {method: 'POST'})
         config.loading = false
         if (response.ok) {
           const responseData = await response.json()
           ElNotification({
             title: 'Index switched successfully.',
-            message: h('i', { style: 'color: teal' }, 'Index switched successfully.'),
+            message: h('i', {style: 'color: teal'}, 'Index switched successfully.'),
             type: 'success'
           })
         } else {
           ElNotification({
             title: 'Failed to update index.',
-            message: h('i', { style: 'color: red' }, 'Error: ' + response.statusText),
+            message: h('i', {style: 'color: red'}, 'Error: ' + response.statusText),
             type: 'error'
           })
         }
@@ -91,7 +86,7 @@ export default {
         config.loading = false
         ElNotification({
           title: 'Failed to update index.',
-          message: h('i', { style: 'color: red' }, 'Error: ' + (error as Error).message),
+          message: h('i', {style: 'color: red'}, 'Error: ' + (error as Error).message),
           type: 'error'
         })
       }
@@ -99,19 +94,19 @@ export default {
     async updateIndex(config: { loading: boolean }) {
       config.loading = true
       try {
-        const response = await fetch('/api/index/update', { method: 'POST' })
+        const response = await fetch('/api/index/update', {method: 'POST'})
         config.loading = false
         if (response.ok) {
           const responseData = await response.json()
           ElNotification({
             title: 'Index updated successfully.',
-            message: h('i', { style: 'color: teal' }, 'Index updated successfully.'),
+            message: h('i', {style: 'color: teal'}, 'Index updated successfully.'),
             type: 'success'
           })
         } else {
           ElNotification({
             title: 'Failed to update index.',
-            message: h('i', { style: 'color: red' }, 'Error: ' + response.statusText),
+            message: h('i', {style: 'color: red'}, 'Error: ' + response.statusText),
             type: 'error'
           })
         }
@@ -119,7 +114,7 @@ export default {
         config.loading = false
         ElNotification({
           title: 'Failed to update index.',
-          message: h('i', { style: 'color: red' }, 'Error: ' + (error as Error).message),
+          message: h('i', {style: 'color: red'}, 'Error: ' + (error as Error).message),
           type: 'error'
         })
       }
