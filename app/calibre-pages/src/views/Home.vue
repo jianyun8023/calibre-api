@@ -43,12 +43,19 @@
     </el-row>
   </el-row>
   <el-row>
-    <el-row>
-      <el-col :span="24" class="col-bottom">
+    <el-row class="full-width-row">
+      <el-col :span="24" class="full-width-row">
         <h2>出版社</h2>
+        <el-link href="/publisher" class="text-right"
+        >更多
+          <el-icon>
+            <More/>
+          </el-icon
+          >
+        </el-link>
       </el-col>
       <el-col v-for="publisher in publishers" :key="publisher" :span="6" :lg="6" :sm="12" :xs="24">
-        <el-tag @click="searchByPublisher(publisher)" effect="dark">
+        <el-tag @click="searchByPublisher(publisher)" effect="light">
           {{ publisher }}
         </el-tag>
       </el-col>
