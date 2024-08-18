@@ -25,8 +25,10 @@ const defaultProps = {
   label: 'text'
 }
 
-watch(() => props.book, () => {
-  showBookMenu();
+watch(() => props.dialogPreviewVisible, () => {
+  if (props.dialogPreviewVisible){
+    showBookMenu()
+  }
 });
 
 
