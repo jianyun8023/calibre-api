@@ -26,7 +26,7 @@ export default {
     return {
       bookId: '',
       bookUrl: '',
-      initPath: null as string,
+      initPath: '',
       location: useStorage('book-progress', 0, undefined, {
         serializer: {
           read: (v) => JSON.parse(v),

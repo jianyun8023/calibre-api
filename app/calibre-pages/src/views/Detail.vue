@@ -195,6 +195,7 @@ import MetadataUpdate from '@/components/MetadataUpdate.vue'
 import {Coffee, Delete, Download, Edit, Menu, Rank, Refresh, Trophy} from '@element-plus/icons-vue'
 import {Book} from '@/types/book'
 import PreviewBook from "@/components/PreviewBook.vue";
+import {copyToClipboard, formatFileSize} from "@/utils/utils";
 
 export default {
   name: 'Detail',
@@ -293,30 +294,8 @@ export default {
         console.error('There was a problem with the fetch operation:', error)
       }
     },
-    formatFileSize(size: number) {
-      if (size < 1024 * 1024) return (size / 1024).toFixed(2) + ' KB'
-      return (size / 1024 / 1024).toFixed(2) + ' MB'
-    },
-
-
-    copyToClipboard(text: string) {
-      navigator.clipboard
-          .writeText(text)
-          .then(() => {
-            ElNotification({
-              title: 'ID copied ' + text,
-              message: h('i', {style: 'color: teal'}, 'ID copied to clipboard'),
-              type: 'success'
-            })
-          })
-          .catch((err) => {
-            ElNotification({
-              title: 'ID copied ' + text,
-              message: h('i', {style: 'color: red'}, 'Oops, Could not copy text.'),
-              type: 'error'
-            })
-          })
-    },
+    formatFileSize,
+    copyToClipboard,
     searchByPublisher() {
       this.$router.push({
         path: '/search',

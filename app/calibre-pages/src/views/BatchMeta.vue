@@ -66,11 +66,143 @@
         @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="55"/>
+      <el-table-column type="expand">
+        <template #default="props">
+          <el-row>
+            <el-col :span="6">
+              <el-image
+                  style="width: 89%; height: 100%"
+                  :src="props.row.cover"
+                  fit="cover"
+              />
+            </el-col>
+            <el-col  :span="18">
+              <el-descriptions :title="props.row.title" :column="1" size="large" border>
+                <el-descriptions-item>
+                  <template #label>
+                    <div class="cell-item">
+                      <el-icon>
+                        <Box/>
+                      </el-icon>
+                      ID
+                    </div>
+                  </template>
+                  <el-button text bg @click="copyToClipboard(props.row.id)">{{ props.row.id }}📋</el-button>
+                </el-descriptions-item>
+                <el-descriptions-item>
+                  <template #label>
+                    <div class="cell-item">
+                      <el-icon>
+                        <user/>
+                      </el-icon>
+                      Authors
+                    </div>
+                  </template>
+                  <el-tag
+                      class="tag-spacing"
+                      v-for="item in props.row.authors"
+                      :key="item"
+                      effect="dark"
+                  >
+                    {{ item }}
+                  </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item>
+                  <template #label>
+                    <div class="cell-item">
+                      <el-icon>
+                        <Discount/>
+                      </el-icon>
+                      Publisher
+                    </div>
+                  </template>
+                  <span>{{ props.row.publisher }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item>
+                  <template #label>
+                    <div class="cell-item">
+                      <el-icon class="el-icon">
+                        <Key/>
+                      </el-icon>
+                      ISBN
+                    </div>
+                  </template>
+                  {{ props.row.isbn }}
+                </el-descriptions-item>
+                <el-descriptions-item>
+                  <template #label>
+                    <div class="cell-item">
+                      <el-icon>
+                        <Timer/>
+                      </el-icon>
+                      Published Date
+                    </div>
+                  </template>
+                  <span class="tag-spacing">{{ new Date(props.row.pubdate).toLocaleDateString() }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item>
+                  <template #label>
+                    <div class="cell-item">
+                      <el-icon>
+                        <Trophy/>
+                      </el-icon>
+                      Rating
+                    </div>
+                  </template>
+                  <el-rate
+                      :value="props.row.rating / 2"
+                      @input="(val: number) => (props.row.rating = val * 2)"
+                      show-score
+                      text-color="#ff9900"
+                      :max="5"
+                      allow-half
+                      :score-template="`${props.row.rating}分`"
+                  >
+                  </el-rate>
+                </el-descriptions-item>
+                <el-descriptions-item v-if="props.row.tags && props.row.tags.length">
+                  <template #label>
+                    <div class="cell-item">
+                      <el-icon>
+                        <CollectionTag/>
+                      </el-icon>
+                      Tags
+                    </div>
+                  </template>
+                  <el-tag v-for="item in props.row.tags" :key="item" effect="dark" round>
+                    {{ item }}
+                  </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item>
+                  <template #label>
+                    <div class="cell-item">
+                      <el-icon>
+                        <Document/>
+                      </el-icon>
+                      File Size
+                    </div>
+                  </template>
+                  {{ formatFileSize(props.row.size) }}
+                </el-descriptions-item>
+              </el-descriptions>
+            </el-col>
+          </el-row>
+        </template>
+      </el-table-column>
       <el-table-column prop="id" label="ID" width="100"/>
-      <el-table-column prop="title" label="标题" width="180"/>
-      <el-table-column prop="authors" label="作者" width="180"/>
-      <el-table-column prop="isbn" label="ISBN"/>
-      <el-table-column prop="publisher" label="出版社"/>
+      <el-table-column label="标题" width="200">
+        <template #default="scope">
+          <div style="display: flex; align-items: center">
+            <el-icon @click="goToSearch(scope.row)">
+              <Search/>
+            </el-icon>
+            <span style="margin-left: 10px">{{ scope.row.title }}</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column v-if="filterType !== 'author'" prop="authors" label="作者" width="180"/>
+      <el-table-column v-if="filterType !== 'isbn'" prop="isbn" label="ISBN"/>
+      <el-table-column v-if="filterType !== 'publisher'" prop="publisher" label="出版社"/>
       <el-table-column
           prop="pubdate"
           label="出版日期"
@@ -79,6 +211,9 @@
       </el-table-column>
       <el-table-column fixed="right" label="Operations" min-width="120">
         <template #default="scope">
+          <el-button color="#626aef" :xs="24" @click="previewBook(scope.row)">
+            预览
+          </el-button>
           <el-button
               link
               type="primary"
@@ -100,6 +235,7 @@
               <el-button link :icon="Delete" size="small" :xs="24" class="delete-button">删除</el-button>
             </template>
           </el-popconfirm>
+
         </template>
       </el-table-column>
     </el-table>
@@ -108,6 +244,11 @@
       <el-button @click="exclusionPackage">排除套装</el-button>
       <el-button @click="clearSelection">清除选择</el-button>
       <el-button @click="updateMetaData">更新书籍元数据</el-button>
+      <el-popconfirm title="确定删除?" @confirm="batchDelete">
+        <template #reference>
+          <el-button :xs="24" class="delete-button">删除</el-button>
+        </template>
+      </el-popconfirm>
     </div>
   </el-row>
   <el-row class="mt-4" justify="center">
@@ -170,6 +311,8 @@
 
   <MetadataEdit :book="editBook" :dialogEditVisible="dialogEditVisible"
                 @dialogEditVisible="dialogEditVisible = $event"/>
+  <PreviewBook :book="editBook" :dialog-preview-visible="dialogPreviewVisible"
+               @dialog-preview-visible="dialogPreviewVisible = $event"/>
 </template>
 
 <script lang="ts">
@@ -177,18 +320,23 @@ import {Book, mapMetaBookToBook, MetaBook} from '@/types/book'
 import BookCard from '@/components/BookCard.vue'
 import {ElButton, ElCol, ElInput, ElNotification, ElRow, ElTable} from 'element-plus'
 import MetadataEdit from "@/components/MetadataEdit.vue";
-import {Delete} from "@element-plus/icons-vue";
+import {Delete, Menu, Search} from "@element-plus/icons-vue";
 import {h} from "vue";
 import MetadataSearch from "@/components/MetadataSearch.vue";
+import PreviewBook from "@/components/PreviewBook.vue";
+import {copyToClipboard, formatFileSize} from "@/utils/utils";
 
 export default {
   name: 'BatchMeta',
   computed: {
+    Menu() {
+      return Menu
+    },
     Delete() {
       return Delete
     }
   },
-  components: {MetadataSearch, MetadataEdit, ElInput, ElButton, ElRow, ElCol, BookCard},
+  components: {Search, PreviewBook, MetadataSearch, MetadataEdit, ElInput, ElButton, ElRow, ElCol, BookCard},
   data() {
     return {
       filterType: 'publisher' as string,
@@ -211,6 +359,7 @@ export default {
       allPublishers: [] as string[],
       dialogSearchVisible: false,
       dialogEditVisible: false,
+      dialogPreviewVisible: false,
       editBook: {} as Book
     }
   },
@@ -244,6 +393,8 @@ export default {
       this.allPublishers = publishers.data
     },
     mapMetaBookToBook,
+    formatFileSize,
+    copyToClipboard,
     async fetchBooks() {
       if (this.filterType === 'publisher') {
         this.filter[0] = 'publisher = "' + this.keyword + '"'
@@ -273,7 +424,7 @@ export default {
 
     async querySearch(queryString: string, cb: (arg0: string[]) => void) {
       if (this.filterType === 'publisher') {
-        const results = queryString ? this.allPublishers.filter(this.createFilter(queryString)) : []
+        const results = queryString ? this.allPublishers.filter(this.createFilter(queryString)) : this.allPublishers
         console.log(results)
         cb(results)
       } else {
@@ -359,7 +510,6 @@ export default {
           message: book.title,
           type: 'success'
         })
-        this.$router.back()
       } else {
         ElNotification({
           title: '删除书籍失败',
@@ -382,6 +532,13 @@ export default {
       // metadataEdit.book.value = book
       this.dialogSearchVisible = true
     },
+    previewBook(book: Book) {
+      // console.log(book)
+      // updateBook(book, this.editBook)
+      this.editBook = book
+      // metadataEdit.book.value = book
+      this.dialogPreviewVisible = true
+    },
     toggleSelection() {
       this.books.forEach((row) => {
         if (row.isbn) {
@@ -389,14 +546,22 @@ export default {
         }
       })
     },
+    goToSearch(book: Book) {
+      const {href} = this.$router.resolve({
+        path: '/search',
+        query: {
+          q: book.title
+        }
+      });
+      window.open(href, "_blank");
+    },
     handleSelectionChange(val: Book[]) {
       console.log(val)
       this.multipleSelection = val
     },
     async batchDelete() {
-      for (const book of this.multipleSelection) {
-
-      }
+      await Promise.all(this.multipleSelection.map(book => this.deleteBook(book)));
+      await this.fetchBooks();
     },
     async updateMetaData() {
       this.metaUpdateDialogVisible = true

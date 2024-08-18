@@ -26,11 +26,20 @@ import {useRouter} from 'vue-router';
 
 import {Book} from '@/types/book'
 
-const props = defineProps<{
-  book: Book;
-  more_info: boolean;
-  proxy_image: boolean;
-}>();
+const props = defineProps({
+  book: {
+    type: Object as () => Book,
+    required: true
+  },
+  more_info: {
+    type: Boolean,
+    required: true
+  },
+  proxy_image: {
+    type: Boolean,
+    default: false
+  }
+});
 
 const router = useRouter();
 
