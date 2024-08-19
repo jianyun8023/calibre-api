@@ -76,7 +76,7 @@
                   fit="cover"
               />
             </el-col>
-            <el-col  :span="18">
+            <el-col :span="18">
               <el-descriptions :title="props.row.title" :column="1" size="large" border>
                 <el-descriptions-item>
                   <template #label>
@@ -305,14 +305,14 @@
   </el-dialog>
 
   <MetadataSearch :book="editBook"
-                  :dialogSearchVisible="dialogSearchVisible"
-                  @dialogSearchVisible="dialogSearchVisible = $event"/>
+                  v-model:dialogSearchVisible="dialogSearchVisible"
+  />
 
 
-  <MetadataEdit :book="editBook" :dialogEditVisible="dialogEditVisible"
-                @dialogEditVisible="dialogEditVisible = $event"/>
-  <PreviewBook :book="editBook" :dialog-preview-visible="dialogPreviewVisible"
-               @dialog-preview-visible="dialogPreviewVisible = $event"/>
+  <MetadataEdit :book="editBook" v-model:dialogEditVisible="dialogEditVisible"
+  />
+  <PreviewBook :book="editBook" v-model:dialog-preview-visible="dialogPreviewVisible"
+  />
 </template>
 
 <script lang="ts">

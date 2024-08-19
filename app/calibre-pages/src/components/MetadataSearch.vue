@@ -2,7 +2,7 @@
 
   <el-dialog
       :model-value="dialogSearchVisible"
-      @update:model-value="val => emit('dialogSearchVisible', val)"
+      @update:model-value="val => emit('update:dialogSearchVisible', val)"
       title="搜索元数据"
       :close-on-click-modal="false"
       :close-on-press-escape="false"
@@ -138,7 +138,7 @@ const searchMetadata = async () => {
   querySearchLoading.value = false
 }
 
-const emit = defineEmits(['dialogSearchVisible'])
+const emit = defineEmits(['update:dialogSearchVisible'])
 
 const handleCurrentChange = (val: MetaBook) => {
   selectRow.value = val
@@ -162,11 +162,11 @@ const querySearch = (queryString: string, cb: (options: Option[]) => void) => {
 }
 
 const handleCloseSearch = () => {
-  emit('dialogSearchVisible', false)
+  emit('update:dialogSearchVisible', false)
 }
 
 const nextUpdate = () => {
-  emit('dialogSearchVisible', false)
+  emit('update:dialogSearchVisible', false)
   dialogUpdateVisible.value = true
   console.log(selectRow)
 }
