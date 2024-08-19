@@ -1,7 +1,7 @@
 <template>
   <el-dialog
       :model-value="dialogEditVisible"
-      @update:model-value="val => emit('dialogEditVisible', val)"
+      @update:model-value="val => emit('update:dialogEditVisible', val)"
       title="编辑元数据"
       :close-on-click-modal="false"
       :close-on-press-escape="false"
@@ -98,7 +98,7 @@
     </el-form>
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="emit('dialogEditVisible', false)">取消</el-button>
+        <el-button @click="emit('update:dialogEditVisible', false)">取消</el-button>
         <el-button type="primary" @click="updateMetadata" :loading="loading" >更新</el-button>
       </div>
     </template>
@@ -117,7 +117,7 @@ const props = defineProps<{
   dialogEditVisible: boolean;
 }>();
 
-const emit = defineEmits(['dialogEditVisible']);
+const emit = defineEmits(['update:dialogEditVisible']);
 const isPhone = window.innerWidth < 768;
 
 const form = reactive({

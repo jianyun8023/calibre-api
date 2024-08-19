@@ -174,14 +174,13 @@
 
 
   <MetadataSearch :book="book"
-                  :dialogSearchVisible="dialogSearchVisible"
-                  @dialogSearchVisible="dialogSearchVisible = $event"/>
+                  v-model:dialogSearchVisible="dialogSearchVisible"/>
 
 
-  <MetadataEdit :book="book" :dialogEditVisible="dialogEditVisible"
-                @dialogEditVisible="dialogEditVisible = $event"/>
-  <PreviewBook :book="book" :dialog-preview-visible="dialogPreviewVisible"
-               @dialog-preview-visible="dialogPreviewVisible = $event"/>
+  <MetadataEdit :book="book" v-model:dialogEditVisible="dialogEditVisible"
+                />
+  <PreviewBook :book="book" v-model:dialog-preview-visible="dialogPreviewVisible"
+               />
 
 </template>
 

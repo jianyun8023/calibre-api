@@ -9,7 +9,7 @@ const props = defineProps<{
   dialogPreviewVisible: boolean;
 }>();
 
-const emit = defineEmits(['dialogPreviewVisible']);
+const emit = defineEmits(['update:dialogPreviewVisible']);
 const isPhone = window.innerWidth < 768;
 
 const dialogContentVisible = ref(false)
@@ -81,7 +81,7 @@ const handleNodeClick = async (data: any) => {
 <template>
   <el-dialog
       :model-value="dialogPreviewVisible"
-      @update:model-value="val => emit('dialogPreviewVisible', val)"
+      @update:model-value="val => emit('update:dialogPreviewVisible', val)"
       title="查看目录"
       :close-on-click-modal="false"
       :close-on-press-escape="false"
@@ -99,7 +99,7 @@ const handleNodeClick = async (data: any) => {
     </el-row>
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="emit('dialogPreviewVisible', false)">OK</el-button>
+        <el-button @click="emit('update:dialogPreviewVisible', false)">OK</el-button>
       </div>
     </template>
   </el-dialog>
