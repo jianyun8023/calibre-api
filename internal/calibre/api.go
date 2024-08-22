@@ -381,8 +381,12 @@ func (c Api) updateIndex(c2 *gin.Context) {
 		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err2.Error()})
 		return
 	}
-
-	index := c.client.Index(c.config.Search.Index + "-bak")
+	index := c.currentIndex()
+	if c.useIndex == c.config.Search.Index {
+		index = c.client.Index(c.config.Search.Index)
+	} else {
+		index = c.client.Index(c.config.Search.Index + "-bak")
+	}
 	_, err := index.DeleteAllDocuments()
 	if err != nil {
 		log.Warn(err)
