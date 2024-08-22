@@ -345,7 +345,24 @@ func (c Api) getFileOrCache(id string) (string, error) {
 }
 
 func (c Api) switchIndex(c2 *gin.Context) {
-	_, err := c.client.SwapIndexes(
+
+	resp, err := c.client.GetTasks(&meilisearch.TasksQuery{
+		Limit:     2,
+		Statuses:  []string{"enqueued", "processing"},
+		IndexUIDS: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
+	})
+	if err != nil {
+		log.Warn(err)
+		c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		return
+	}
+	if len(resp.Results) != 0 {
+		log.Warn(err)
+		c2.JSON(http.StatusInternalServerError, gin.H{"code": 400, "error": "有任务正在执行，请稍后再试"})
+		return
+	}
+
+	_, err = c.client.SwapIndexes(
 		[]meilisearch.SwapIndexesParams{
 			{
 				Indexes: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
