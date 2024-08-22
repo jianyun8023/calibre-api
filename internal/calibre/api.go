@@ -383,9 +383,9 @@ func (c Api) updateIndex(c2 *gin.Context) {
 	}
 	index := c.currentIndex()
 	if c.useIndex == c.config.Search.Index {
-		index = c.client.Index(c.config.Search.Index)
-	} else {
 		index = c.client.Index(c.config.Search.Index + "-bak")
+	} else {
+		index = c.client.Index(c.config.Search.Index)
 	}
 	_, err := index.DeleteAllDocuments()
 	if err != nil {
