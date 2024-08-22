@@ -13,7 +13,7 @@
               size="default"
               @click="scope.row.func(scope.row)"
           >
-            {{scope.row.operator}}
+            {{ scope.row.operator }}
           </el-button>
         </template>
       </el-table-column>
@@ -70,11 +70,22 @@ export default {
         config.loading = false
         if (response.ok) {
           const responseData = await response.json()
-          ElNotification({
-            title: 'Index switched successfully.',
-            message: h('i', {style: 'color: teal'}, 'Index switched successfully.'),
-            type: 'success'
-          })
+
+          if (responseData.code === 200) {
+            ElNotification({
+              title: 'Index switched successfully.',
+              message: h('i', {style: 'color: teal'}, 'Index switched successfully.'),
+              type: 'success'
+            })
+          } else {
+            ElNotification({
+              title: 'Failed to update index.',
+              message: h('i', {style: 'color: red'}, 'Error: ' + responseData.error),
+              type: 'error'
+            })
+          }
+
+
         } else {
           ElNotification({
             title: 'Failed to update index.',
@@ -98,11 +109,20 @@ export default {
         config.loading = false
         if (response.ok) {
           const responseData = await response.json()
-          ElNotification({
-            title: 'Index updated successfully.',
-            message: h('i', {style: 'color: teal'}, 'Index updated successfully.'),
-            type: 'success'
-          })
+
+          if (responseData.code === 200) {
+            ElNotification({
+              title: 'Index update successfully.',
+              message: h('i', {style: 'color: teal'}, 'Index updated successfully.'),
+              type: 'success'
+            })
+          } else {
+            ElNotification({
+              title: 'Failed to update index.',
+              message: h('i', {style: 'color: red'}, 'Error: ' + responseData.error),
+              type: 'error'
+            })
+          }
         } else {
           ElNotification({
             title: 'Failed to update index.',

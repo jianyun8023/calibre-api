@@ -353,12 +353,12 @@ func (c Api) switchIndex(c2 *gin.Context) {
 	})
 	if err != nil {
 		log.Warn(err)
-		c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
 		return
 	}
 	if len(resp.Results) != 0 {
 		log.Warn(err)
-		c2.JSON(http.StatusInternalServerError, gin.H{"code": 400, "error": "有任务正在执行，请稍后再试"})
+		c2.JSON(http.StatusOK, gin.H{"code": 400, "error": "有任务正在执行，请稍后再试"})
 		return
 	}
 
@@ -371,7 +371,7 @@ func (c Api) switchIndex(c2 *gin.Context) {
 	)
 	if err != nil {
 		log.Warn(err)
-		c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
 		return
 	}
 	c2.JSON(http.StatusOK, gin.H{
@@ -383,7 +383,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 	booksIds, err2 := c.contentApi.GetAllBooksIds()
 	if err2 != nil {
 		log.Warn(err2)
-		c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err2.Error()})
+		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err2.Error()})
 		return
 	}
 
@@ -391,7 +391,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 	_, err := index.DeleteAllDocuments()
 	if err != nil {
 		log.Warn(err)
-		c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
 		return
 	}
 
@@ -405,17 +405,17 @@ func (c Api) updateIndex(c2 *gin.Context) {
 		data, err := c.contentApi.GetBookMetaDatas(ids, "")
 		if err != nil {
 			log.Warnf("get book metadata error: %v", err)
-			c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+			c2.JSON(http.StatusOK, gin.H{"code": 500, "error": "get book metadata error: " + err.Error()})
 			return
 		}
 		books, err = convertContentBooks(data)
 		if err != nil {
-			c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+			c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
 			return
 		}
 		task, err := index.AddDocumentsInBatches(books, len(ids))
 		if err != nil {
-			c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+			c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
 			return
 		}
 		for _, info := range task {
@@ -425,7 +425,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 
 	err = waitForTask(c, taskIds)
 	if err != nil {
-		c2.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
 		return
 	}
 
