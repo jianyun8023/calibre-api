@@ -27,6 +27,7 @@ type Api struct {
 	client     *meilisearch.Client
 	baseDir    string
 	http       *client.Client
+	useIndex   string
 }
 
 func (c Api) SetupRouter(r *gin.Engine) {
@@ -52,7 +53,7 @@ func (c Api) SetupRouter(r *gin.Engine) {
 }
 
 func (c Api) currentIndex() *meilisearch.Index {
-	return c.client.Index(c.config.Search.Index)
+	return c.client.Index(c.useIndex)
 }
 
 func NewClient(config *Config) Api {
@@ -85,6 +86,7 @@ func NewClient(config *Config) Api {
 		baseDir:    config.TmpDir,
 		contentApi: &newClient,
 		http:       newClient.Client,
+		useIndex:   config.Search.Index,
 	}
 }
 
@@ -362,17 +364,10 @@ func (c Api) switchIndex(c2 *gin.Context) {
 		return
 	}
 
-	_, err = c.client.SwapIndexes(
-		[]meilisearch.SwapIndexesParams{
-			{
-				Indexes: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
-			},
-		},
-	)
-	if err != nil {
-		log.Warn(err)
-		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
-		return
+	if c.useIndex == c.config.Search.Index {
+		c.useIndex = c.config.Search.Index + "-bak"
+	} else {
+		c.useIndex = c.config.Search.Index
 	}
 	c2.JSON(http.StatusOK, gin.H{
 		"code":    200,
@@ -466,13 +461,11 @@ func waitForTask(c Api, taskIds []int64) error {
 		return fmt.Errorf("Timeout reached while waiting for tasks to complete")
 	case <-done:
 		log.Info("Tasks completed successfully")
-		_, _ = c.client.SwapIndexes(
-			[]meilisearch.SwapIndexesParams{
-				{
-					Indexes: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
-				},
-			},
-		)
+		if c.useIndex == c.config.Search.Index {
+			c.useIndex = c.config.Search.Index + "-bak"
+		} else {
+			c.useIndex = c.config.Search.Index
+		}
 		return nil
 	}
 }
