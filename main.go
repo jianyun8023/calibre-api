@@ -20,7 +20,8 @@ func main() {
 	}
 	r := gin.Default()
 	setPages(r, conf)
-	calibre.NewClient(conf).SetupRouter(r)
+	client := calibre.NewClient(conf)
+	client.SetupRouter(r)
 	for _, route := range r.Routes() {
 		log.Infof("route: %s %s", route.Method, route.Path)
 	}
