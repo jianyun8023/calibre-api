@@ -30,7 +30,7 @@ type Api struct {
 	useIndex   string
 }
 
-func (c Api) SetupRouter(r *gin.Engine) {
+func (c *Api) SetupRouter(r *gin.Engine) {
 
 	base := r.Group("/api")
 	base.GET("/get/cover/:id", c.getCover)
@@ -52,11 +52,11 @@ func (c Api) SetupRouter(r *gin.Engine) {
 	base.POST("/index/switch", c.switchIndex)
 }
 
-func (c Api) currentIndex() *meilisearch.Index {
+func (c *Api) currentIndex() *meilisearch.Index {
 	return c.client.Index(c.useIndex)
 }
 
-func NewClient(config *Config) Api {
+func NewClient(config *Config) *Api {
 	client := meilisearch.NewClient(meilisearch.ClientConfig{
 		Host:   config.Search.Host,
 		APIKey: config.Search.APIKey,
@@ -80,7 +80,7 @@ func NewClient(config *Config) Api {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return Api{
+	api := Api{
 		config:     config,
 		client:     client,
 		baseDir:    config.TmpDir,
@@ -88,6 +88,7 @@ func NewClient(config *Config) Api {
 		http:       newClient.Client,
 		useIndex:   config.Search.Index,
 	}
+	return &api
 }
 
 // ensureIndexExists checks if a Meilisearch index exists, and if not, creates it and updates its settings.
@@ -133,7 +134,7 @@ func ensureIndexExists(client *meilisearch.Client, indexName string) (*meilisear
 	return index, nil
 }
 
-func (c Api) search(r *gin.Context) {
+func (c *Api) search(r *gin.Context) {
 	var req = meilisearch.SearchRequest{}
 	err2 := r.Bind(&req)
 	if err2 != nil {
@@ -180,7 +181,7 @@ func (c Api) search(r *gin.Context) {
 	})
 }
 
-func (c Api) getBook(r *gin.Context) {
+func (c *Api) getBook(r *gin.Context) {
 	id := r.Param("id")
 	var book Book
 	err := c.currentIndex().GetDocument(id, nil, &book)
@@ -194,7 +195,7 @@ func (c Api) getBook(r *gin.Context) {
 
 }
 
-func (c Api) deleteBook(r *gin.Context) {
+func (c *Api) deleteBook(r *gin.Context) {
 	id := r.Param("id")
 
 	err := c.contentApi.DeleteBooks([]string{id}, "")
@@ -211,7 +212,7 @@ func (c Api) deleteBook(r *gin.Context) {
 	r.JSON(http.StatusOK, "success")
 }
 
-func (c Api) getBookToc(r *gin.Context) {
+func (c *Api) getBookToc(r *gin.Context) {
 	id := strings.TrimSuffix(r.Param("id"), ".epub")
 
 	filepath, _ := c.getFileOrCache(id)
@@ -239,7 +240,7 @@ func (c Api) getBookToc(r *gin.Context) {
 
 }
 
-func (c Api) expansionTree(ori []epub.NavPoint) []epub.NavPoint {
+func (c *Api) expansionTree(ori []epub.NavPoint) []epub.NavPoint {
 	var points []epub.NavPoint
 	for i := range ori {
 		point := ori[i]
@@ -251,7 +252,7 @@ func (c Api) expansionTree(ori []epub.NavPoint) []epub.NavPoint {
 	return points
 }
 
-func (c Api) getBookContent(r *gin.Context) {
+func (c *Api) getBookContent(r *gin.Context) {
 	id := strings.TrimSuffix(r.Param("id"), ".epub")
 
 	//path1 := path.Join(c.Query("baseDir"), c.Query("path"))
@@ -285,12 +286,12 @@ func (c Api) getBookContent(r *gin.Context) {
 	}
 }
 
-func (c Api) getFile(id string) (int64, io.ReadCloser, error) {
+func (c *Api) getFile(id string) (int64, io.ReadCloser, error) {
 	size, reader, err := c.contentApi.GetBook(id, "library")
 	return size, reader, err
 }
 
-func (c Api) getBookFile(r *gin.Context) {
+func (c *Api) getBookFile(r *gin.Context) {
 	filesuffix := path.Ext(r.Param("id"))
 	id := strings.TrimSuffix(r.Param("id"), filesuffix)
 
@@ -306,7 +307,7 @@ func (c Api) getBookFile(r *gin.Context) {
 	r.DataFromReader(http.StatusOK, size, "application/epub+zip", reader, nil)
 }
 
-func (c Api) getCover(r *gin.Context) {
+func (c *Api) getCover(r *gin.Context) {
 	id := strings.TrimSuffix(r.Param("id"), ".jpg")
 	size, reader, err := c.contentApi.GetCover(id, "library")
 	if err != nil {
@@ -320,7 +321,7 @@ func (c Api) getCover(r *gin.Context) {
 	r.DataFromReader(http.StatusOK, size, "image/jpeg", reader, nil)
 }
 
-func (c Api) getFileOrCache(id string) (string, error) {
+func (c *Api) getFileOrCache(id string) (string, error) {
 	filename := path.Join(c.baseDir, id+".epub")
 	_, err := os.Stat(filename)
 	if Exists(filename) {
@@ -346,7 +347,7 @@ func (c Api) getFileOrCache(id string) (string, error) {
 	return filename, err
 }
 
-func (c Api) switchIndex(c2 *gin.Context) {
+func (c *Api) switchIndex(c2 *gin.Context) {
 
 	resp, err := c.client.GetTasks(&meilisearch.TasksQuery{
 		Limit:     2,
@@ -374,7 +375,7 @@ func (c Api) switchIndex(c2 *gin.Context) {
 		"message": "success",
 	})
 }
-func (c Api) updateIndex(c2 *gin.Context) {
+func (c *Api) updateIndex(c2 *gin.Context) {
 	booksIds, err2 := c.contentApi.GetAllBooksIds()
 	if err2 != nil {
 		log.Warn(err2)
@@ -435,7 +436,7 @@ func (c Api) updateIndex(c2 *gin.Context) {
 	})
 }
 
-func waitForTask(c Api, taskIds []int64) error {
+func waitForTask(c *Api, taskIds []int64) error {
 	timeout := time.After(30 * time.Second) // Set timeout duration
 	done := make(chan bool)
 
@@ -474,7 +475,7 @@ func waitForTask(c Api, taskIds []int64) error {
 	}
 }
 
-func (c Api) recently(r *gin.Context) {
+func (c *Api) recently(r *gin.Context) {
 	limit, err := strconv.Atoi(r.DefaultQuery("limit", "10"))
 	if err != nil {
 		r.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
@@ -530,7 +531,7 @@ func (c Api) recently(r *gin.Context) {
 	})
 }
 
-func (c Api) updateMetadata(r *gin.Context) {
+func (c *Api) updateMetadata(r *gin.Context) {
 	id := r.Param("id")
 	book := &Book{}
 	err := r.Bind(book)
@@ -652,7 +653,7 @@ func convertContentToBooks(content map[string]content.Content) ([]Book, error) {
 	return books, nil
 }
 
-func (c Api) getIsbn(c2 *gin.Context) {
+func (c *Api) getIsbn(c2 *gin.Context) {
 	isbn := c2.Param("isbn")
 	var jsonData map[string]interface{}
 	resp, err := c.http.R().SetResult(&jsonData).Get(c.config.Metadata.DoubanUrl + "/v2/book/isbn/" + isbn)
@@ -664,7 +665,7 @@ func (c Api) getIsbn(c2 *gin.Context) {
 	c2.JSON(http.StatusOK, resp.Result())
 }
 
-func (c Api) queryMetadata(c2 *gin.Context) {
+func (c *Api) queryMetadata(c2 *gin.Context) {
 	query := c2.Query("query")
 	//url encode
 	var jsonData map[string]interface{}
@@ -677,7 +678,7 @@ func (c Api) queryMetadata(c2 *gin.Context) {
 	c2.JSON(http.StatusOK, resp.Result())
 }
 
-func (c Api) proxyCover(r *gin.Context) {
+func (c *Api) proxyCover(r *gin.Context) {
 	path := strings.TrimPrefix(r.Param("path"), "/")
 	log.Infof("proxy cover: %s", path)
 	response, err := c.http.R().SetDoNotParseResponse(true).
@@ -697,7 +698,7 @@ func (c Api) proxyCover(r *gin.Context) {
 	r.DataFromReader(http.StatusOK, length, "image/jpeg", reader, nil)
 }
 
-func (c Api) listPublisher(context *gin.Context) {
+func (c *Api) listPublisher(context *gin.Context) {
 	publishers, err := c.contentApi.GetAllPublisher()
 
 	if err != nil {
