@@ -21,7 +21,7 @@
           </el-icon>
           上一页
         </el-button>
-        <el-button @click="nextPage" :disabled="offset + limit >= estimatedTotalHits"
+        <el-button @click="nextPage" :disabled="offset + limit >= total"
           >下一页
           <el-icon>
             <ArrowRightBold />
@@ -37,6 +37,7 @@ import { ElButton, ElCard, ElCol, ElContainer, ElInput, ElRow } from 'element-pl
 import SearchBar from '@/components/SearchBar.vue'
 import BookCard from '@/components/BookCard.vue'
 import { Book } from '@/types/book'
+import {fetchRecentBooks} from "@/api/api";
 
 export default {
   name: 'Books',
@@ -56,12 +57,12 @@ export default {
       recentBooks: [] as Book[],
       limit: 12 as number,
       offset: 0 as number,
-      estimatedTotalHits: 0
+      total: 0
     }
   },
   computed: {
     totalPages() {
-      return Math.ceil(this.estimatedTotalHits / this.limit)
+      return Math.ceil(this.total / this.limit)
     }
   },
   created() {
@@ -80,10 +81,9 @@ export default {
   },
   methods: {
     async fetchBooks() {
-      const response = await fetch(`/api/recently?limit=${this.limit}&offset=${this.offset}`)
-      const books = await response.json()
-      this.recentBooks = books.hits
-      this.estimatedTotalHits = books.estimatedTotalHits
+      const data = await fetchRecentBooks(this.limit, this.offset)
+      this.recentBooks = data.records
+      this.total = data.total
     },
     prevPage() {
       if (this.offset > 0) {
@@ -92,7 +92,7 @@ export default {
       }
     },
     nextPage() {
-      if (this.offset + this.limit < this.estimatedTotalHits) {
+      if (this.offset + this.limit < this.total) {
         this.offset += this.limit
         this.fetchBooks()
       }

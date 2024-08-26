@@ -17,8 +17,8 @@
     <strong style="margin-left: 10px">{{ keyword }}</strong>
   </h2>
   <el-text
-    >共计 {{ estimatedTotalHits }} 条, 当前{{ offset }} --
-    {{ offset + limit >= estimatedTotalHits ? estimatedTotalHits : offset + limit }}
+    >共计 {{ total }} 条, 当前{{ offset }} --
+    {{ offset + limit >= total ? total : offset + limit }}
   </el-text>
 
   <el-row :gutter="20">
@@ -33,7 +33,7 @@
       </el-icon>
       上一页
     </el-button>
-    <el-button @click="nextPage" :disabled="offset + limit >= estimatedTotalHits"
+    <el-button @click="nextPage" :disabled="offset + limit >= total"
       >下一页
       <el-icon>
         <ArrowRightBold />
@@ -45,6 +45,7 @@
 <script lang="ts">
 import BookCard from '@/components/BookCard.vue'
 import { ElButton, ElCol, ElInput, ElRow } from 'element-plus'
+import {fetchBooks} from "@/api/api";
 
 export default {
   name: 'Search',
@@ -59,7 +60,7 @@ export default {
       filter: [],
       limit: 12,
       offset: 0,
-      estimatedTotalHits: 0
+      total: 0
     }
   },
   created() {
@@ -90,25 +91,9 @@ export default {
 
   methods: {
     async fetchBooks() {
-      const response = await fetch('/api/search?q=' + this.searchQuery, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          Filter: this.filter,
-          Limit: this.limit,
-          Offset: this.offset
-        })
-      })
-      const data = await response.json()
-      this.books = data.hits
-      this.estimatedTotalHits = data.estimatedTotalHits
-
-      // Clear the query parameter from the URL
-      const url = new URL(window.location)
-      url.searchParams.delete('query')
-      window.history.replaceState({}, '', url)
+      const data = await fetchBooks(this.filter, this.limit, this.offset);
+      this.books = data.records
+      this.total = data.total
     },
 
     prevPage() {
@@ -118,7 +103,7 @@ export default {
       }
     },
     nextPage() {
-      if (this.offset + this.limit < this.estimatedTotalHits) {
+      if (this.offset + this.limit < this.total) {
         this.offset += this.limit
         this.fetchBooks()
       }

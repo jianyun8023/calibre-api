@@ -48,8 +48,8 @@
     <strong style="margin-left: 10px">{{ keyword }}</strong>
   </h2>
   <el-text
-  >共计 {{ estimatedTotalHits }} 条, 当前{{ offset }} --
-    {{ offset + limit >= estimatedTotalHits ? estimatedTotalHits : offset + limit }}
+  >共计 {{ total }} 条, 当前{{ offset }} --
+    {{ offset + limit >= total ? total : offset + limit }}
   </el-text>
 
   <el-row :gutter="20">
@@ -200,11 +200,11 @@
             <el-tooltip content="I am an el-tooltip">
               <span style="margin-left: 10px">{{ scope.row.title }}</span>
               <template #content>
-                  <el-image
-                      style="width: 96px; height: 139px"
-                      :src="scope.row.cover"
-                      fit="cover"
-                  />
+                <el-image
+                    style="width: 96px; height: 139px"
+                    :src="scope.row.cover"
+                    fit="cover"
+                />
 
               </template>
             </el-tooltip>
@@ -279,7 +279,7 @@
       </el-icon>
       上一页
     </el-button>
-    <el-button @click="nextPage" :disabled="offset + limit >= estimatedTotalHits"
+    <el-button @click="nextPage" :disabled="offset + limit >= total"
     >下一页
       <el-icon>
         <ArrowRightBold/>
@@ -336,6 +336,7 @@ import {h} from "vue";
 import MetadataSearch from "@/components/MetadataSearch.vue";
 import PreviewBook from "@/components/PreviewBook.vue";
 import {copyToClipboard, formatFileSize} from "@/utils/utils";
+import {deleteBook, fetchBooks, fetchPublishers} from "@/api/api";
 
 export default {
   name: 'BatchMeta',
@@ -357,7 +358,7 @@ export default {
       filter: [] as string[],
       limit: 12 as number,
       offset: 0 as number,
-      estimatedTotalHits: 0 as number,
+      total: 0 as number,
       metaUpdateDialogVisible: false,
       metaUpdate: {
         currentBook: {} as Book,
@@ -399,38 +400,25 @@ export default {
 
   methods: {
     async fetchPublishers() {
-      const response = await fetch('/api/publisher')
-      const publishers = await response.json()
-      this.allPublishers = publishers.data
+      this.allPublishers = await fetchPublishers()
     },
     mapMetaBookToBook,
     formatFileSize,
     copyToClipboard,
     async fetchBooks() {
       if (this.filterType === 'publisher') {
-        this.filter[0] = 'publisher = "' + this.keyword + '"'
+        this.filter[0] = `publisher = "${this.keyword}"`;
       }
       if (this.filterType === 'author') {
-        this.filter[0] = 'authors = "' + this.keyword + '"'
+        this.filter[0] = `authors = "${this.keyword}"`;
       }
       if (this.filterType === 'isbn') {
-        this.filter[0] = 'isbn = "' + this.keyword + '"'
+        this.filter[0] = `isbn = "${this.keyword}"`;
       }
+      const data = await fetchBooks(this.filter, this.limit, this.offset);
 
-      const response = await fetch('/api/search?q=', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          Filter: this.filter,
-          Limit: this.limit as number,
-          Offset: this.offset
-        })
-      })
-      const data = await response.json()
-      this.books = data.hits
-      this.estimatedTotalHits = data.estimatedTotalHits
+      this.books = data.records
+      this.total = data.total
     },
 
     async querySearch(queryString: string, cb: (arg0: string[]) => void) {
@@ -457,7 +445,7 @@ export default {
       }
     },
     nextPage() {
-      if (this.offset + this.limit < this.estimatedTotalHits) {
+      if (this.offset + this.limit < this.total) {
         this.offset += this.limit
         this.fetchBooks()
       }
@@ -509,19 +497,15 @@ export default {
       })
     },
     async deleteBook(book: Book) {
-      const response = await fetch(`/api/book/${book.id}/delete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      if (response.ok) {
+      try {
+        await deleteBook(book.id);
+
         ElNotification({
           title: 'Book deleted successfully',
           message: book.title,
           type: 'success'
         })
-      } else {
+      } catch (error) {
         ElNotification({
           title: '删除书籍失败',
           message: h('i', {style: 'color: red'}, book.title),
