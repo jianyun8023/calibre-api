@@ -75,6 +75,7 @@ import {ElButton, ElCard, ElCol, ElContainer, ElInput, ElLink, ElRow} from 'elem
 import SearchBar from '@/components/SearchBar.vue'
 import BookCard from '@/components/BookCard.vue'
 import {Book} from '@/types/book'
+import {fetchPublishers, fetchRandomBooks, fetchRecentBooks} from "@/api/api";
 
 export default {
   name: 'Home',
@@ -105,20 +106,14 @@ export default {
   },
   methods: {
     async fetchRecentBooks() {
-      const response = await fetch('/api/recently?limit=12')
-      const books = await response.json()
-      this.recentBooks = books.data
+      this.recentBooks = await fetchRecentBooks(12, 0).then(res => res.records)
     },
     async fetchPublishers() {
-      const response = await fetch('/api/publisher')
-      const publishers = await response.json()
-      this.allPublishers = publishers.data
-      this.publishers = publishers.data.slice(0, this.publisherPage)
+      this.allPublishers = await fetchPublishers()
+      this.publishers = this.allPublishers.slice(0, this.publisherPage)
     },
     async randomSomeBooks() {
-      const response = await fetch('/api/random?limit=12')
-      const books = await response.json()
-      this.randomBooks = books.data
+      this.randomBooks = await fetchRandomBooks()
     },
     searchByPublisher(publisher: string) {
       this.$router.push({

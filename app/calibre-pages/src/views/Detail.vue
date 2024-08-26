@@ -185,6 +185,7 @@ import {Coffee, Delete, Download, Edit, Menu, Rank, Refresh, Trophy} from '@elem
 import {Book} from '@/types/book'
 import PreviewBook from "@/components/PreviewBook.vue";
 import {copyToClipboard, formatFileSize} from "@/utils/utils";
+import {deleteBook, fetchBook} from "@/api/api";
 
 export default {
   name: 'Detail',
@@ -276,9 +277,7 @@ export default {
   methods: {
     async fetchBook(id: string) {
       try {
-        const response = await fetch(`/api/book/${id}`)
-        if (!response.ok) throw new Error('Network response was not ok')
-        this.book = await response.json()
+        this.book = await fetchBook(id)
       } catch (error) {
         console.error('There was a problem with the fetch operation:', error)
       }
@@ -315,12 +314,7 @@ export default {
       return tags.join(', ')
     },
     async deleteBook(bookId: string) {
-      const response = await fetch(`/api/book/${bookId}/delete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await deleteBook(Number(bookId))
       if (response.ok) {
         ElNotification({
           title: 'Book deleted successfully',

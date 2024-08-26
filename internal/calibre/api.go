@@ -172,14 +172,14 @@ func (c *Api) search(r *gin.Context) {
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, err)
 	}
-
 	r.JSON(http.StatusOK, gin.H{
-		"estimatedTotalHits": search.EstimatedTotalHits,
-		"offset":             search.Offset,
-		"limit":              search.Limit,
-		"processingTimeMs":   search.ProcessingTimeMs,
-		"query":              search.Query,
-		"hits":               &books,
+		"data": map[string]interface{}{
+			"records": &books,
+			"total":   search.EstimatedTotalHits,
+			"limit":   search.Limit,
+			"offset":  search.Offset,
+		},
+		"code": 200,
 	})
 }
 
@@ -521,7 +521,12 @@ func (c *Api) recently(r *gin.Context) {
 	}
 
 	r.JSON(http.StatusOK, gin.H{
-		"data": &books,
+		"data": map[string]interface{}{
+			"records": &books,
+			"total":   search.EstimatedTotalHits,
+			"limit":   search.Limit,
+			"offset":  search.Offset,
+		},
 		"code": 200,
 	})
 }
