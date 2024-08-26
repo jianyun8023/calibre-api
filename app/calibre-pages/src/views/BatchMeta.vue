@@ -193,10 +193,21 @@
       <el-table-column label="标题" width="200">
         <template #default="scope">
           <div style="display: flex; align-items: center">
+
             <el-icon @click="goToSearch(scope.row)">
               <Search/>
             </el-icon>
-            <span style="margin-left: 10px">{{ scope.row.title }}</span>
+            <el-tooltip content="I am an el-tooltip">
+              <span style="margin-left: 10px">{{ scope.row.title }}</span>
+              <template #content>
+                  <el-image
+                      style="width: 96px; height: 139px"
+                      :src="scope.row.cover"
+                      fit="cover"
+                  />
+
+              </template>
+            </el-tooltip>
           </div>
         </template>
       </el-table-column>
@@ -561,7 +572,10 @@ export default {
     },
     async batchDelete() {
       await Promise.all(this.multipleSelection.map(book => this.deleteBook(book)));
-      await this.fetchBooks();
+      // 等待1s后刷新
+      setTimeout(() => {
+        this.fetchBooks()
+      }, 1000)
     },
     async updateMetaData() {
       this.metaUpdateDialogVisible = true
