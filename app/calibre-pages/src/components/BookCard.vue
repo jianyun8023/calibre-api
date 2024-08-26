@@ -33,7 +33,7 @@ const props = defineProps({
   },
   more_info: {
     type: Boolean,
-    required: true
+    default: false
   },
   proxy_image: {
     type: Boolean,

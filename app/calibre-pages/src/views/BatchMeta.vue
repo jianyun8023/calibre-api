@@ -1,10 +1,10 @@
 <template>
   <div class="flex justify-center mb-8">
     <el-row>
-      <el-col :span="1">
+      <el-col :span="1" :xs="4">
         <el-text>查询：</el-text>
       </el-col>
-      <el-col :span="2">
+      <el-col :span="2" :xs="18">
         <el-select
             v-model="filterType"
             placeholder="类型"
@@ -16,7 +16,7 @@
           <el-option label="ISBN" value="isbn"/>
         </el-select>
       </el-col>
-      <el-col :span="8" :offset="1">
+      <el-col :span="8" :offset="1" :xs="21">
 
         <el-autocomplete
             v-model="keyword"

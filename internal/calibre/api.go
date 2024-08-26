@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"path"
@@ -48,6 +49,7 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.GET("/publisher", c.listPublisher)
 	// 最近更新Recently
 	base.GET("/recently", c.recently)
+	base.GET("/random", c.random)
 	base.POST("/index/update", c.updateIndex)
 	base.POST("/index/switch", c.switchIndex)
 }
@@ -493,7 +495,7 @@ func (c *Api) recently(r *gin.Context) {
 		Offset: int64(offset),
 	}
 
-	c.client.Index(c.config.Search.Index).Search("", &searchRequest)
+	c.currentIndex().Search("", &searchRequest)
 
 	search, err := c.currentIndex().Search("", &searchRequest)
 	if err != nil {
@@ -519,15 +521,55 @@ func (c *Api) recently(r *gin.Context) {
 	}
 
 	r.JSON(http.StatusOK, gin.H{
-		"totalHits":          search.TotalHits,
-		"totalPages":         search.TotalPages,
-		"hitsPerPage":        search.HitsPerPage,
-		"estimatedTotalHits": search.EstimatedTotalHits,
-		"offset":             search.Offset,
-		"limit":              search.Limit,
-		"processingTimeMs":   search.ProcessingTimeMs,
-		"query":              search.Query,
-		"hits":               &books,
+		"data": &books,
+		"code": 200,
+	})
+}
+
+func (c *Api) random(r *gin.Context) {
+	limit, err := strconv.Atoi(r.DefaultQuery("limit", "10"))
+	if err != nil {
+		r.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
+		return
+	}
+
+	RandomInt := func(min, max int) int {
+		return min + rand.Intn(max-min)
+	}
+	offset := RandomInt(0, 1000)
+
+	// 使用随机排序
+	searchRequest := meilisearch.SearchRequest{
+		Limit:  int64(limit),
+		Offset: int64(offset),
+	}
+
+	c.currentIndex().Search("", &searchRequest)
+	search, err := c.currentIndex().Search("", &searchRequest)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	books := make([]Book, len(search.Hits))
+	for i := range search.Hits {
+		tmp := search.Hits[i].(map[string]interface{})
+		jsonb, err := json.Marshal(tmp)
+		if err != nil {
+			r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		book := Book{}
+		if err := json.Unmarshal(jsonb, &book); err != nil {
+			r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		books[i] = book
+	}
+
+	r.JSON(http.StatusOK, gin.H{
+		"data": &books,
+		"code": 200,
 	})
 }
 
