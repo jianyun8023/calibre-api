@@ -21,17 +21,22 @@
   </el-row>
 
   <el-row>
-    <h2>文学</h2>
+    <el-row class="full-width-row">
+      <h2>便便看看</h2>
+      <el-button link class="text-right" @click="randomSomeBooks">
+        换换
+        <el-icon>
+          <Refresh/>
+        </el-icon>
+      </el-button>
+    </el-row>
     <el-row :gutter="20">
-      <!-- Repeat the book item structure here -->
+      <el-col v-for="book in randomBooks" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24">
+        <BookCard :book="book"/>
+      </el-col>
     </el-row>
   </el-row>
-  <el-row>
-    <h2>社会文化</h2>
-    <el-row :gutter="20">
-      <!-- Repeat the book item structure here -->
-    </el-row>
-  </el-row>
+
   <el-row>
     <el-row class="full-width-row">
       <el-col :span="24" class="full-width-row">
@@ -52,13 +57,13 @@
 
       <el-col :span="24" class="col-top">
         <el-pagination justify="center"
-            size="small"
-            background
-            layout="prev, pager, next"
-            :total="allPublishers.length"
-            :page-size="publisherPage"
-            class="mt-4"
-            @change="handleCurrentChange"
+                       size="small"
+                       background
+                       layout="prev, pager, next"
+                       :total="allPublishers.length"
+                       :page-size="publisherPage"
+                       class="mt-4"
+                       @change="handleCurrentChange"
         />
       </el-col>
     </el-row>
@@ -87,6 +92,7 @@ export default {
   data() {
     return {
       recentBooks: [] as Book[],
+      randomBooks: [] as Book[],
       publishers: [] as string[],
       allPublishers: [] as string[],
       publisherPage: 8,
@@ -95,18 +101,24 @@ export default {
   created() {
     this.fetchRecentBooks()
     this.fetchPublishers()
+    this.randomSomeBooks()
   },
   methods: {
     async fetchRecentBooks() {
       const response = await fetch('/api/recently?limit=12')
       const books = await response.json()
-      this.recentBooks = books.hits
+      this.recentBooks = books.data
     },
     async fetchPublishers() {
       const response = await fetch('/api/publisher')
       const publishers = await response.json()
       this.allPublishers = publishers.data
       this.publishers = publishers.data.slice(0, this.publisherPage)
+    },
+    async randomSomeBooks() {
+      const response = await fetch('/api/random?limit=12')
+      const books = await response.json()
+      this.randomBooks = books.data
     },
     searchByPublisher(publisher: string) {
       this.$router.push({
@@ -139,6 +151,7 @@ export default {
 .col-top {
   margin-top: 20px;
 }
+
 .col-bottom {
   margin-bottom: 20px;
 }
