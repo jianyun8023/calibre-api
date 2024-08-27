@@ -3,11 +3,11 @@
     <div class="affix-container">
       <el-affix target=".affix-container">
         <el-input
-          v-model="searchQuery"
-          @input="fetchBooks"
-          type="text"
-          placeholder="书名、作者、ISBN"
-          class=""
+            v-model="searchQuery"
+            @input="fetchBooks"
+            type="text"
+            placeholder="书名、作者、ISBN"
+            class=""
         />
       </el-affix>
     </div>
@@ -17,26 +17,26 @@
     <strong style="margin-left: 10px">{{ keyword }}</strong>
   </h2>
   <el-text
-    >共计 {{ total }} 条, 当前{{ offset }} --
+  >共计 {{ total }} 条, 当前{{ offset }} --
     {{ offset + limit >= total ? total : offset + limit }}
   </el-text>
 
   <el-row :gutter="20">
     <el-col v-for="book in books" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24">
-      <BookCard :book="book" :more_info="true" />
+      <BookCard :book="book" :more_info="true"/>
     </el-col>
   </el-row>
   <el-row class="mt-4" justify="center">
     <el-button @click="prevPage" :disabled="offset === 0">
       <el-icon>
-        <ArrowLeftBold />
+        <ArrowLeftBold/>
       </el-icon>
       上一页
     </el-button>
     <el-button @click="nextPage" :disabled="offset + limit >= total"
-      >下一页
+    >下一页
       <el-icon>
-        <ArrowRightBold />
+        <ArrowRightBold/>
       </el-icon>
     </el-button>
   </el-row>
@@ -44,12 +44,12 @@
 
 <script lang="ts">
 import BookCard from '@/components/BookCard.vue'
-import { ElButton, ElCol, ElInput, ElRow } from 'element-plus'
+import {ElButton, ElCol, ElInput, ElRow} from 'element-plus'
 import {fetchBooks} from "@/api/api";
 
 export default {
   name: 'Search',
-  components: { ElInput, ElButton, ElRow, ElCol, BookCard },
+  components: {ElInput, ElButton, ElRow, ElCol, BookCard},
   data() {
     return {
       searchQuery: '',
@@ -91,7 +91,7 @@ export default {
 
   methods: {
     async fetchBooks() {
-      const data = await fetchBooks(this.filter, this.limit, this.offset);
+      const data = await fetchBooks(this.searchQuery, this.filter, this.limit, this.offset);
       this.books = data.records
       this.total = data.total
     },
@@ -109,7 +109,7 @@ export default {
       }
     },
     updateQueryParams() {
-      let query = { ...this.$route.query, offset: this.offset, limit: this.limit }
+      let query = {...this.$route.query, offset: this.offset, limit: this.limit}
       if (this.searchQuery) {
         query.q = this.searchQuery
       }
@@ -119,7 +119,7 @@ export default {
       if (this.author) {
         query.author = this.author
       }
-      this.$router.push({ query: query })
+      this.$router.push({query: query})
     },
     initializeFromQueryParams() {
       const query = this.$route.query
