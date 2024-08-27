@@ -415,7 +415,7 @@ export default {
       if (this.filterType === 'isbn') {
         this.filter[0] = `isbn = "${this.keyword}"`;
       }
-      const data = await fetchBooks(this.filter, this.limit, this.offset);
+      const data = await fetchBooks("", this.filter, this.limit, this.offset);
 
       this.books = data.records
       this.total = data.total

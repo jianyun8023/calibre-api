@@ -23,8 +23,8 @@ export async function fetchRecentBooks(limit: number, offset: number) {
     return response.json().then((data) => data.data);
 }
 
-export async function fetchBooks(filter: string[], limit: number, offset: number) {
-    const response = await fetch('/api/search?q=', {
+export async function fetchBooks(keyword: string, filter: string[], limit: number, offset: number) {
+    const response = await fetch('/api/search?q=' + keyword, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
