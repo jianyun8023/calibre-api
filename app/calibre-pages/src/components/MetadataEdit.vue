@@ -9,6 +9,7 @@
   >
     <el-form
         v-loading="loading"
+        v-if="dialogEditVisible"
         :model="form"
         label-width="70px"
         class="book-form"
@@ -99,18 +100,18 @@
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="emit('update:dialogEditVisible', false)">取消</el-button>
-        <el-button type="primary" @click="updateMetadata" :loading="loading" >更新</el-button>
+        <el-button type="primary" @click="updateMetadata" :loading="loading">更新</el-button>
       </div>
     </template>
   </el-dialog>
 
 
-
 </template>
 <script setup lang="ts">
-import {h, reactive, ref, watch} from 'vue';
+import {reactive, ref, watch} from 'vue';
 import {ElButton, ElInput, ElNotification} from 'element-plus';
 import {Book} from '@/types/book';
+import {updateBook} from "@/api/api";
 
 const props = defineProps<{
   book: Book;
@@ -131,17 +132,32 @@ const form = reactive({
   rating: props.book.rating,
 });
 
-watch(() => props.book, (newVal) => {
-  console.log(newVal)
-  form.title = newVal.title;
-  form.authors = newVal.authors;
-  form.publisher = newVal.publisher;
-  form.pubdate = newVal.pubdate;
-  form.isbn = newVal.isbn;
-  form.comments = newVal.comments;
-  form.tags = newVal.tags;
-  form.rating = newVal.rating;
-  console.log(form)
+// watch(() => props.book, (newVal) => {
+//   console.log(newVal)
+//   form.title = newVal.title;
+//   form.authors = newVal.authors;
+//   form.publisher = newVal.publisher;
+//   form.pubdate = newVal.pubdate;
+//   form.isbn = newVal.isbn;
+//   form.comments = newVal.comments;
+//   form.tags = newVal.tags;
+//   form.rating = newVal.rating;
+//   console.log(form)
+// });
+
+watch(() => props.dialogEditVisible, (newVal) => {
+
+  if (newVal) {
+    console.log(props.book)
+    form.title = props.book.title;
+    form.authors = props.book.authors;
+    form.publisher = props.book.publisher;
+    form.pubdate = props.book.pubdate;
+    form.isbn = props.book.isbn;
+    form.comments = props.book.comments;
+    form.tags = props.book.tags;
+    form.rating = props.book.rating;
+  }
 });
 
 const loading = ref(false);
@@ -150,40 +166,26 @@ const updateMetadata = async () => {
   loading.value = true;
   console.log(form);
 
-  try {
-    const response = await fetch(`/api/book/${props.book.id}/update`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(form),
-    });
-    if (response.ok) {
-      setTimeout(() => {
-        ElNotification({
-          title: '书籍更新成功',
-          message: form.title,
-          type: 'success',
-        });
+
+  await updateBook(String(props.book.id), form)
+      .then((response) => {
+        if (response) {
+          setTimeout(() => {
+            ElNotification({
+              title: '书籍更新成功',
+              message: form.title,
+              type: 'success',
+            });
+            loading.value = false;
+            emit('update:dialogEditVisible', false);
+            window.location.reload();
+          }, 1000);
+        }
+      })
+      .finally(() => {
         loading.value = false;
-        window.location.reload();
-      }, 1000);
-    } else {
-      ElNotification({
-        title: '书籍更新失败',
-        message: h('i', {style: 'color: red'}, form.title),
-        type: 'error',
       });
-      loading.value = false;
-    }
-  } catch (e: any) {
-    ElNotification({
-      title: '书籍更新失败',
-      message: h('i', {style: 'color: red'}, e.message),
-      type: 'error',
-    });
-    loading.value = false;
-  }
+
 };
 </script>
 

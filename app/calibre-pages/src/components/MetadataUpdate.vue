@@ -159,8 +159,9 @@
 </template>
 <script setup lang="ts">
 import {ElNotification} from 'element-plus'
-import {h, reactive, ref, watch} from 'vue'
+import {reactive, ref, watch} from 'vue'
 import {Book} from '@/types/book'
+import {updateBook} from "@/api/api";
 
 const props = defineProps<{
   book: Book;
@@ -226,43 +227,23 @@ const updateMetadata = async () => {
   loading.value = true;
   console.log(form);
 
-  try {
-    const response = await fetch(`/api/book/${props.book.id}/update`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(form)
-    });
-    if (response.ok) {
-      setTimeout(() => {
-        ElNotification({
-          title: '书籍更新成功',
-          message: form.title,
-          type: 'success'
-        });
+  await updateBook(String(props.book.id), form)
+      .then((response) => {
+        if (response) {
+          setTimeout(() => {
+            ElNotification({
+              title: '书籍更新成功',
+              message: form.title,
+              type: 'success',
+            });
+            loading.value = false;
+            window.location.reload();
+          }, 1000);
+        }
+      })
+      .finally(() => {
         loading.value = false;
-        //刷新页面
-        window.location.reload();
-      }, 1000);
-    } else {
-      ElNotification({
-        title: '书籍更新失败',
-        message: h('i', {style: 'color: red'}, form.title),
-        type: 'error'
       });
-      loading.value = false;
-      // this.updateMetadataFlag = false
-    }
-  } catch (e: any) {
-    ElNotification({
-      title: '书籍更新失败',
-      message: h('i', {style: 'color: red'}, e.message),
-      type: 'error'
-    });
-    loading.value = false;
-    // this.updateMetadataFlag = false
-  }
 };
 
 watch(() => props.updateMetadataFlag, (val) => {

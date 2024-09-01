@@ -314,20 +314,14 @@ export default {
       return tags.join(', ')
     },
     async deleteBook(bookId: string) {
-      const response = await deleteBook(Number(bookId))
-      if (response.ok) {
+      const data = await deleteBook(Number(bookId))
+      if (data) {
         ElNotification({
           title: 'Book deleted successfully',
           message: this.book.title,
           type: 'success'
         })
         this.$router.back()
-      } else {
-        ElNotification({
-          title: '删除书籍失败',
-          message: h('i', {style: 'color: red'}, this.book.title),
-          type: 'error'
-        })
       }
     },
     readBook() {
