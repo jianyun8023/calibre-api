@@ -190,10 +190,17 @@ func (c *Api) getBook(r *gin.Context) {
 
 	if err != nil {
 		// 返回文件找不到
-		r.JSON(http.StatusNotFound, "book not found")
+		r.JSON(http.StatusOK, gin.H{
+			"message": "book not found" + err.Error(),
+			"code":    http.StatusNotFound,
+		})
 		return
 	}
-	r.JSON(http.StatusOK, book)
+	r.JSON(http.StatusOK, gin.H{
+		"data":    &book,
+		"message": "ok",
+		"code":    200,
+	})
 
 }
 
@@ -202,16 +209,26 @@ func (c *Api) deleteBook(r *gin.Context) {
 
 	err := c.contentApi.DeleteBooks([]string{id}, "")
 	if err != nil {
-		r.JSON(http.StatusNotFound, "book not found"+err.Error())
+		r.JSON(http.StatusOK, gin.H{
+			"message": "book not found" + err.Error(),
+			"code":    http.StatusNotFound,
+		})
 		return
 	}
 	_, err = c.currentIndex().DeleteDocument(id)
 	if err != nil {
 		// 返回文件找不到
-		r.JSON(http.StatusNotFound, "book not found"+err.Error())
+		r.JSON(http.StatusOK, gin.H{
+			"message": "book not found" + err.Error(),
+			"code":    http.StatusNotFound,
+		})
 		return
 	}
-	r.JSON(http.StatusOK, "success")
+	r.JSON(http.StatusOK, gin.H{
+		"data":    true,
+		"message": "ok",
+		"code":    200,
+	})
 }
 
 func (c *Api) getBookToc(r *gin.Context) {
@@ -583,26 +600,30 @@ func (c *Api) updateMetadata(r *gin.Context) {
 	book := &Book{}
 	err := r.Bind(book)
 	if err != nil {
-		r.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		r.JSON(http.StatusOK, gin.H{
+			"code":    400,
+			"data":    false,
+			"message": "请求参数错误" + err.Error(),
+		})
 		return
 	}
 
 	oldBook := &Book{}
 	err = c.currentIndex().GetDocument(id, nil, oldBook)
 	if err != nil {
-		r.JSON(http.StatusNotFound, gin.H{
-			"code":  500,
-			"error": err.Error(),
-			"msg":   "元数据更新失败",
+		r.JSON(http.StatusOK, gin.H{
+			"code":    500,
+			"data":    false,
+			"message": "元数据更新失败",
 		})
 		return
 	}
 	_, err = c.contentApi.UpdateMetaData(id, parseParams(book, oldBook), "")
 	if err != nil {
 		r.JSON(http.StatusNotFound, gin.H{
-			"code":  500,
-			"error": err.Error(),
-			"msg":   "元数据更新失败",
+			"code":    500,
+			"data":    false,
+			"message": "元数据更新失败",
 		})
 		return
 	}
@@ -610,31 +631,36 @@ func (c *Api) updateMetadata(r *gin.Context) {
 	data, err := c.contentApi.GetBookMetaDatas([]int64{cast.ToInt64(id)}, "")
 	if err != nil {
 		log.Warnf("get book metadata error: %v", err)
-		r.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		r.JSON(http.StatusOK, gin.H{
+			"code":    500,
+			"data":    false,
+			"message": "元数据更新成功，但是查询元数据失败",
+		})
 		return
 	}
 	books, err := convertContentBooks(data)
 	if err != nil {
-		r.JSON(http.StatusNotFound, gin.H{
-			"code":  500,
-			"error": err.Error(),
-			"msg":   "书籍元数据翻译失败，请刷新索引",
+		r.JSON(http.StatusOK, gin.H{
+			"code":    500,
+			"data":    false,
+			"message": "书籍元数据翻译失败，请刷新索引",
 		})
 		return
 	}
 	_, err = c.currentIndex().AddDocuments(books)
 	if err != nil {
 		// 返回文件找不到
-		r.JSON(http.StatusNotFound, gin.H{
-			"code":  500,
-			"error": err.Error(),
-			"msg":   "元数据更新成功，但是索引更新失败，请刷新索引",
+		r.JSON(http.StatusOK, gin.H{
+			"code":    500,
+			"data":    false,
+			"message": "元数据更新成功，但是索引更新失败，请刷新索引",
 		})
 		return
 	}
 	r.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
+		"data":    &books[0],
 	})
 	return
 }
