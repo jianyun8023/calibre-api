@@ -13,7 +13,7 @@ metadata:
 
 # MCP 服务器配置
 mcp:
-  enabled: false                        # 是否默认启用 MCP 模式
+  enabled: true                         # 是否默认启用 MCP 模式（启用 SSE MCP 服务）
   server_name: "calibre-mcp-server"     # MCP 服务器名称
   version: "1.1.0"                      # MCP 服务器版本
   base_url: "http://localhost:8080"     # API 基础 URL（用于 MCP 工具调用）

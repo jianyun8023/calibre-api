@@ -3,13 +3,6 @@ package calibre
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/jianyun8023/calibre-api/pkg/client"
-	"github.com/jianyun8023/calibre-api/pkg/content"
-	"github.com/jianyun8023/calibre-api/pkg/log"
-	"github.com/kapmahc/epub"
-	"github.com/meilisearch/meilisearch-go"
-	"github.com/spf13/cast"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -20,15 +13,25 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jianyun8023/calibre-api/internal/mcp"
+	"github.com/jianyun8023/calibre-api/pkg/client"
+	"github.com/jianyun8023/calibre-api/pkg/content"
+	"github.com/jianyun8023/calibre-api/pkg/log"
+	"github.com/kapmahc/epub"
+	"github.com/meilisearch/meilisearch-go"
+	"github.com/spf13/cast"
 )
 
 type Api struct {
-	config     *Config
-	contentApi *content.Api
-	client     *meilisearch.Client
-	baseDir    string
-	http       *client.Client
-	useIndex   string
+	config       *Config
+	contentApi   *content.Api
+	client       *meilisearch.Client
+	baseDir      string
+	http         *client.Client
+	useIndex     string
+	sseMCPServer *mcp.SSEMCPServer
 }
 
 func (c *Api) SetupRouter(r *gin.Engine) {
@@ -52,6 +55,11 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.GET("/random", c.random)
 	base.POST("/index/update", c.updateIndex)
 	base.POST("/index/switch", c.switchIndex)
+
+	// Setup SSE MCP routes if enabled
+	if c.config.MCP.Enabled && c.sseMCPServer != nil {
+		c.sseMCPServer.SetupRoutes(base)
+	}
 }
 
 func (c *Api) currentIndex() *meilisearch.Index {
@@ -90,6 +98,17 @@ func NewClient(config *Config) *Api {
 		http:       newClient.Client,
 		useIndex:   config.Search.Index,
 	}
+
+	// 初始化 SSE MCP 服务器（如果启用）
+	if config.MCP.Enabled {
+		if config.MCP.BaseURL != "" {
+			api.sseMCPServer = mcp.NewSSEMCPServerWithIntegration(&api, config.MCP.BaseURL)
+		} else {
+			api.sseMCPServer = mcp.NewSSEMCPServer(&api)
+		}
+		log.Infof("SSE MCP Server initialized")
+	}
+
 	return &api
 }
 
