@@ -1,4 +1,5 @@
 project_name: calibre-api
+version: 2
 
 before:
   hooks:
@@ -19,10 +20,6 @@ builds:
     goarch:
       - amd64
       - arm64
-      - 386
-    ignore:
-      - goos: darwin
-        goarch: 386
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
 
@@ -38,10 +35,6 @@ builds:
     goarch:
       - amd64
       - arm64
-      - 386
-    ignore:
-      - goos: darwin
-        goarch: 386
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
 
@@ -54,7 +47,6 @@ archives:
       - LICENSE
       - config.yaml
       - docs/**/*
-    format: tar.gz
     format_overrides:
       - goos: windows
         format: zip
@@ -69,7 +61,6 @@ archives:
       - config.yaml
       - docs/MCP_README.md
       - docs/QUICK_START.md
-    format: tar.gz
     format_overrides:
       - goos: windows
         format: zip
@@ -111,7 +102,8 @@ dockers:
     dockerfile: Dockerfile
     use: buildx
     build_flag_templates:
-      - "--platform=linux/amd64"
+      - "--pull"
+      - "--platform=linux/amd64,linux/arm64"
       - "--label=org.opencontainers.image.created={{.Date}}"
       - "--label=org.opencontainers.image.title={{.ProjectName}}"
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
