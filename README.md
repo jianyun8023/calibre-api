@@ -1,17 +1,75 @@
-# Calibre-Api
+# Calibre-API
 
-基于 MeiliSearch 搭建的 calibre 书籍搜索、下载、预览
-数据来源 Calibre Content Server
+基于 MeiliSearch 搭建的 Calibre 书籍管理系统，支持搜索、下载、预览和智能交互。
 
-## 特性
+## ✨ 核心特性
+
+### 📚 书籍管理
 - 使用 Calibre Content Server 作为数据来源
 - MeiliSearch 增强查询响应速度
-- 支持书籍元数据读取
-- 支持下载、编辑元数据、删除书籍
-- 支持在线搜索元数据
+- 支持书籍元数据的 CRUD 操作
+- 在线元数据获取和补全
+- 封面图片和文件下载
+
+### 🤖 AI 智能交互（MCP 支持）
+- **MCP (Model Context Protocol) 集成** - 与 AI 助手无缝交互
+- **自然语言操作** - 通过对话管理书籍
+- **智能推荐** - AI 驱动的书籍推荐
+- **双模式部署** - 支持集成模式和独立模式
+
+### 🔧 开发特性
+- RESTful API 接口
+- Docker 容器化部署
+- 多平台二进制发布
+- 完整的 CI/CD 流程
 
 
-## 接口
+## 🚀 快速开始
+
+### 运行模式
+
+#### 1. HTTP API 模式（默认）
+```bash
+# 构建和运行
+make build
+./calibre-api
+```
+
+#### 2. MCP 智能交互模式
+```bash
+# 使用命令行参数
+./calibre-api --mcp
+
+# 使用环境变量
+MCP_MODE=true ./calibre-api
+
+# 使用配置文件
+# 在 config.yaml 中设置 mcp.enabled: true
+./calibre-api
+```
+
+### 🤖 AI 助手集成
+
+配置 Claude Desktop 或其他 MCP 客户端：
+
+```json
+{
+  "mcpServers": {
+    "calibre-api": {
+      "command": "/path/to/calibre-api",
+      "args": ["--mcp"]
+    }
+  }
+}
+```
+
+现在您可以通过自然语言与 AI 助手交互：
+- *"搜索关于机器学习的书籍"*
+- *"帮我更新书籍 ID 123 的元数据"*
+- *"推荐几本随机书籍"*
+- *"根据 ISBN 获取书籍信息"*
+
+## 📖 API 接口
 
 ```text
 GET    /api/get/cover/:id            --> 获取书籍封面
@@ -19,9 +77,17 @@ GET    /api/get/book/:id             --> 下载书籍文件
 GET    /api/read/:id/toc             --> 获取书籍目录（包含元信息、目录和地址）
 GET    /api/read/:id/file/*path      --> 读取书籍中的文件
 GET    /api/book/:id                 --> 获取书籍信息
-GET    /api/search                   --> 搜索书籍(参数q 搜索词，更多参数参考[meilisearch search](https://docs.meilisearch.com/reference/api/search.html))
-POST   /api/search                   --> 搜索书籍(参数q 搜索词，更多参数参考[meilisearch search](https://docs.meilisearch.com/reference/api/search.html))
-POST   /api/index/update             --> 更新索引
+GET    /api/search                   --> 搜索书籍
+POST   /api/search                   --> 搜索书籍
+GET    /api/recently                 --> 最近更新的书籍
+GET    /api/random                   --> 随机书籍推荐
+GET    /api/publisher                --> 获取出版社列表
+GET    /api/metadata/isbn/:isbn      --> 根据 ISBN 获取元数据
+GET    /api/metadata/search          --> 搜索在线元数据
+POST   /api/book/:id/update          --> 更新书籍元数据
+POST   /api/book/:id/delete          --> 删除书籍
+POST   /api/index/update             --> 更新搜索索引
+POST   /api/index/switch             --> 切换搜索索引
 ```
 
 ## 数据导入
@@ -72,9 +138,45 @@ curl -X "POST" "http://localhost:8080/index/update" -H 'Content-Type: applicatio
 
 ## 接口
 
-## 打包
-- 直接打包 `make build`
-- 使用Docker `docker build -t calibre-api:latest -f ./Dockerfile .`
+## 🔨 构建和部署
+
+### 本地构建
+```bash
+# 构建主程序（包含 MCP 功能）
+make build
+
+# 构建独立 MCP 服务器
+make build-mcp
+
+# 构建所有版本  
+make build-all
+
+# 直接使用 Go 构建
+go build -o calibre-api .
+go build -o calibre-mcp-server ./cmd/mcp-server
+```
+
+### Docker 部署
+```bash
+# 构建 Docker 镜像
+docker build -t calibre-api:latest .
+
+# 运行容器（HTTP 模式）
+docker run -d -p 8080:8080 \
+  -v $(pwd)/config.yaml:/app/config.yaml \
+  calibre-api:latest
+
+# 运行容器（MCP 模式）
+docker run -d \
+  -e MCP_MODE=true \
+  -v $(pwd)/config.yaml:/app/config.yaml \
+  calibre-api:latest
+```
+
+### 预构建二进制
+从 [Releases](https://github.com/jianyun8023/calibre-api/releases) 页面下载预构建的二进制文件：
+- `calibre-api-*` - 主程序（包含 MCP 功能）
+- `calibre-mcp-server-*` - 独立 MCP 服务器
 
 ## 配置
 
@@ -93,12 +195,28 @@ address: :8080
 debug: false
 staticDir: "/app/static"
 tmpDir: ".files"
+
+# Calibre Content Server 配置
 content:
   server: https://lib.pve.icu
+
+# MeiliSearch 搜索引擎配置  
 search:
   host: http://127.0.0.1:7700
-  apikey:
+  apikey: ""
   index: books
+
+# 元数据服务配置
+metadata:
+  doubanurl: https://api.douban.com
+
+# MCP 服务器配置
+mcp:
+  enabled: false                        # 是否默认启用 MCP 模式
+  server_name: "calibre-mcp-server"     # MCP 服务器名称
+  version: "1.1.0"                      # MCP 服务器版本  
+  base_url: "http://localhost:8080"     # API 基础 URL
+  timeout: 30                           # API 请求超时时间（秒）
 ```
 
 ### 环境变量
@@ -106,15 +224,28 @@ search:
 环境变量优先于配置文件，可以使用环境变量覆盖配置文件中的参数
 
 ```text
-CALIBRE_ADDRESS
-CALIBRE_DEBUG
-CALIBRE_STATICDIR
-CALIBRE_TMP_DIR
+# 基础配置
+CALIBRE_ADDRESS=:8080
+CALIBRE_DEBUG=false
+CALIBRE_STATICDIR=/app/static
+CALIBRE_TMP_DIR=.files
 
-## search
-CALIBRE_SEARCH_HOST
-CALIBRE_SEARCH_APIKEY
-CALIBRE_SEARCH_INDEX
+# Calibre Content Server
+CALIBRE_CONTENT_SERVER=https://your-calibre-server.com
+
+# MeiliSearch 配置
+CALIBRE_SEARCH_HOST=http://localhost:7700
+CALIBRE_SEARCH_APIKEY=your-api-key
+CALIBRE_SEARCH_INDEX=books
+
+# 元数据服务
+CALIBRE_METADATA_DOUBANURL=https://api.douban.com
+
+# MCP 配置
+CALIBRE_MCP_ENABLED=false
+CALIBRE_MCP_BASE_URL=http://localhost:8080
+MCP_MODE=true                    # 快速启用 MCP 模式
+CALIBRE_MCP_MODE=true           # 快速启用 MCP 模式
 ```
 
 ## 适配阅读书源
@@ -167,3 +298,33 @@ CALIBRE_SEARCH_INDEX
   }
 }
 ```
+
+## 📚 文档
+
+- **[快速开始指南](docs/QUICK_START.md)** - 详细的设置和部署指南
+- **[MCP 使用文档](docs/MCP_README.md)** - AI 助手集成的完整说明
+- **[API 参考](docs/API.md)** - RESTful API 接口文档
+
+## 🎯 使用场景
+
+### 1. 个人书库管理
+- 通过 Web 界面管理和搜索书籍
+- 下载和预览书籍内容
+- 元数据编辑和补全
+
+### 2. AI 智能助手
+- 自然语言搜索书籍
+- AI 驱动的阅读推荐
+- 智能元数据处理
+
+### 3. 书源集成
+- 作为阅读 APP 的书源
+- API 接口供第三方应用调用
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 📄 许可证
+
+MIT License

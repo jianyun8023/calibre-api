@@ -10,3 +10,11 @@ search:
   index: books
 metadata:
   doubanurl: http://192.168.2.236:8085
+
+# MCP 服务器配置
+mcp:
+  enabled: false                        # 是否默认启用 MCP 模式
+  server_name: "calibre-mcp-server"     # MCP 服务器名称
+  version: "1.1.0"                      # MCP 服务器版本
+  base_url: "http://localhost:8080"     # API 基础 URL（用于 MCP 工具调用）
+  timeout: 30                           # API 请求超时时间（秒）

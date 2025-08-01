@@ -1,0 +1,199 @@
+project_name: calibre-api
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+    - go generate ./...
+
+builds:
+  - id: calibre-api
+    main: .
+    binary: calibre-api
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - 386
+    ignore:
+      - goos: darwin
+        goarch: 386
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
+
+  - id: calibre-mcp-server
+    main: ./cmd/mcp-server
+    binary: calibre-mcp-server
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - 386
+    ignore:
+      - goos: darwin
+        goarch: 386
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
+
+archives:
+  - id: calibre-api
+    builds: [calibre-api]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - config.yaml
+      - docs/**/*
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    wrap_in_directory: true
+
+  - id: calibre-mcp-server
+    builds: [calibre-mcp-server]
+    name_template: "{{ .ProjectName }}-mcp-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - config.yaml
+      - docs/MCP_README.md
+      - docs/QUICK_START.md
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    wrap_in_directory: true
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: 'MCP Integration'
+      regexp: '^.*?mcp(\(.+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+dockers:
+  - image_templates:
+      - "ghcr.io/jianyun8023/calibre-api:latest"
+      - "ghcr.io/jianyun8023/calibre-api:{{ .Tag }}"
+      - "ghcr.io/jianyun8023/calibre-api:v{{ .Major }}"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+
+release:
+  github:
+    owner: jianyun8023
+    name: calibre-api
+  draft: false
+  prerelease: auto
+  name_template: "{{.ProjectName}} v{{.Version}}"
+  mode: replace
+  header: |
+    ## ✨ 新功能和改进
+  footer: |
+    ## 📦 两种部署方式
+    
+    ### 🎯 集成模式（推荐）
+    下载 `calibre-api_{{.Version}}_*.tar.gz` - 包含完整功能的单一程序
+    
+    ```bash
+    # 下载并解压
+    tar -xzf calibre-api_{{.Version}}_linux_amd64.tar.gz
+    cd calibre-api_{{.Version}}_linux_amd64
+    
+    # HTTP API 模式（默认）
+    ./calibre-api
+    
+    # MCP 智能交互模式  
+    ./calibre-api --mcp
+    ```
+    
+    ### 🔧 独立模式
+    下载 `calibre-api-mcp-server_{{.Version}}_*.tar.gz` - 独立的 MCP 服务器
+    
+    ```bash
+    # 下载并解压  
+    tar -xzf calibre-api-mcp-server_{{.Version}}_linux_amd64.tar.gz
+    cd calibre-api-mcp-server_{{.Version}}_linux_amd64
+    
+    # 运行独立 MCP 服务器
+    ./calibre-mcp-server
+    ```
+    
+    ### 🐳 Docker 部署
+    ```bash
+    docker pull ghcr.io/jianyun8023/calibre-api:{{.Tag}}
+    
+    # HTTP 模式
+    docker run -d -p 8080:8080 ghcr.io/jianyun8023/calibre-api:{{.Tag}}
+    
+    # MCP 模式
+    docker run -d -e MCP_MODE=true ghcr.io/jianyun8023/calibre-api:{{.Tag}}
+    ```
+    
+    ### 🤖 AI 助手集成
+    
+    **集成模式配置：**
+    ```json
+    {
+      "mcpServers": {
+        "calibre-api": {
+          "command": "/path/to/calibre-api",
+          "args": ["--mcp"]
+        }
+      }
+    }
+    ```
+    
+    **独立模式配置：**
+    ```json
+    {
+      "mcpServers": {
+        "calibre-api": {
+          "command": "/path/to/calibre-mcp-server"
+        }
+      }
+    }
+    ```
+    
+    ### 📚 完整文档
+    - [README](https://github.com/jianyun8023/calibre-api#readme) - 项目介绍和快速开始
+    - [快速开始指南](https://github.com/jianyun8023/calibre-api/blob/master/docs/QUICK_START.md) - 详细部署指南  
+    - [MCP 使用文档](https://github.com/jianyun8023/calibre-api/blob/master/docs/MCP_README.md) - AI 助手集成说明

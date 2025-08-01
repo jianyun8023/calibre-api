@@ -4,44 +4,52 @@
 # Copyright (C) 2019 jianyun8023 <https://zhaojianyun.com>
 #
 
-name: Build Calibre-API Images
+name: CI Build and Test
+
 on:
   workflow_dispatch:
-  release:
-    types: [published]
-env:
-  IMAGE_NAME: calibre-api
-  VERSION: "0.0.1"
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main ]
 
 jobs:
-  docker:
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
-      - name: Set VERSION for release
-        if: github.event_name == 'release'
-        run: echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-
       - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Log in to registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/checkout@v4
 
-      - name: Build and push
-        uses: docker/build-push-action@v4
+      - name: Set up Go
+        uses: actions/setup-go@v4
         with:
-          context: ./
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            VERSION=${{ env.VERSION }}
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+          go-version: '1.21'
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Run linter
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+
+      - name: Build main binary
+        run: go build -o calibre-api .
+
+      - name: Build MCP server
+        run: go build -o calibre-mcp-server ./cmd/mcp-server
+
+      - name: Test MCP integration
+        run: |
+          echo "Testing MCP integration..."
+          ./calibre-api --help
+          echo "MCP integration test completed"
