@@ -18,6 +18,7 @@ services:
       - CALIBRE_SEARCH_INDEX=books
       - CALIBRE_TMPDIR=/tmp
       - CALIBRE_METADATA_DOUBANURL=http://douban-api:8085
+      - CALIBRE_MCP_ENABLED=false
     depends_on:
       - meilisearch
       - douban-api
