@@ -7,14 +7,19 @@ import (
 	"io"
 	"log"
 	"os"
-
-	"github.com/jianyun8023/calibre-api/internal/calibre"
 )
 
 const (
 	MCPProtocolVersion = "2024-11-05"
 	ServerName         = "calibre-mcp-server"
 	ServerVersion      = "1.0.0"
+)
+
+// 导出常量供其他包使用
+var (
+	ExportedMCPProtocolVersion = MCPProtocolVersion
+	ExportedServerName         = ServerName
+	ExportedServerVersion      = ServerVersion
 )
 
 // MCPServer represents the MCP server
@@ -24,14 +29,14 @@ type MCPServer struct {
 }
 
 // NewMCPServer creates a new MCP server instance
-func NewMCPServer(calibreAPI *calibre.Api) *MCPServer {
+func NewMCPServer(calibreAPI interface{}) *MCPServer {
 	return &MCPServer{
 		tools: NewMCPTools(calibreAPI),
 	}
 }
 
 // NewMCPServerWithIntegration creates a new MCP server instance with API integration
-func NewMCPServerWithIntegration(calibreAPI *calibre.Api, baseURL string) *MCPServer {
+func NewMCPServerWithIntegration(calibreAPI interface{}, baseURL string) *MCPServer {
 	return &MCPServer{
 		tools: NewMCPToolsWithIntegration(calibreAPI, baseURL),
 	}

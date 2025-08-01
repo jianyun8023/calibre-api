@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jianyun8023/calibre-api/internal/mcp"
+	"github.com/jianyun8023/calibre-api/internal/sse_mcp"
 	"github.com/jianyun8023/calibre-api/pkg/client"
 	"github.com/jianyun8023/calibre-api/pkg/content"
 	"github.com/jianyun8023/calibre-api/pkg/log"
@@ -31,7 +31,7 @@ type Api struct {
 	baseDir      string
 	http         *client.Client
 	useIndex     string
-	sseMCPServer *mcp.SSEMCPServer
+	sseMCPServer *sse_mcp.SSEMCPServer
 }
 
 func (c *Api) SetupRouter(r *gin.Engine) {
@@ -56,9 +56,13 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.POST("/index/update", c.updateIndex)
 	base.POST("/index/switch", c.switchIndex)
 
-	// Setup SSE MCP routes if enabled
-	if c.config.MCP.Enabled && c.sseMCPServer != nil {
+	// Setup SSE MCP routes (always enabled in HTTP mode)
+	if c.sseMCPServer != nil {
+		log.Infof("Setting up SSE MCP routes...")
 		c.sseMCPServer.SetupRoutes(base)
+		log.Infof("SSE MCP routes registered under /api/mcp/")
+	} else {
+		log.Warnf("SSE MCP server is nil, routes not registered")
 	}
 }
 
@@ -99,15 +103,14 @@ func NewClient(config *Config) *Api {
 		useIndex:   config.Search.Index,
 	}
 
-	// 初始化 SSE MCP 服务器（如果启用）
-	if config.MCP.Enabled {
-		if config.MCP.BaseURL != "" {
-			api.sseMCPServer = mcp.NewSSEMCPServerWithIntegration(&api, config.MCP.BaseURL)
-		} else {
-			api.sseMCPServer = mcp.NewSSEMCPServer(&api)
-		}
-		log.Infof("SSE MCP Server initialized")
+	// 初始化 SSE MCP 服务器（在 HTTP 模式下默认启用）
+	// 注意：这里不依赖 config.MCP.Enabled，因为那个控制的是传统 MCP 模式
+	baseURL := config.MCP.BaseURL
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
 	}
+	api.sseMCPServer = sse_mcp.NewSSEMCPServer(baseURL)
+	log.Infof("SSE MCP Server initialized with base URL: %s", baseURL)
 
 	return &api
 }

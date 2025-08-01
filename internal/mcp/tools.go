@@ -10,20 +10,35 @@ import (
 
 // MCPTools wraps the Calibre API to provide MCP tools
 type MCPTools struct {
-	calibreAPI     *calibre.Api
+	calibreAPI     CalibreAPI
 	apiIntegration *APIIntegrationTools
 }
 
-func NewMCPTools(calibreAPI *calibre.Api) *MCPTools {
+func NewMCPTools(calibreAPI interface{}) *MCPTools {
+	// 使用类型断言来获取实际的 API 对象
+	if api, ok := calibreAPI.(CalibreAPI); ok {
+		return &MCPTools{
+			calibreAPI: api,
+		}
+	}
+	// 如果类型断言失败，返回 nil
 	return &MCPTools{
-		calibreAPI: calibreAPI,
+		calibreAPI: nil,
 	}
 }
 
-func NewMCPToolsWithIntegration(calibreAPI *calibre.Api, baseURL string) *MCPTools {
+func NewMCPToolsWithIntegration(calibreAPI interface{}, baseURL string) *MCPTools {
+	// 使用类型断言来获取实际的 API 对象
+	if api, ok := calibreAPI.(*calibre.Api); ok {
+		return &MCPTools{
+			calibreAPI:     api,
+			apiIntegration: NewAPIIntegrationTools(baseURL),
+		}
+	}
+	// 如果类型断言失败，返回没有 API 集成的版本
 	return &MCPTools{
-		calibreAPI:     calibreAPI,
-		apiIntegration: NewAPIIntegrationTools(calibreAPI, baseURL),
+		calibreAPI:     nil,
+		apiIntegration: NewAPIIntegrationTools(baseURL),
 	}
 }
 

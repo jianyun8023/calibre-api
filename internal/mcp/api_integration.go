@@ -10,22 +10,18 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/jianyun8023/calibre-api/internal/calibre"
 )
 
 // APIIntegrationTools provides actual integration with Calibre API endpoints
 type APIIntegrationTools struct {
-	calibreAPI *calibre.Api
-	baseURL    string
-	client     *http.Client
+	baseURL string
+	client  *http.Client
 }
 
-func NewAPIIntegrationTools(calibreAPI *calibre.Api, baseURL string) *APIIntegrationTools {
+func NewAPIIntegrationTools(baseURL string) *APIIntegrationTools {
 	return &APIIntegrationTools{
-		calibreAPI: calibreAPI,
-		baseURL:    strings.TrimSuffix(baseURL, "/"),
-		client:     &http.Client{Timeout: 30 * time.Second},
+		baseURL: strings.TrimSuffix(baseURL, "/"),
+		client:  &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
