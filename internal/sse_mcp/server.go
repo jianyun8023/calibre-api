@@ -59,6 +59,12 @@ func (s *SSEMCPServer) SetupRoutes(r *gin.RouterGroup) {
 
 		// Status endpoint
 		mcpGroup.GET("/status", s.handleStatus)
+
+		// Add OPTIONS routes for CORS preflight
+		mcpGroup.OPTIONS("/initialize", s.handleHTTPInitialize)
+		mcpGroup.OPTIONS("/tools/list", s.handleHTTPToolsList)
+		mcpGroup.OPTIONS("/tools/call", s.handleHTTPToolsCall)
+		mcpGroup.OPTIONS("/status", s.handleStatus)
 	}
 	log.Printf("SSE MCP routes setup completed")
 }
@@ -149,6 +155,17 @@ func (s *SSEMCPServer) sendSSEMessage(client *SSEClient, event string, data inte
 
 // handleHTTPInitialize handles HTTP-based initialize request
 func (s *SSEMCPServer) handleHTTPInitialize(c *gin.Context) {
+	// Set CORS headers
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	c.Header("Access-Control-Allow-Headers", "Content-Type")
+
+	// Handle preflight OPTIONS request
+	if c.Request.Method == "OPTIONS" {
+		c.Status(http.StatusOK)
+		return
+	}
+
 	var req InitializeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -181,6 +198,17 @@ func (s *SSEMCPServer) handleHTTPInitialize(c *gin.Context) {
 
 // handleHTTPToolsList handles HTTP-based tools/list request
 func (s *SSEMCPServer) handleHTTPToolsList(c *gin.Context) {
+	// Set CORS headers
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	c.Header("Access-Control-Allow-Headers", "Content-Type")
+
+	// Handle preflight OPTIONS request
+	if c.Request.Method == "OPTIONS" {
+		c.Status(http.StatusOK)
+		return
+	}
+
 	if !s.initialized {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Server not initialized",
@@ -198,6 +226,17 @@ func (s *SSEMCPServer) handleHTTPToolsList(c *gin.Context) {
 
 // handleHTTPToolsCall handles HTTP-based tools/call request
 func (s *SSEMCPServer) handleHTTPToolsCall(c *gin.Context) {
+	// Set CORS headers
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	c.Header("Access-Control-Allow-Headers", "Content-Type")
+
+	// Handle preflight OPTIONS request
+	if c.Request.Method == "OPTIONS" {
+		c.Status(http.StatusOK)
+		return
+	}
+
 	if !s.initialized {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Server not initialized",
@@ -242,6 +281,17 @@ func (s *SSEMCPServer) handleHTTPToolsCall(c *gin.Context) {
 
 // handleStatus handles status request
 func (s *SSEMCPServer) handleStatus(c *gin.Context) {
+	// Set CORS headers
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	c.Header("Access-Control-Allow-Headers", "Content-Type")
+
+	// Handle preflight OPTIONS request
+	if c.Request.Method == "OPTIONS" {
+		c.Status(http.StatusOK)
+		return
+	}
+
 	log.Printf("SSE MCP Status endpoint called")
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, gin.H{
