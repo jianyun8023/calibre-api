@@ -33,8 +33,8 @@ type Property struct {
 
 // ToolCallRequest represents a tool call request
 type ToolCallRequest struct {
-	Name      string                 `json:"name"`
-	Arguments map[string]interface{} `json:"arguments"`
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments"`
 }
 
 // ToolCallResult represents the result of a tool call
@@ -45,8 +45,10 @@ type ToolCallResult struct {
 
 // Content represents content in a tool call result
 type Content struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type     string `json:"type"`
+	Text     string `json:"text,omitempty"`
+	Data     string `json:"data,omitempty"`
+	MimeType string `json:"mimeType,omitempty"`
 }
 
 // InitializeRequest represents an MCP initialize request

@@ -169,8 +169,11 @@ func (s *SSEMCPServer) handleHTTPInitialize(c *gin.Context) {
 	var req InitializeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid initialize request parameters",
-			"details": err.Error(),
+			"error": gin.H{
+				"code":    -32600,
+				"message": "Invalid initialize request parameters",
+				"data":    err.Error(),
+			},
 		})
 		return
 	}
@@ -192,7 +195,6 @@ func (s *SSEMCPServer) handleHTTPInitialize(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"result": result,
-		"status": "initialized",
 	})
 }
 
@@ -211,16 +213,19 @@ func (s *SSEMCPServer) handleHTTPToolsList(c *gin.Context) {
 
 	if !s.initialized {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Server not initialized",
-			"code":  -32002,
+			"error": gin.H{
+				"code":    -32002,
+				"message": "Server not initialized",
+			},
 		})
 		return
 	}
 
 	tools := s.tools.GetTools()
 	c.JSON(http.StatusOK, gin.H{
-		"tools": tools,
-		"count": len(tools),
+		"result": gin.H{
+			"tools": tools,
+		},
 	})
 }
 
@@ -239,8 +244,10 @@ func (s *SSEMCPServer) handleHTTPToolsCall(c *gin.Context) {
 
 	if !s.initialized {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Server not initialized",
-			"code":  -32002,
+			"error": gin.H{
+				"code":    -32002,
+				"message": "Server not initialized",
+			},
 		})
 		return
 	}
@@ -248,19 +255,37 @@ func (s *SSEMCPServer) handleHTTPToolsCall(c *gin.Context) {
 	var req ToolCallRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid tool call request parameters",
-			"details": err.Error(),
+			"error": gin.H{
+				"code":    -32600,
+				"message": "Invalid tool call request parameters",
+				"data":    err.Error(),
+			},
+		})
+		return
+	}
+
+	// Parse arguments
+	var args map[string]interface{}
+	if err := json.Unmarshal(req.Arguments, &args); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    -32600,
+				"message": "Invalid arguments format",
+				"data":    err.Error(),
+			},
 		})
 		return
 	}
 
 	// Execute tool
-	result, err := s.tools.CallTool(req.Name, req.Arguments)
+	result, err := s.tools.CallTool(req.Name, args)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Tool execution error",
-			"details": err.Error(),
-			"tool":    req.Name,
+			"error": gin.H{
+				"code":    -32603,
+				"message": "Tool execution error",
+				"data":    err.Error(),
+			},
 		})
 		return
 	}
@@ -268,14 +293,13 @@ func (s *SSEMCPServer) handleHTTPToolsCall(c *gin.Context) {
 	// Send result to all connected SSE clients (optional)
 	s.broadcastToSSEClients("tool_result", map[string]interface{}{
 		"tool":      req.Name,
-		"arguments": req.Arguments,
+		"arguments": args,
 		"result":    result,
 		"timestamp": time.Now().Unix(),
 	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"result": result,
-		"tool":   req.Name,
 	})
 }
 
@@ -295,12 +319,14 @@ func (s *SSEMCPServer) handleStatus(c *gin.Context) {
 	log.Printf("SSE MCP Status endpoint called")
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, gin.H{
-		"status":            "running",
-		"initialized":       s.initialized,
-		"connected_clients": s.GetConnectedClients(),
-		"server_info": map[string]interface{}{
-			"name":    ServerName,
-			"version": ServerVersion,
+		"result": gin.H{
+			"status":            "running",
+			"initialized":       s.initialized,
+			"connected_clients": s.GetConnectedClients(),
+			"server_info": map[string]interface{}{
+				"name":    ServerName,
+				"version": ServerVersion,
+			},
 		},
 	})
 }
