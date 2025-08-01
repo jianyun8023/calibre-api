@@ -8,6 +8,21 @@ help:  ## Display this help
 build: ## Build executable files
 	@goreleaser release --snapshot --clean
 
+build-mcp: ## Build standalone MCP server
+	go build -o dist/calibre-mcp-server ./cmd/mcp-server
+
+build-all: ## Build all executables (calibre-api + calibre-mcp-server)
+	@echo "Building all executables with GoReleaser..."
+	@goreleaser release --snapshot --clean
+	@echo "All binaries built successfully!"
+
+release-test: ## Test release build locally
+	@goreleaser release --snapshot --skip-publish --clean
+
+clean: ## Clean up build files and dist directory
+	rm -rf dist/
+	rm -f calibre-api calibre-mcp-server
+
 test: ## Run tests
 	go install "github.com/rakyll/gotest@latest"
 	GIN_MODE=release

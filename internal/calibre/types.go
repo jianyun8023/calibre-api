@@ -50,13 +50,14 @@ type Metadata struct {
 }
 
 type Config struct {
-	Address   string   `mapstructure:"address"`
-	Debug     bool     `mapstructure:"debug"`
-	StaticDir string   `mapstructure:"staticDir"`
-	TmpDir    string   `mapstructure:"tmpdir"`
-	Content   Content  `mapstructure:"content"`
-	Search    Search   `mapstructure:"search"`
-	Metadata  Metadata `mapstructure:"metadata"`
+	Address   string    `mapstructure:"address"`
+	Debug     bool      `mapstructure:"debug"`
+	StaticDir string    `mapstructure:"staticDir"`
+	TmpDir    string    `mapstructure:"tmpdir"`
+	Content   Content   `mapstructure:"content"`
+	Search    Search    `mapstructure:"search"`
+	Metadata  Metadata  `mapstructure:"metadata"`
+	MCP       MCPConfig `mapstructure:"mcp"`
 }
 
 type Content struct {
@@ -67,4 +68,12 @@ type Search struct {
 	Host   string `mapstructure:"host"`
 	APIKey string `mapstructure:"apikey"`
 	Index  string `mapstructure:"index"`
+}
+
+type MCPConfig struct {
+	Enabled    bool   `mapstructure:"enabled"`
+	ServerName string `mapstructure:"server_name"`
+	Version    string `mapstructure:"version"`
+	BaseURL    string `mapstructure:"base_url"`
+	Timeout    int    `mapstructure:"timeout"`
 }
