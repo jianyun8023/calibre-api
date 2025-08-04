@@ -25,16 +25,17 @@ builds:
 
 archives:
   - id: calibre-api
-    builds: [ calibre-api ]
+    ids: [ calibre-api ]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
       - LICENSE
       - config.yaml
       - docs/**/*
+    formats: [ "tar.gz" ]
     format_overrides:
       - goos: windows
-        format: 'zip'
+        formats: [ 'zip' ]
     wrap_in_directory: true
 
 checksum:
