@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jianyun8023/calibre-api/internal/sse_mcp"
 	"github.com/jianyun8023/calibre-api/pkg/client"
 	"github.com/jianyun8023/calibre-api/pkg/content"
 	"github.com/jianyun8023/calibre-api/pkg/log"
@@ -25,13 +24,12 @@ import (
 )
 
 type Api struct {
-	config       *Config
-	contentApi   *content.Api
-	client       *meilisearch.Client
-	baseDir      string
-	http         *client.Client
-	useIndex     string
-	sseMCPServer *sse_mcp.SSEMCPServer
+	config     *Config
+	contentApi *content.Api
+	client     *meilisearch.Client
+	baseDir    string
+	http       *client.Client
+	useIndex   string
 }
 
 func (c *Api) SetupRouter(r *gin.Engine) {
@@ -55,15 +53,6 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.GET("/random", c.random)
 	base.POST("/index/update", c.updateIndex)
 	base.POST("/index/switch", c.switchIndex)
-
-	// Setup SSE MCP routes (always enabled in HTTP mode)
-	if c.sseMCPServer != nil {
-		log.Infof("Setting up SSE MCP routes...")
-		c.sseMCPServer.SetupRoutes(base)
-		log.Infof("SSE MCP routes registered under /api/mcp/")
-	} else {
-		log.Warnf("SSE MCP server is nil, routes not registered")
-	}
 }
 
 func (c *Api) currentIndex() *meilisearch.Index {
@@ -109,7 +98,6 @@ func NewClient(config *Config) *Api {
 	if baseURL == "" {
 		baseURL = "http://localhost:8080"
 	}
-	api.sseMCPServer = sse_mcp.NewSSEMCPServer(baseURL)
 	log.Infof("SSE MCP Server initialized with base URL: %s", baseURL)
 
 	return &api
