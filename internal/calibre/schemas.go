@@ -92,3 +92,44 @@ type BookContentPathParam struct {
 type ISBNParam struct {
 	ISBN string `uri:"isbn" json:"isbn" jsonschema:"description=ISBN号,required"`
 }
+
+// BookTocRequest 读取书籍目录请求参数
+type BookTocRequest struct {
+	ID string `uri:"id" json:"id" jsonschema:"description=书籍ID,required"`
+}
+
+// BookContentRequest 读取书籍内容请求参数
+type BookContentRequest struct {
+	ID   string `uri:"id" json:"id" jsonschema:"description=书籍ID,required"`
+	Path string `uri:"*path" json:"path" jsonschema:"description=内容文件路径,required"`
+}
+
+// GetCoverRequest 获取封面请求参数
+type GetCoverRequest struct {
+	ID string `uri:"id" json:"id" jsonschema:"description=书籍ID,required"`
+}
+
+// ProxyCoverRequest 代理封面请求参数
+type ProxyCoverRequest struct {
+	Path string `uri:"*path" json:"path" jsonschema:"description=封面文件路径,required"`
+}
+
+// GetBookFileRequest 获取书籍文件请求参数
+type GetBookFileRequest struct {
+	ID string `uri:"id" json:"id" jsonschema:"description=书籍ID,required"`
+}
+
+// GetBookRequest 获取书籍信息请求参数
+type GetBookRequest struct {
+	ID string `uri:"id" json:"id" jsonschema:"description=书籍ID,required"`
+}
+
+// DeleteBookRequest 删除书籍请求参数
+type DeleteBookRequest struct {
+	ID string `uri:"id" json:"id" jsonschema:"description=书籍ID,required"`
+}
+
+// GetISBNRequest 获取ISBN信息请求参数
+type GetISBNRequest struct {
+	ISBN string `uri:"isbn" json:"isbn" jsonschema:"description=ISBN号,required"`
+}

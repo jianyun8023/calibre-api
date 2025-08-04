@@ -44,6 +44,13 @@ func main() {
 		Description: "a Calibre API MCP Server",
 		// BaseURL is crucial! It tells MCP clients where to send requests.
 		BaseURL: conf.MCP.BaseURL,
+		ExcludeOperations: []string{
+			"/",
+			"/index",
+			"/favicon.ico",
+			"/assets/*",
+			"/api/book/:id/delete",
+		},
 	})
 
 	// 注册 API 参数模式，为 MCP 工具提供详细的参数说明
@@ -79,6 +86,27 @@ func registerMCPSchemas(mcp *ginmcp.GinMCP) {
 
 	// 随机书籍接口
 	mcp.RegisterSchema("GET", "/api/random", calibre.RandomBooksRequest{}, nil)
+
+	// 读取书籍目录接口
+	mcp.RegisterSchema("GET", "/api/read/:id/toc", calibre.BookTocRequest{}, nil)
+
+	// 读取书籍内容接口
+	mcp.RegisterSchema("GET", "/api/read/:id/file/*path", calibre.BookContentRequest{}, nil)
+
+	// 获取封面接口
+	mcp.RegisterSchema("GET", "/api/get/cover/:id", calibre.GetCoverRequest{}, nil)
+
+	// 代理封面接口
+	mcp.RegisterSchema("GET", "/api/proxy/cover/*path", calibre.ProxyCoverRequest{}, nil)
+
+	// 获取书籍文件接口
+	mcp.RegisterSchema("GET", "/api/get/book/:id", calibre.GetBookFileRequest{}, nil)
+
+	// 获取书籍信息接口
+	mcp.RegisterSchema("GET", "/api/book/:id", calibre.GetBookRequest{}, nil)
+
+	// 获取ISBN信息接口
+	mcp.RegisterSchema("GET", "/api/metadata/isbn/:isbn", calibre.GetISBNRequest{}, nil)
 }
 
 func setPages(r *gin.Engine, conf *calibre.Config) {
