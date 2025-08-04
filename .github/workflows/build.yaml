@@ -4,52 +4,44 @@
 # Copyright (C) 2019 jianyun8023 <https://zhaojianyun.com>
 #
 
-name: CI Build and Test
-
+name: Build Calibre-API Images
 on:
   workflow_dispatch:
-  push:
-    branches: [ master, main, develop ]
-  pull_request:
-    branches: [ master, main ]
+  release:
+    types: [published]
+env:
+  IMAGE_NAME: calibre-api
+  VERSION: "0.0.1"
 
 jobs:
-  test:
-    name: Test
+  docker:
     runs-on: ubuntu-latest
     steps:
+      - name: Set VERSION for release
+        if: github.event_name == 'release'
+        run: echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+
       - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/checkout@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Log in to registry
+        uses: docker/login-action@v2
         with:
-          go-version: '1.21'
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cache Go modules
-        uses: actions/cache@v3
+      - name: Build and push
+        uses: docker/build-push-action@v4
         with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Run tests
-        run: go test -v ./...
-
-      - name: Run linter
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: latest
-
-      - name: Build main binary
-        run: go build -o calibre-api .
-
-      - name: Build MCP server
-        run: go build -o calibre-mcp-server ./cmd/mcp-server
-
-      - name: Test MCP integration
-        run: |
-          echo "Testing MCP integration..."
-          ./calibre-api --help
-          echo "MCP integration test completed"
+          context: ./
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            VERSION=${{ env.VERSION }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
