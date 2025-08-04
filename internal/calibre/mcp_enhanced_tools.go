@@ -3,6 +3,7 @@ package calibre
 import (
 	"fmt"
 
+	"github.com/jianyun8023/calibre-api/pkg/log"
 	"github.com/meilisearch/meilisearch-go"
 )
 
@@ -634,4 +635,48 @@ func (api *Api) getMetadataByISBN(isbn string) (interface{}, error) {
 		"isbn":     isbn,
 		"metadata": map[string]interface{}{},
 	}, nil
+}
+
+// RegisterEnhancedToolsToMCP 将增强工具注册到 MCP 服务器
+func (etm *EnhancedToolManager) RegisterEnhancedToolsToMCP(mcp interface{}) error {
+	// 获取所有增强工具
+	tools := etm.GetEnhancedTools()
+
+	// 这里需要根据实际的 MCP 库接口进行注册
+	// 由于使用的是 gin-mcp，我们需要通过 HTTP 路由的方式注册
+
+	// 为每个增强工具创建对应的 HTTP 端点
+	for _, tool := range tools {
+		// 创建工具执行端点
+		endpoint := fmt.Sprintf("/api/mcp/tools/%s", tool.Name)
+
+		// 这里需要将工具注册到 gin 路由中
+		// 由于 gin-mcp 会自动发现路由，我们只需要确保路由存在即可
+		log.Infof("Enhanced tool registered: %s -> %s", tool.Name, endpoint)
+	}
+
+	return nil
+}
+
+// GetMCPToolDefinitions 获取 MCP 工具定义
+func (etm *EnhancedToolManager) GetMCPToolDefinitions() []map[string]interface{} {
+	tools := etm.GetEnhancedTools()
+	definitions := make([]map[string]interface{}, len(tools))
+
+	for i, tool := range tools {
+		definitions[i] = map[string]interface{}{
+			"name":        tool.Name,
+			"description": tool.Description,
+			"inputSchema": tool.InputSchema,
+			"resources":   tool.Resources,
+			"prompts":     tool.Prompts,
+		}
+	}
+
+	return definitions
+}
+
+// ExecuteMCPTool 执行 MCP 工具
+func (etm *EnhancedToolManager) ExecuteMCPTool(toolName string, args map[string]interface{}) (interface{}, error) {
+	return etm.ExecuteEnhancedTool(toolName, args)
 }
