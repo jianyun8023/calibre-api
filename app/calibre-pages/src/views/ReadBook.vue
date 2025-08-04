@@ -40,7 +40,7 @@ export default {
   created() {
     // this.$refs.reader.getRendition
     this.bookId = (this.$route as any).params.id
-    this.bookUrl = `/api/get/book/${this.bookId}.epub`
+    this.bookUrl = `/api/download/book/${this.bookId}.epub`
     if (this.$route.query.path){
       this.initPath = this.$route.query.path as string
     }

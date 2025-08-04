@@ -284,7 +284,7 @@ func (api *Api) getBookTocData(bookID string) (interface{}, error) {
 
 // 辅助方法 - 获取文件数据
 func (api *Api) getBookFileData(bookID string) ([]byte, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/api/get/book/%s", api.config.MCP.BaseURL, bookID))
+	resp, err := http.Get(fmt.Sprintf("%s/api/download/book/%s", api.config.MCP.BaseURL, bookID))
 	if err != nil {
 		return nil, err
 	}

@@ -37,10 +37,11 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base := r.Group("/api")
 	base.GET("/get/cover/:id", c.getCover)
 	base.GET("/proxy/cover/*path", c.proxyCover)
-	base.GET("/get/book/:id", c.getBookFile)
+	base.GET("/download/book/:id", c.getBookFile)
 	base.GET("/read/:id/toc", c.getBookToc)
 	base.GET("/read/:id/file/*path", c.getBookContent)
 	base.GET("/book/:id", c.getBook)
+	base.GET("/book/content", c.getBookContentByQuery)
 	base.POST("/book/:id/delete", c.deleteBook)
 	base.POST("/book/:id/update", c.updateMetadata)
 	base.GET("/search", c.search)
@@ -193,6 +194,7 @@ func (c *Api) search(r *gin.Context) {
 	})
 }
 
+// 获取书籍信息接口
 func (c *Api) getBook(r *gin.Context) {
 	id := r.Param("id")
 	var book Book
@@ -214,6 +216,7 @@ func (c *Api) getBook(r *gin.Context) {
 
 }
 
+// 删除书籍接口
 func (c *Api) deleteBook(r *gin.Context) {
 	id := r.Param("id")
 
@@ -241,6 +244,7 @@ func (c *Api) deleteBook(r *gin.Context) {
 	})
 }
 
+// 获取书籍目录接口
 func (c *Api) getBookToc(r *gin.Context) {
 	id := strings.TrimSuffix(r.Param("id"), ".epub")
 
@@ -281,6 +285,7 @@ func (c *Api) expansionTree(ori []epub.NavPoint) []epub.NavPoint {
 	return points
 }
 
+// 获取书籍内容接口
 func (c *Api) getBookContent(r *gin.Context) {
 	id := strings.TrimSuffix(r.Param("id"), ".epub")
 
@@ -313,6 +318,81 @@ func (c *Api) getBookContent(r *gin.Context) {
 		}
 		r.FileFromFS(path1, http.Dir(destDir))
 	}
+}
+
+// getBookContentByQuery 通过 query 参数获取书籍内容
+func (c *Api) getBookContentByQuery(r *gin.Context) {
+	// 从 query 参数获取书籍 ID
+	id := r.Query("id")
+	if id == "" {
+		r.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "缺少必需的参数: id",
+		})
+		return
+	}
+
+	// 获取文件路径参数（可选）
+	filePath := r.Query("path")
+	if filePath == "" {
+		filePath = "OEBPS/content.opf" // 默认返回 OPF 文件
+	}
+
+	var book Book
+	err := c.currentIndex().GetDocument(id, nil, &book)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "获取书籍信息失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 获取或缓存书籍文件
+	filepath, err := c.getFileOrCache(id)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "获取书籍文件失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 解压目录
+	destDir := path.Join(c.baseDir, id)
+	if !Exists(destDir) {
+		os.MkdirAll(destDir, fs.ModePerm)
+	}
+
+	// 检查目录是否为空，如果为空则解压
+	if Exists(destDir) {
+		s, _ := ioutil.ReadDir(destDir)
+		if len(s) == 0 {
+			// 目录为空，需要解压
+			err := unzipSource(filepath, destDir)
+			if err != nil {
+				r.JSON(http.StatusInternalServerError, gin.H{
+					"code":    500,
+					"message": "解压书籍文件失败: " + err.Error(),
+				})
+				return
+			}
+		}
+	} else {
+		// 目录不存在，创建并解压
+		os.MkdirAll(destDir, fs.ModePerm)
+		err := unzipSource(filepath, destDir)
+		if err != nil {
+			r.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "解压书籍文件失败: " + err.Error(),
+			})
+			return
+		}
+	}
+
+	// 返回指定路径的文件
+	r.FileFromFS(filePath, http.Dir(destDir))
 }
 
 func (c *Api) getFile(id string) (int64, io.ReadCloser, error) {
@@ -696,7 +776,7 @@ func convertContentBooks(content []content.Book) ([]Book, error) {
 			Rating:       c.Rating,
 			Identifiers:  c.Identifiers,
 			Cover:        "/api/get/cover/" + strconv.FormatInt(c.ID, 10) + ".jpg",
-			FilePath:     "/api/get/book/" + strconv.FormatInt(c.ID, 10) + ".epub",
+			FilePath:     "/api/download/book/" + strconv.FormatInt(c.ID, 10) + ".epub",
 		}
 		books = append(books, book)
 	}
@@ -729,7 +809,7 @@ func convertContentToBooks(content map[string]content.Content) ([]Book, error) {
 			Rating:       c.Rating,
 			Identifiers:  c.Identifiers,
 			Cover:        "/api/get/cover/" + strconv.FormatInt(i, 10) + ".jpg",
-			FilePath:     "/api/get/book/" + strconv.FormatInt(i, 10) + ".epub",
+			FilePath:     "/api/download/book/" + strconv.FormatInt(i, 10) + ".epub",
 		}
 		books = append(books, book)
 	}
