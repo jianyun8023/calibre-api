@@ -110,6 +110,10 @@ func registerMCPSchemas(mcp *ginmcp.GinMCP) {
 
 	// 获取ISBN信息接口
 	mcp.RegisterSchema("GET", "/api/metadata/isbn/:isbn", calibre.GetISBNRequest{}, nil)
+
+	// Enhanced Tools 接口
+	mcp.RegisterSchema("GET", "/api/mcp/tools/enhanced", nil, nil)
+	mcp.RegisterSchema("POST", "/api/mcp/tools/enhanced/:tool", nil, calibre.EnhancedToolRequest{})
 }
 
 func setPages(r *gin.Engine, conf *calibre.Config) {

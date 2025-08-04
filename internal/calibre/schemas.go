@@ -139,3 +139,8 @@ type BookContentByQueryRequest struct {
 	ID   string `form:"id" json:"id" jsonschema:"description=书籍ID,required"`
 	Path string `form:"path,default=OEBPS/content.opf" json:"path,omitempty" jsonschema:"description=要获取的文件路径"`
 }
+
+// EnhancedToolRequest 增强工具请求参数
+type EnhancedToolRequest struct {
+	Args map[string]interface{} `json:"args" jsonschema:"description=工具参数"`
+}
