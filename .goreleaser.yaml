@@ -23,24 +23,9 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
 
-  - id: calibre-mcp-server
-    main: ./cmd/mcp-server
-    binary: calibre-mcp-server
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
-
 archives:
   - id: calibre-api
-    builds: [calibre-api]
+    builds: [ calibre-api ]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
@@ -49,28 +34,14 @@ archives:
       - docs/**/*
     format_overrides:
       - goos: windows
-        format: zip
-    wrap_in_directory: true
-
-  - id: calibre-mcp-server
-    builds: [calibre-mcp-server]
-    name_template: "{{ .ProjectName }}-mcp-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    files:
-      - README.md
-      - LICENSE
-      - config.yaml
-      - docs/MCP_README.md
-      - docs/QUICK_START.md
-    format_overrides:
-      - goos: windows
-        format: zip
+        format: 'zip'
     wrap_in_directory: true
 
 checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc
