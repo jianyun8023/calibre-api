@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	server "github.com/ckanthony/gin-mcp"
 	"net/http"
 	"strings"
+
+	ginmcp "github.com/ckanthony/gin-mcp"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
@@ -38,17 +39,46 @@ func main() {
 
 	// 3. Create and configure the MCP server
 	//    Provide essential details for the MCP client.
-	mcp := server.New(r, &server.Config{
+	mcp := ginmcp.New(r, &ginmcp.Config{
 		Name:        conf.MCP.ServerName,
 		Description: "a Calibre API MCP Server",
 		// BaseURL is crucial! It tells MCP clients where to send requests.
 		BaseURL: conf.MCP.BaseURL,
 	})
 
+	// 注册 API 参数模式，为 MCP 工具提供详细的参数说明
+	registerMCPSchemas(mcp)
+
 	// 4. Mount the MCP server endpoint
 	mcp.Mount("/mcp") // MCP clients will connect here
 	log.Infof("server listen on %s", conf.Address)
 	r.Run(conf.Address)
+}
+
+// registerMCPSchemas 为 gin-mcp 注册 API 参数模式
+func registerMCPSchemas(mcp *ginmcp.GinMCP) {
+	// 搜索相关接口
+	mcp.RegisterSchema("GET", "/api/search", calibre.SearchRequest{}, nil)
+	mcp.RegisterSchema("POST", "/api/search", nil, calibre.SearchRequest{})
+
+	// 书籍管理相关接口
+	mcp.RegisterSchema("POST", "/api/book/:id/update", nil, calibre.BookUpdateRequest{})
+
+	// 元数据相关接口
+	mcp.RegisterSchema("GET", "/api/metadata/search", calibre.MetadataSearchRequest{}, nil)
+
+	// 索引管理相关接口
+	mcp.RegisterSchema("POST", "/api/index/update", nil, calibre.IndexUpdateRequest{})
+	mcp.RegisterSchema("POST", "/api/index/switch", nil, calibre.IndexSwitchRequest{})
+
+	// 出版社列表接口
+	mcp.RegisterSchema("GET", "/api/publisher", calibre.PublisherListRequest{}, nil)
+
+	// 最近书籍接口
+	mcp.RegisterSchema("GET", "/api/recently", calibre.RecentlyBooksRequest{}, nil)
+
+	// 随机书籍接口
+	mcp.RegisterSchema("GET", "/api/random", calibre.RandomBooksRequest{}, nil)
 }
 
 func setPages(r *gin.Engine, conf *calibre.Config) {

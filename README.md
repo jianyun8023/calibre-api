@@ -16,6 +16,7 @@
 - **自然语言操作** - 通过对话管理书籍
 - **智能推荐** - AI 驱动的书籍推荐
 - **双模式部署** - 支持集成模式和独立模式
+- **详细参数说明** - 为所有 API 接口提供完整的参数文档
 
 ### 🔧 开发特性
 - RESTful API 接口
@@ -137,6 +138,42 @@ curl -X "POST" "http://localhost:8080/index/update" -H 'Content-Type: applicatio
 ```
 
 ## 接口
+
+### MCP 参数说明改进
+
+本项目对 gin-mcp 包进行了增强，为所有 API 接口提供了详细的参数说明。这使得 AI 助手能够更好地理解和使用这些接口。
+
+#### 改进内容
+
+1. **参数结构体定义** - 在 `internal/calibre/schemas.go` 中定义了所有接口的参数结构体
+2. **jsonschema 标签** - 为每个参数添加了详细的描述和约束
+3. **自动注册** - 在启动时自动为所有接口注册参数模式
+
+#### 示例对比
+
+**改进前：**
+```
+参数：q (string)
+参数：limit (number)
+参数：offset (number)
+```
+
+**改进后：**
+```
+参数：q (string, required) - 搜索关键词
+参数：limit (number, 1-100, default=20) - 每页结果数量
+参数：offset (number, >=0, default=0) - 结果偏移量
+参数：filter (string, optional) - 过滤条件
+参数：sort (string, optional) - 排序字段
+```
+
+#### 使用方法
+
+1. 启动服务器：`./calibre-api`
+2. 在 MCP 客户端（如 Cursor）中连接到 `http://localhost:8080/mcp`
+3. 所有 API 工具都会包含详细的参数说明
+
+详细文档请参考：[MCP 参数说明改进方案](docs/MCP_SCHEMA_IMPROVEMENT.md)
 
 ## 🔨 构建和部署
 
