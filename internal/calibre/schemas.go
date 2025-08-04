@@ -133,3 +133,9 @@ type DeleteBookRequest struct {
 type GetISBNRequest struct {
 	ISBN string `uri:"isbn" json:"isbn" jsonschema:"description=ISBN号,required"`
 }
+
+// BookContentByQueryRequest 通过查询参数获取书籍内容请求参数
+type BookContentByQueryRequest struct {
+	ID   string `form:"id" json:"id" jsonschema:"description=书籍ID,required"`
+	Path string `form:"path,default=OEBPS/content.opf" json:"path,omitempty" jsonschema:"description=要获取的文件路径"`
+}
