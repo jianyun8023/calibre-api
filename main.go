@@ -90,8 +90,8 @@ func registerMCPSchemas(mcp *ginmcp.GinMCP) {
 	// 读取书籍目录接口
 	mcp.RegisterSchema("GET", "/api/read/:id/toc", calibre.BookTocRequest{}, nil)
 
-	// 读取书籍内容接口
-	mcp.RegisterSchema("GET", "/api/read/:id/file/*path", calibre.BookContentRequest{}, nil)
+	// // 读取书籍内容接口
+	// mcp.RegisterSchema("GET", "/api/read/:id/file/*path", calibre.BookContentRequest{}, nil)
 
 	// 读取书籍内容接口
 	mcp.RegisterSchema("GET", "/api/book/content", calibre.BookContentByQueryRequest{}, nil)
