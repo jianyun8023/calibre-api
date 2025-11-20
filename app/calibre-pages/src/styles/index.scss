@@ -1,23 +1,451 @@
+// ====================================
+// 全局样式重置
+// ====================================
+
 a {
   color: var(--el-color-primary);
   text-decoration: none;
 }
 
-.affix-container {
-  text-align: center;
-  height: 40px;
-  border-radius: 4px;
-  background: var(--el-color-primary-light-9);
-  flex: 1;
-  width: 100%;
-  margin-bottom: 10px;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.affix-container .el-input {
-  height: 40px;
+// ====================================
+// CSS 变量系统（基于 Element Plus 和 web.dev 标准）
+// ====================================
+
+:root {
+  // Brand 色彩
+  --brand-hue: 213;
+  --brand-saturation: 89%;
+  --brand-lightness: 61%;
+
+  // 主色调
+  --accent-color: hsl(var(--brand-hue), var(--brand-saturation), var(--brand-lightness));
+  --primary-gradient: linear-gradient(135deg,
+      hsl(var(--brand-hue), 100%, 61%),
+      hsl(var(--brand-hue), 89%, 71%));
+
+  // Text 层级
+  --text1: hsl(var(--brand-hue), 15%, 10%);
+  --text2: hsl(var(--brand-hue), 10%, 40%);
+
+  // Surface 层级
+  --surface1: hsl(var(--brand-hue), 25%, 98%);
+  --surface2: hsl(var(--brand-hue), 20%, 96%);
+  --surface3: hsl(var(--brand-hue), 20%, 94%);
+  --surface4: hsl(var(--brand-hue), 20%, 92%);
+
+  // 背景渐变
+  --bg-gradient: linear-gradient(-45deg,
+      hsl(var(--brand-hue), 89%, 97%) 0%,
+      hsl(var(--brand-hue), 89%, 99%) 25%,
+      hsl(var(--brand-hue), 89%, 98%) 50%,
+      hsl(var(--brand-hue), 89%, 96%) 100%);
+
+  // Glass 效果变量
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-bg-medium: rgba(255, 255, 255, 0.15);
+  --glass-bg-strong: rgba(255, 255, 255, 0.25);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+  --glass-shadow-hover: 0 12px 40px rgba(31, 38, 135, 0.25);
+
+  // 间距系统
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  // 圆角
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+
+  // 过渡
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-//
-//* {
-//  border: 1px solid red; /* 用来调试 */
-//}
+// 深色模式
+:root[data-theme="dark"] {
+  // Text 层级（深色模式）
+  --text1: hsl(var(--brand-hue), 15%, 95%);
+  --text2: hsl(var(--brand-hue), 10%, 65%);
+
+  // Surface 层级（深色模式）
+  --surface1: hsl(var(--brand-hue), 10%, 12%);
+  --surface2: hsl(var(--brand-hue), 10%, 15%);
+  --surface3: hsl(var(--brand-hue), 5%, 18%);
+  --surface4: hsl(var(--brand-hue), 5%, 20%);
+
+  // 背景渐变（深色）
+  --bg-gradient: linear-gradient(-45deg,
+      hsl(0, 0%, 15%) 0%,
+      hsl(0, 0%, 18%) 25%,
+      hsl(0, 0%, 21%) 50%,
+      hsl(0, 0%, 24%) 100%);
+
+  // Glass 效果（深色）
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-bg-medium: rgba(255, 255, 255, 0.08);
+  --glass-bg-strong: rgba(255, 255, 255, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+// ====================================
+// Glassmorphism 三层效果体系
+// ====================================
+
+// Tier 1 - 真 Glass (仅用于 Dialog、Modal 等关键组件)
+.glass-real {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--border-radius-md);
+  contain: layout style paint;
+}
+
+// Tier 2 - 伪 Glass (推荐，用于大多数组件)
+.glass-fake {
+  background: rgba(255, 255, 255, 0.2);
+  /* 不使用 backdrop-filter 以优化性能 */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-radius: var(--border-radius-md);
+  contain: layout style paint;
+  transform: translate3d(0, 0, 0);
+}
+
+// Tier 3 - 轻 Glass (用于背景层)
+.glass-light {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--border-radius-md);
+  contain: layout style paint;
+}
+
+// 深色模式调整
+:root[data-theme="dark"] {
+  .glass-real {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .glass-fake {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .glass-light {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// ====================================
+// 复用 Glass 类（保留兼容性）
+// ====================================
+
+.glass-container {
+  @extend .glass-fake;
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+  transition: var(--transition-normal);
+}
+
+.glass-card {
+  @extend .glass-fake;
+  padding: var(--spacing-lg);
+  transition: var(--transition-normal);
+
+  &:hover {
+    transform: translate3d(0, -4px, 0);
+    box-shadow: var(--glass-shadow-hover);
+  }
+}
+
+.glass-panel {
+  @extend .glass-fake;
+  padding: var(--spacing-lg);
+  transition: var(--transition-normal);
+}
+
+// ====================================
+// 动画定义
+// ====================================
+
+@keyframes gradient-shift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+// ====================================
+// Focus-Visible 键盘导航样式
+// ====================================
+
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+  border-radius: var(--border-radius-sm);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 4px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 0;
+}
+
+// ====================================
+// Element Plus 全局组件样式统一
+// ====================================
+
+// Select 下拉框
+.el-select .el-input__wrapper {
+  background: var(--glass-bg-medium) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transition: var(--transition-normal);
+
+  &:hover {
+    border-color: var(--accent-color) !important;
+  }
+}
+
+.el-select-dropdown {
+  @extend .glass-real;
+  border: 1px solid var(--glass-border) !important;
+}
+
+// Autocomplete 自动完成
+.el-autocomplete .el-input__wrapper {
+  background: var(--glass-bg-medium) !important;
+  border: 1px solid var(--glass-border) !important;
+  transition: var(--transition-normal);
+}
+
+.el-autocomplete-suggestion {
+  @extend .glass-real;
+}
+
+// Dialog 对话框
+.el-dialog {
+  @extend .glass-real;
+
+  .el-dialog__header {
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .el-dialog__footer {
+    border-top: 1px solid var(--glass-border);
+  }
+}
+
+// Popconfirm 确认框
+.el-popconfirm__main {
+  background: var(--glass-bg-medium);
+  border-radius: var(--border-radius-md);
+}
+
+// Tooltip 提示框
+.el-tooltip__popper {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+}
+
+// Table 表格
+.el-table {
+  background: transparent !important;
+
+  th,
+  td {
+    background: transparent !important;
+    border-color: var(--glass-border) !important;
+  }
+
+  tr:hover>td {
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+}
+
+// Pagination 分页
+.el-pagination {
+
+  .btn-prev,
+  .btn-next,
+  .el-pager li {
+    background: var(--glass-bg-medium) !important;
+    border: 1px solid var(--glass-border);
+    transition: var(--transition-normal);
+
+    &:hover {
+      background: var(--glass-bg-strong) !important;
+      border-color: var(--accent-color);
+    }
+
+    &.active {
+      background: var(--accent-color) !important;
+      color: white;
+    }
+  }
+}
+
+// Input 输入框
+.el-input__wrapper {
+  background: var(--glass-bg-medium) !important;
+  border: 1px solid var(--glass-border) !important;
+  transition: var(--transition-normal);
+
+  &:hover {
+    border-color: var(--accent-color) !important;
+  }
+
+  &.is-focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 1px var(--accent-color) !important;
+  }
+}
+
+// Button 按钮
+.el-button {
+  transition: var(--transition-normal);
+
+  &--primary {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+
+    &:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+      box-shadow: var(--glass-shadow-hover);
+    }
+  }
+}
+
+// Tag 标签
+.el-tag {
+  background: var(--glass-bg-medium);
+  border-color: var(--glass-border);
+  transition: var(--transition-normal);
+
+  &:hover {
+    background: var(--glass-bg-strong);
+  }
+}
+
+// ====================================
+// 工具类
+// ====================================
+
+.hidden-sm-and-down {
+  @media (max-width: 768px) {
+    display: none !important;
+  }
+}
+
+.hidden-md-and-up {
+  @media (min-width: 769px) {
+    display: none !important;
+  }
+}
+
+// ====================================
+// 滚动条样式
+// ====================================
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface2);
+  border-radius: var(--border-radius-sm);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--glass-bg-strong);
+  border-radius: var(--border-radius-sm);
+
+  &:hover {
+    background: var(--accent-color);
+  }
+}
+
+// Firefox
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--glass-bg-strong) var(--surface2);
+}
+
+// ====================================
+// 性能优化
+// ====================================
+
+// 滚动容器优化
+.scroll-container {
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
+}
+
+// 仅在悬停时使用 will-change
+.glass-card,
+.glass-panel {
+  &:hover {
+    will-change: transform;
+  }
+}
