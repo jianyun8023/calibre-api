@@ -74,7 +74,7 @@ MCP_MODE=true ./calibre-api
 
 ```text
 GET    /api/get/cover/:id            --> 获取书籍封面
-GET    /api/get/book/:id             --> 下载书籍文件
+GET    /api/download/book/:id             --> 下载书籍文件
 GET    /api/read/:id/toc             --> 获取书籍目录（包含元信息、目录和地址）
 GET    /api/read/:id/file/*path      --> 读取书籍中的文件
 GET    /api/book/:id                 --> 获取书籍信息

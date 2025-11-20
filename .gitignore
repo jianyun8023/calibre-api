@@ -26,3 +26,5 @@ dist/
 
 app/calibre-pages/dist
 app/calibre-pages/node_modules
+calibre-pages/.vscode
+calibre-api

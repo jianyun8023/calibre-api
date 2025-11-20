@@ -2,14 +2,14 @@
   <el-row>
     <SearchBar/>
   </el-row>
-  <el-container class="mt-8 w-full md:w-2/3">
-    <section>
+  <el-container class="publisher-wrapper">
+    <section class="glass-container">
       <el-row>
         <el-col :span="24" class="col-bottom">
-          <h2>出版社</h2>
+          <h2 class="section-title">出版社</h2>
         </el-col>
         <el-col v-for="publisher in publishers" :key="publisher" :span="6" :lg="6" :sm="12" :xs="24">
-          <el-tag @click="searchByPublisher(publisher)" effect="dark">
+          <el-tag class="publisher-tag" @click="searchByPublisher(publisher)" effect="dark">
             {{ publisher }}
           </el-tag>
         </el-col>
@@ -22,7 +22,7 @@
                          :total="allPublishers.length"
                          :page-size="pageSize"
                          v-model:current-page="currentPage"
-                         class="mt-4"
+                         class="pagination-wrapper"
                          @change="handleCurrentChange"
           />
         </el-col>
@@ -58,6 +58,12 @@ export default {
   },
   computed: {},
   created() {
+    this.initializeFromQueryParams()
+    this.fetchPublishers()
+  },
+  // 当组件被激活时重新获取数据
+  activated() {
+    console.log('Publisher page activated, refreshing data...')
     this.initializeFromQueryParams()
     this.fetchPublishers()
   },
@@ -105,4 +111,91 @@ export default {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.publisher-wrapper {
+  margin-top: var(--spacing-lg);
+  width: 100%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-title::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 3px;
+  background: var(--primary-gradient);
+  margin-top: 8px;
+  border-radius: 2px;
+}
+
+.publisher-tag {
+  background: rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin: var(--spacing-xs);
+  cursor: pointer;
+  color: var(--text-primary) !important;
+  transition: all 0.3s ease;
+}
+
+.publisher-tag:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--glass-shadow-hover);
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.col-bottom {
+  margin-bottom: var(--spacing-lg);
+}
+
+.col-top {
+  margin-top: var(--spacing-xl);
+}
+
+.pagination-wrapper :deep(.el-pager li) {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  color: var(--text-primary);
+  margin: 0 4px;
+}
+
+.pagination-wrapper :deep(.el-pager li.is-active) {
+  background: var(--primary-gradient) !important;
+  color: white !important;
+}
+
+.pagination-wrapper :deep(.el-pager li:hover) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.pagination-wrapper :deep(.btn-prev),
+.pagination-wrapper :deep(.btn-next) {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  color: var(--text-primary);
+}
+
+.pagination-wrapper :deep(.btn-prev:hover),
+.pagination-wrapper :deep(.btn-next:hover) {
+  background: rgba(255, 255, 255, 0.15);
+}
+</style>

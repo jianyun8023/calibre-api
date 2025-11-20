@@ -1,45 +1,45 @@
 <template>
-  <div class="flex justify-center mb-8">
-    <div class="affix-container">
-      <el-affix target=".affix-container">
+  <div class="search-wrapper glass-container">
+    <div class="search-input-wrapper">
+      <el-affix target=".search-wrapper">
         <el-input
             v-model="searchQuery"
             @input="fetchBooks"
             type="text"
             placeholder="书名、作者、ISBN"
-            class=""
+            size="large"
         />
       </el-affix>
     </div>
-  </div>
-  <h2 class="text-xl font-bold mb-4">
-    搜索结果：
-    <strong style="margin-left: 10px">{{ keyword }}</strong>
-  </h2>
-  <el-text
-  >共计 {{ total }} 条, 当前{{ offset }} --
-    {{ offset + limit >= total ? total : offset + limit }}
-  </el-text>
+    <h2 class="search-title">
+      搜索结果：
+      <strong>{{ keyword }}</strong>
+    </h2>
+    <el-text class="search-count"
+    >共计 {{ total }} 条, 当前{{ offset }} --
+      {{ offset + limit >= total ? total : offset + limit }}
+    </el-text>
 
-  <el-row :gutter="20">
-    <el-col v-for="book in books" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24">
-      <BookCard :book="book" :more_info="true"/>
-    </el-col>
-  </el-row>
-  <el-row class="mt-4" justify="center">
-    <el-button @click="prevPage" :disabled="offset === 0">
-      <el-icon>
-        <ArrowLeftBold/>
-      </el-icon>
-      上一页
-    </el-button>
-    <el-button @click="nextPage" :disabled="offset + limit >= total"
-    >下一页
-      <el-icon>
-        <ArrowRightBold/>
-      </el-icon>
-    </el-button>
-  </el-row>
+    <el-row :gutter="20" class="books-grid">
+      <el-col v-for="book in books" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24">
+        <BookCard :book="book" :more_info="true"/>
+      </el-col>
+    </el-row>
+    <el-row class="pagination-row" justify="center">
+      <el-button class="glass-button" @click="prevPage" :disabled="offset === 0">
+        <el-icon>
+          <ArrowLeftBold/>
+        </el-icon>
+        上一页
+      </el-button>
+      <el-button class="glass-button" @click="nextPage" :disabled="offset + limit >= total"
+      >下一页
+        <el-icon>
+          <ArrowRightBold/>
+        </el-icon>
+      </el-button>
+    </el-row>
+  </div>
 </template>
 
 <script lang="ts">
@@ -65,6 +65,12 @@ export default {
   },
   created() {
     this.initializeFromQueryParams()
+  },
+  // 当组件被激活时重新获取数据
+  activated() {
+    console.log('Search page activated, refreshing data...')
+    this.initializeFromQueryParams()
+    this.fetchBooks()
   },
   watch: {
     searchQuery() {
@@ -152,4 +158,89 @@ export default {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.search-wrapper {
+  max-width: 1400px;
+  margin: var(--spacing-lg) auto;
+  padding: var(--spacing-xl);
+}
+
+.search-input-wrapper {
+  margin-bottom: var(--spacing-xl);
+}
+
+.search-input-wrapper :deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: none;
+  transition: all 0.3s ease;
+}
+
+.search-input-wrapper :deep(.el-input__wrapper:hover),
+.search-input-wrapper :deep(.el-input__wrapper.is-focus) {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.search-input-wrapper :deep(.el-input__inner) {
+  color: var(--text-primary);
+}
+
+.search-input-wrapper :deep(.el-input__inner::placeholder) {
+  color: var(--text-tertiary);
+}
+
+.search-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.search-title strong {
+  margin-left: var(--spacing-sm);
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.search-count {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-lg);
+  display: block;
+}
+
+.books-grid {
+  margin-top: var(--spacing-lg);
+}
+
+.pagination-row {
+  margin-top: var(--spacing-xl);
+  gap: var(--spacing-md);
+}
+
+.glass-button {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+.glass-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateY(-2px);
+}
+
+.glass-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>

@@ -1,6 +1,6 @@
 <template>
-  <el-row :gutter="10">
-    <h2 class="text-xl">设置</h2>
+  <div class="setting-wrapper glass-container">
+    <h2 class="setting-title">设置</h2>
     <el-table :data="settings" style="width: 100%" stripe>
       <el-table-column prop="name" label="Setting"></el-table-column>
       <el-table-column prop="description" label="Value"></el-table-column>
@@ -18,7 +18,7 @@
         </template>
       </el-table-column>
     </el-table>
-  </el-row>
+  </div>
 </template>
 
 <script lang="ts">
@@ -146,4 +146,44 @@ export default {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.setting-wrapper {
+  margin: var(--spacing-lg) auto;
+  max-width: 1200px;
+}
+
+.setting-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+}
+
+:deep(.el-table) {
+  background: transparent !important;
+  color: var(--text-primary);
+}
+
+:deep(.el-table tr) {
+  background: transparent !important;
+}
+
+:deep(.el-table th) {
+  background: var(--glass-bg-light) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+:deep(.el-table td) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+}
+
+:deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
+  background: var(--glass-bg-light) !important;
+}
+
+:deep(.el-table__row:hover) {
+  background: var(--glass-bg-medium) !important;
+}
+</style>

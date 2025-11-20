@@ -1,11 +1,11 @@
 address: :8080
 debug: false
-staticDir: "/app/static"
+staticDir: "/Users/zhaojianyun/Developer/project/github/jianyun8023/calibre-api/app/calibre-pages/dist"
 tmpDir: ".files"
 content:
   server: https://lib.pve.icu
 search:
-  host: http://127.0.0.1:7700
+  host: http://192.168.2.236:7700
   apikey:
   index: books
 metadata:

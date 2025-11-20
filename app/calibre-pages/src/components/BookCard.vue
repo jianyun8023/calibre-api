@@ -1,30 +1,42 @@
 <template>
-  <el-card class="book-card" @click="redirectToDetail(book.id)">
-    <el-row type="flex" align="middle">
-      <el-col :span="6" class="cover-container">
-        <img class="book-cover" :src="proxy_image?('/api/proxy/cover/' + book.cover) :book.cover" alt="book cover"/>
-      </el-col>
-      <el-col :span="18" class="info-container">
-        <div class="info-item title">{{ truncateText(book.title) }}</div>
+  <el-card class="book-card glass-card" @click="redirectToDetail(book.id)">
+    <div class="card-content">
+      <div class="cover-container">
+        <img 
+          class="book-cover" 
+          :src="proxy_image ? ('/api/proxy/cover/' + book.cover) : book.cover" 
+          alt="book cover"
+          loading="lazy"
+        />
+      </div>
+      <div class="info-container">
+        <div class="info-item title">{{ book.title }}</div>
         <div class="info-item author" v-if="book.authors && book.authors.length">
-          {{ truncateText(book.authors.join(', ')) }}
+          <el-icon class="icon-author"><User /></el-icon>
+          {{ truncateText(book.authors.join(', '), 25) }}
         </div>
-        <div class="info-item publisher" v-if="more_info">{{ book.publisher }}</div>
-        <div class="info-item publisher" v-if="more_info">{{ book.isbn }}</div>
+        <div class="info-item publisher" v-if="more_info && book.publisher">
+          <el-icon class="icon-publisher"><OfficeBuilding /></el-icon>
+          {{ truncateText(book.publisher, 20) }}
+        </div>
+        <div class="info-item isbn" v-if="more_info && book.isbn">
+          <el-icon class="icon-isbn"><Postcard /></el-icon>
+          {{ book.isbn }}
+        </div>
         <div class="info-item pubdate" v-if="book.pubdate">
+          <el-icon class="icon-date"><Calendar /></el-icon>
           {{ new Date(book.pubdate).toLocaleDateString() }}
         </div>
-      </el-col>
-    </el-row>
+      </div>
+    </div>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import {ElCard, ElCol, ElRow} from 'element-plus'
-import {useRouter} from 'vue-router';
-
-
-import {Book} from '@/types/book'
+import { ElCard, ElIcon } from 'element-plus'
+import { User, Calendar, OfficeBuilding, Postcard } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router';
+import { Book } from '@/types/book'
 
 const props = defineProps({
   book: {
@@ -47,39 +59,76 @@ const redirectToDetail = (id: number) => {
   router.push(`/detail/${id}`);
 };
 
-const truncateText = (title: string) => {
-  if (!title) return '';
-  return title.length > 20 ? title.substring(0, 16) + '...' : title;
+const truncateText = (text: string, maxLength: number = 20) => {
+  if (!text) return '';
+  return text.length > maxLength ? text.substring(0, maxLength - 3) + '...' : text;
 };
 </script>
-<style scoped>
+
+<style scoped lang="scss">
 .book-card {
   width: 100%;
-  height: 150px; /* 固定卡片高度 */
-  margin-bottom: 20px;
+  min-height: 160px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+  
+  &:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    
+    .book-cover {
+      transform: scale(1.05);
+    }
+    
+    .title {
+      color: var(--accent-color);
+    }
+  }
+  
+  :deep(.el-card__body) {
+    padding: 0;
+    height: 100%;
+  }
+}
+
+.card-content {
   display: flex;
-  align-items: center;
+  align-items: stretch;
+  height: 100%;
+  min-height: 160px;
+  padding: 12px;
+  gap: 16px;
 }
 
 .cover-container {
-  height: 100%;
+  flex-shrink: 0;
+  width: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .book-cover {
-  width: 96px;
-  height: 139px; /* 固定卡片高度 */
+  width: 100%;
+  max-width: 80px;
+  height: auto;
+  aspect-ratio: 96 / 139;
+  border-radius: var(--border-radius-sm);
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: transform 0.3s ease;
 }
 
 .info-container {
-  height: 139px; /* 固定卡片高度 */
-  width: 192px;
-  padding: 10px;
+  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  gap: 8px;
+  min-width: 0; /* 防止文本溢出 */
 }
 
 .info-item {
@@ -87,28 +136,68 @@ const truncateText = (title: string) => {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  margin-left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  
+  .el-icon {
+    flex-shrink: 0;
+    font-size: 14px;
+    opacity: 0.7;
+  }
 }
 
 .title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: normal;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;  
+  overflow: hidden;
+  margin-bottom: 4px;
+  transition: color 0.2s ease;
 }
 
 .author,
 .publisher,
+.isbn,
 .pubdate {
-  font-size: 14px;
-  color: #666;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
-.el-card {
-  cursor: pointer;
-  transition: box-shadow 0.3s;
-}
-
-.el-card:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .card-content {
+    min-height: 140px;
+    padding: 10px;
+    gap: 12px;
+  }
+  
+  .cover-container {
+    width: 70px;
+  }
+  
+  .book-cover {
+    max-width: 70px;
+  }
+  
+  .title {
+    font-size: 14px;
+  }
+  
+  .author,
+  .publisher,
+  .isbn,
+  .pubdate {
+    font-size: 12px;
+  }
+  
+  .info-item .el-icon {
+    font-size: 12px;
+  }
 }
 </style>
