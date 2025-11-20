@@ -64,12 +64,6 @@ onMounted(() => {
   transition: background 0.3s ease;
 }
 
-/* 深色模式下的背景动画调整 */
-:global([data-theme="dark"]) .app-layout {
-  /* 性能优化: 移除持续动画 */
-  /* animation: gradient-shift 20s ease infinite; */
-}
-
 .site-header {
   flex-shrink: 0;
   z-index: 100;

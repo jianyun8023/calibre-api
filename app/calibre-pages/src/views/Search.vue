@@ -46,6 +46,7 @@
 import BookCard from '@/components/BookCard.vue'
 import {ElButton, ElCol, ElInput, ElRow} from 'element-plus'
 import {fetchBooks} from "@/api/api";
+import type { Book } from '@/types/book';
 
 export default {
   name: 'Search',
@@ -56,8 +57,8 @@ export default {
       keyword: '',
       publisher: '',
       author: '',
-      books: [],
-      filter: [],
+      books: [] as Book[],
+      filter: [] as string[],
       limit: 12,
       offset: 0,
       total: 0
@@ -115,7 +116,7 @@ export default {
       }
     },
     updateQueryParams() {
-      let query = {...this.$route.query, offset: this.offset, limit: this.limit}
+      const query: Record<string, string | number> = { offset: this.offset, limit: this.limit }
       if (this.searchQuery) {
         query.q = this.searchQuery
       }
@@ -125,28 +126,28 @@ export default {
       if (this.author) {
         query.author = this.author
       }
-      this.$router.push({query: query})
+      this.$router.push({query: query as any})
     },
     initializeFromQueryParams() {
       const query = this.$route.query
       if (query.offset) {
-        this.offset = parseInt(query.offset, 10)
+        this.offset = parseInt(query.offset as string, 10) || 0
       }
       if (query.limit) {
-        this.limit = parseInt(query.limit, 10)
+        this.limit = parseInt(query.limit as string, 10) || 12
       }
       if (query.q) {
-        this.searchQuery = query.q
+        this.searchQuery = (query.q as string) || ''
         this.keyword = this.searchQuery
         this.filter = []
       }
       if (query.publisher) {
-        this.publisher = query.publisher
+        this.publisher = (query.publisher as string) || ''
         this.keyword = this.publisher
         this.filter[0] = 'publisher = "' + this.publisher + '"'
       }
       if (query.author) {
-        this.author = query.author
+        this.author = (query.author as string) || ''
         this.keyword = this.author
         this.filter[0] = 'authors = "' + this.author + '"'
       }
