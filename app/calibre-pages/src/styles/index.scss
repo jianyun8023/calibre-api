@@ -103,26 +103,26 @@ a {
 }
 
 // ====================================
-// Glassmorphism 三层效果体系
+// Glassmorphism 优化版本（性能优先）
 // ====================================
 
-// Tier 1 - 真 Glass (仅用于 Dialog、Modal 等关键组件)
+// Tier 1 - 真 Glass (仅用于 Dialog)
 .glass-real {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.25);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: var(--glass-shadow);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   border-radius: var(--border-radius-md);
   contain: layout style paint;
 }
 
-// Tier 2 - 伪 Glass (推荐，用于大多数组件)
+// Tier 2 - 伪 Glass (推荐，性能优化)
 .glass-fake {
-  background: rgba(255, 255, 255, 0.2);
-  /* 不使用 backdrop-filter 以优化性能 */
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.25);
+  /* 性能优化：不使用 backdrop-filter */
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   border-radius: var(--border-radius-md);
   contain: layout style paint;
   transform: translate3d(0, 0, 0);
@@ -130,8 +130,9 @@ a {
 
 // Tier 3 - 轻 Glass (用于背景层)
 .glass-light {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border-radius: var(--border-radius-md);
   contain: layout style paint;
 }
@@ -139,18 +140,18 @@ a {
 // 深色模式调整
 :root[data-theme="dark"] {
   .glass-real {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.18);
   }
 
   .glass-fake {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.22);
   }
 
   .glass-light {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
   }
 }
 
@@ -250,14 +251,14 @@ select:focus-visible {
 }
 
 // ====================================
-// Element Plus 全局组件样式统一
+// Element Plus 全局组件样式（性能优化版）
 // ====================================
 
-// Select 下拉框
+// Select 下拉框 - 使用 glass-fake
 .el-select .el-input__wrapper {
-  background: var(--glass-bg-medium) !important;
+  background: var(--glass-bg-strong) !important;
   border: 1px solid var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
   transition: var(--transition-normal);
 
   &:hover {
@@ -266,22 +267,29 @@ select:focus-visible {
 }
 
 .el-select-dropdown {
-  @extend .glass-real;
+  background: var(--glass-bg-strong) !important;
+  /* 性能优化：移除 backdrop-filter */
   border: 1px solid var(--glass-border) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+  border-radius: var(--border-radius-md);
 }
 
-// Autocomplete 自动完成
+// Autocomplete 自动完成 - 使用 glass-fake
 .el-autocomplete .el-input__wrapper {
-  background: var(--glass-bg-medium) !important;
+  background: var(--glass-bg-strong) !important;
   border: 1px solid var(--glass-border) !important;
   transition: var(--transition-normal);
 }
 
 .el-autocomplete-suggestion {
-  @extend .glass-real;
+  background: var(--glass-bg-strong) !important;
+  /* 性能优化：移除 backdrop-filter */
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+  border-radius: var(--border-radius-md);
 }
 
-// Dialog 对话框
+// Dialog 对话框 - 保留 glass-real（唯一使用 backdrop-filter 的组件）
 .el-dialog {
   @extend .glass-real;
 
@@ -294,20 +302,20 @@ select:focus-visible {
   }
 }
 
-// Popconfirm 确认框
+// Popconfirm 确认框 - 简化
 .el-popconfirm__main {
-  background: var(--glass-bg-medium);
+  background: var(--glass-bg-strong);
   border-radius: var(--border-radius-md);
 }
 
-// Tooltip 提示框
+// Tooltip 提示框 - 移除 backdrop-filter
 .el-tooltip__popper {
   background: var(--glass-bg-strong) !important;
-  backdrop-filter: blur(8px);
+  /* 性能优化：移除 backdrop-filter */
   border: 1px solid var(--glass-border);
 }
 
-// Table 表格
+// Table 表格 - 简化
 .el-table {
   background: transparent !important;
 
@@ -322,7 +330,7 @@ select:focus-visible {
   }
 }
 
-// Pagination 分页
+// Pagination 分页 - 简化阴影
 .el-pagination {
 
   .btn-prev,
@@ -330,21 +338,24 @@ select:focus-visible {
   .el-pager li {
     background: var(--glass-bg-medium) !important;
     border: 1px solid var(--glass-border);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     transition: var(--transition-normal);
 
     &:hover {
       background: var(--glass-bg-strong) !important;
       border-color: var(--accent-color);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
     &.active {
       background: var(--accent-color) !important;
       color: white;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
     }
   }
 }
 
-// Input 输入框
+// Input 输入框 - 简化
 .el-input__wrapper {
   background: var(--glass-bg-medium) !important;
   border: 1px solid var(--glass-border) !important;
@@ -360,7 +371,7 @@ select:focus-visible {
   }
 }
 
-// Button 按钮
+// Button 按钮 - 简化动画
 .el-button {
   transition: var(--transition-normal);
 
@@ -370,13 +381,13 @@ select:focus-visible {
 
     &:hover {
       opacity: 0.9;
-      transform: translateY(-2px);
-      box-shadow: var(--glass-shadow-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
   }
 }
 
-// Tag 标签
+// Tag 标签 - 使用 glass-light
 .el-tag {
   background: var(--glass-bg-medium);
   border-color: var(--glass-border);
