@@ -41,7 +41,7 @@ const redirectToSearch = () => {
     backdrop-filter: blur(8px);
     border: 1px solid var(--glass-border);
     transition: var(--transition-normal);
-    color: var(--text-primary);
+    color: var(--el-text-color-primary);
     
     &:hover {
       background: rgba(255, 255, 255, 0.2);
@@ -54,10 +54,10 @@ const redirectToSearch = () => {
   }
   
   :deep(.el-input__inner) {
-    color: var(--text-primary);
+    color: var(--el-text-color-primary);
     
     &::placeholder {
-      color: var(--text-tertiary);
+      color: var(--el-text-color-placeholder);
     }
   }
   
@@ -70,7 +70,7 @@ const redirectToSearch = () => {
     .el-button {
       background: transparent;
       border: none;
-      color: var(--text-primary);
+      color: var(--el-text-color-primary);
       font-weight: 500;
       transition: var(--transition-normal);
       

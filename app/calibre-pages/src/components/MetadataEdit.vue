@@ -1,7 +1,7 @@
 <template>
   <el-dialog
       :model-value="dialogEditVisible"
-      @update:model-value="val => emit('update:dialogEditVisible', val)"
+      @update:model-value="(val: boolean) => emit('update:dialogEditVisible', val)"
       title="编辑元数据"
       :close-on-click-modal="false"
       :close-on-press-escape="false"
@@ -64,7 +64,7 @@
               :value="form.rating / 2"
               @input="(val: number) => (form.rating = val * 2)"
               show-score
-              text-color="#ff9900"
+              text-color="var(--el-color-warning)"
               :max="5"
               allow-half
               :score-template="`${form.rating}分`"

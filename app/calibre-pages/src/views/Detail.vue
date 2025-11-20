@@ -391,73 +391,8 @@ export default {
   padding: 0 var(--spacing-lg);
 }
 
-/* Glassmorphism Table Styles - 使用与其他页面一致的轻量效果 */
-:deep(.el-descriptions) {
-  background: var(--glass-bg-light);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--glass-shadow);
-  overflow: hidden;
-  
-  .el-descriptions__header {
-    background: transparent;
-    padding: var(--spacing-lg);
-    border-bottom: 1px solid var(--glass-border);
-    
-    .el-descriptions__title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin: 0;
-    }
-    
-    .el-descriptions__extra {
-      display: flex;
-      gap: var(--spacing-sm);
-      
-      .el-button {
-        background: var(--glass-bg-medium);
-        border-color: var(--glass-border);
-        color: var(--text-primary);
-        
-        &:hover {
-          background: var(--accent-color);
-          color: white;
-          border-color: var(--accent-color);
-        }
-      }
-    }
-  }
-  
-  .el-descriptions__body {
-    padding: 0;
-  }
-  
-  .el-descriptions__table {
-    border: none;
-    
-    .el-descriptions__cell {
-      border: 1px solid var(--glass-border);
-      padding: var(--spacing-md) var(--spacing-lg);
-    }
-    
-    .el-descriptions__label {
-      background: var(--glass-bg-light);
-      color: var(--text-secondary);
-      font-weight: 600;
-      font-size: 0.875rem;
-      width: 140px;
-    }
-    
-    .el-descriptions__content {
-      background: transparent;
-      color: var(--text-primary);
-      font-weight: 500;
-    }
-  }
-}
+/* Glassmorphism Table Styles - 使用全局样式 */
+/* .el-descriptions 样式已移至 index.scss */
 
 .cell-item {
   display: flex;
@@ -474,7 +409,7 @@ export default {
 :deep(.el-tag) {
   background: var(--glass-bg-medium);
   border: 1px solid var(--glass-border);
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin-right: var(--spacing-xs);
   margin-bottom: var(--spacing-xs);
   cursor: pointer;
@@ -500,16 +435,16 @@ export default {
     background: var(--glass-bg-medium);
     backdrop-filter: blur(8px);
     border: 1px solid var(--glass-border);
-    color: var(--text-primary);
+    color: var(--el-text-color-primary);
     font-weight: 500;
     transition: all 0.3s ease;
     
     &:hover:not(:disabled) {
-      background: var(--accent-color);
+      background: var(--el-color-primary);
       color: white;
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-      border-color: var(--accent-color);
+      border-color: var(--el-color-primary);
     }
     
     &.delete-button {
@@ -543,14 +478,14 @@ export default {
   border-radius: var(--border-radius-lg);
   padding: var(--spacing-xl);
   margin-top: var(--spacing-xl);
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .comments-title {
   font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: var(--spacing-md);
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   position: relative;
   padding-bottom: var(--spacing-sm);
   
@@ -568,7 +503,7 @@ export default {
 
 .comments-text {
   font-size: 1rem;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   line-height: 1.8;
   text-indent: 2em;
   
@@ -585,7 +520,7 @@ export default {
   }
   
   .el-rate__text {
-    color: var(--text-secondary);
+    color: var(--el-text-color-regular);
     font-weight: 600;
   }
 }

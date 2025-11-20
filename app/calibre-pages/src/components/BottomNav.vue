@@ -61,7 +61,7 @@ import { House, Files, Search, Setting } from '@element-plus/icons-vue'
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  color: var(--text2);
+  color: var(--el-text-color-regular);
   padding: var(--spacing-xs) var(--spacing-md);
   border-radius: var(--border-radius-md);
   transition: var(--transition-normal);
@@ -94,7 +94,7 @@ import { House, Files, Search, Setting } from '@element-plus/icons-vue'
     right: -2px;
     width: 6px;
     height: 6px;
-    background: var(--accent-color);
+    background: var(--el-color-primary);
     border-radius: 50%;
     opacity: 0;
     transform: scale(0);
@@ -110,7 +110,7 @@ import { House, Files, Search, Setting } from '@element-plus/icons-vue'
 }
 
 .nav-item.active {
-  color: var(--accent-color);
+  color: var(--el-color-primary);
   
   .nav-icon-wrapper {
     background: rgba(59, 130, 246, 0.15);

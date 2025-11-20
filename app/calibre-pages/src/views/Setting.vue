@@ -156,13 +156,13 @@ export default {
 .setting-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin-bottom: var(--spacing-lg);
 }
 
 :deep(.el-table) {
   background: transparent !important;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 :deep(.el-table tr) {
@@ -171,13 +171,13 @@ export default {
 
 :deep(.el-table th) {
   background: var(--glass-bg-light) !important;
-  color: var(--text-primary) !important;
+  color: var(--el-text-color-primary) !important;
   border-bottom: 1px solid var(--glass-border);
 }
 
 :deep(.el-table td) {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 :deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {

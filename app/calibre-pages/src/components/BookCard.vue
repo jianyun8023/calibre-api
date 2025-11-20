@@ -84,7 +84,7 @@ const truncateText = (text: string, maxLength: number = 20) => {
     }
     
     .title {
-      color: var(--accent-color);
+      color: var(--el-color-primary);
     }
   }
   
@@ -150,7 +150,7 @@ const truncateText = (text: string, maxLength: number = 20) => {
 .title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   white-space: normal;
   line-height: 1.4;
   display: -webkit-box;
@@ -166,7 +166,7 @@ const truncateText = (text: string, maxLength: number = 20) => {
 .isbn,
 .pubdate {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 /* 移动端优化 */

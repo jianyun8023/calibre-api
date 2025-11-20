@@ -127,7 +127,7 @@ onUnmounted(() => {
 
 .site-subtitle {
   font-size: 0.75rem;
-  color: var(--text2);
+  color: var(--el-text-color-regular);
   font-weight: 500;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -143,14 +143,14 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--glass-border);
   border-radius: var(--border-radius-md);
-  color: var(--text2);
+  color: var(--el-text-color-regular);
   font-size: 0.9rem;
   cursor: pointer;
   transition: var(--transition-normal);
   
   &:hover {
     background: rgba(255, 255, 255, 0.08);
-    border-color: var(--accent-color);
+    border-color: var(--el-color-primary);
   }
   
   kbd {
@@ -172,11 +172,11 @@ onUnmounted(() => {
 .theme-toggle-button {
   background: var(--glass-bg-medium);
   border: 1px solid var(--glass-border);
-  color: var(--text1);
+  color: var(--el-text-color-primary);
   transition: all var(--transition-normal);
   
   &:hover {
-    background: var(--accent-color);
+    background: var(--el-color-primary);
     color: white;
     transform: translateY(-2px) rotate(15deg);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);

@@ -18,41 +18,34 @@ a {
 // ====================================
 
 :root {
-  // Brand 色彩
-  --brand-hue: 213;
-  --brand-saturation: 89%;
-  --brand-lightness: 61%;
-
   // 主色调
-  --accent-color: hsl(var(--brand-hue), var(--brand-saturation), var(--brand-lightness));
+  --accent-color: var(--el-color-primary);
   --primary-gradient: linear-gradient(135deg,
-      hsl(var(--brand-hue), 100%, 61%),
-      hsl(var(--brand-hue), 89%, 71%));
+      var(--el-color-primary) 0%,
+      var(--el-color-primary-light-3) 100%);
 
   // Text 层级
-  --text1: hsl(var(--brand-hue), 15%, 10%);
-  --text2: hsl(var(--brand-hue), 10%, 40%);
+  --text1: var(--el-text-color-primary);
+  --text2: var(--el-text-color-regular);
 
   // Surface 层级
-  --surface1: hsl(var(--brand-hue), 25%, 98%);
-  --surface2: hsl(var(--brand-hue), 20%, 96%);
-  --surface3: hsl(var(--brand-hue), 20%, 94%);
-  --surface4: hsl(var(--brand-hue), 20%, 92%);
+  --surface1: var(--el-bg-color);
+  --surface2: var(--el-bg-color-overlay);
+  --surface3: var(--el-fill-color-light);
+  --surface4: var(--el-fill-color);
 
-  // 背景渐变
+  // 背景渐变 - 使用 Element Plus 颜色生成
   --bg-gradient: linear-gradient(-45deg,
-      hsl(var(--brand-hue), 89%, 97%) 0%,
-      hsl(var(--brand-hue), 89%, 99%) 25%,
-      hsl(var(--brand-hue), 89%, 98%) 50%,
-      hsl(var(--brand-hue), 89%, 96%) 100%);
+      var(--el-color-primary-light-9) 0%,
+      var(--el-bg-color) 100%);
 
   // Glass 效果变量
-  --glass-bg: rgba(255, 255, 255, 0.1);
-  --glass-bg-medium: rgba(255, 255, 255, 0.15);
-  --glass-bg-strong: rgba(255, 255, 255, 0.25);
-  --glass-border: rgba(255, 255, 255, 0.2);
-  --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
-  --glass-shadow-hover: 0 12px 40px rgba(31, 38, 135, 0.25);
+  --glass-bg: var(--el-bg-color-overlay); // 使用 overlay 背景
+  --glass-bg-medium: var(--el-fill-color-light);
+  --glass-bg-strong: var(--el-fill-color);
+  --glass-border: var(--el-border-color-light);
+  --glass-shadow: var(--el-box-shadow-light);
+  --glass-shadow-hover: var(--el-box-shadow);
 
   // 间距系统
   --spacing-xs: 0.25rem;
@@ -63,43 +56,23 @@ a {
   --spacing-2xl: 3rem;
 
   // 圆角
-  --border-radius-sm: 4px;
-  --border-radius-md: 8px;
-  --border-radius-lg: 12px;
+  --border-radius-sm: var(--el-border-radius-small);
+  --border-radius-md: var(--el-border-radius-base);
+  --border-radius-lg: var(--el-border-radius-round);
   --border-radius-xl: 16px;
 
   // 过渡
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: var(--el-transition-duration-fast) cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: var(--el-transition-duration) cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-// 深色模式
+// 深色模式 - Element Plus 会自动处理大部分变量，这里只需处理特殊自定义的
 :root[data-theme="dark"] {
-  // Text 层级（深色模式）
-  --text1: hsl(var(--brand-hue), 15%, 95%);
-  --text2: hsl(var(--brand-hue), 10%, 65%);
-
-  // Surface 层级（深色模式）
-  --surface1: hsl(var(--brand-hue), 10%, 12%);
-  --surface2: hsl(var(--brand-hue), 10%, 15%);
-  --surface3: hsl(var(--brand-hue), 5%, 18%);
-  --surface4: hsl(var(--brand-hue), 5%, 20%);
-
   // 背景渐变（深色）
   --bg-gradient: linear-gradient(-45deg,
-      hsl(0, 0%, 15%) 0%,
-      hsl(0, 0%, 18%) 25%,
-      hsl(0, 0%, 21%) 50%,
-      hsl(0, 0%, 24%) 100%);
-
-  // Glass 效果（深色）
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-bg-medium: rgba(255, 255, 255, 0.08);
-  --glass-bg-strong: rgba(255, 255, 255, 0.12);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.4);
+      var(--el-bg-color-page) 0%,
+      var(--el-bg-color) 100%);
 }
 
 // ====================================
@@ -108,21 +81,21 @@ a {
 
 // Tier 1 - 真 Glass (仅用于 Dialog)
 .glass-real {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--glass-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   border-radius: var(--border-radius-md);
   contain: layout style paint;
 }
 
 // Tier 2 - 伪 Glass (推荐，性能优化)
 .glass-fake {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--glass-bg);
   /* 性能优化：不使用 backdrop-filter */
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   border-radius: var(--border-radius-md);
   contain: layout style paint;
   transform: translate3d(0, 0, 0);
@@ -130,30 +103,14 @@ a {
 
 // Tier 3 - 轻 Glass (用于背景层)
 .glass-light {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background: var(--glass-bg-medium);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 2px 8px var(--el-color-info-light-9);
   border-radius: var(--border-radius-md);
   contain: layout style paint;
 }
 
-// 深色模式调整
-:root[data-theme="dark"] {
-  .glass-real {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.18);
-  }
 
-  .glass-fake {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.22);
-  }
-
-  .glass-light {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.12);
-  }
-}
 
 // ====================================
 // 复用 Glass 类（保留兼容性）
@@ -326,7 +283,13 @@ select:focus-visible {
   }
 
   tr:hover>td {
-    background: rgba(255, 255, 255, 0.05) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .el-table__body tr.current-row>td {
+    background: rgba(59, 130, 246, 0.2) !important;
+    color: var(--accent-color);
+    font-weight: 600;
   }
 }
 

@@ -61,7 +61,7 @@ const handleSelect = (key: string, keyPath: string) => {
     .menu-title {
       font-size: 0.75rem;
       font-weight: 600;
-      color: var(--text2);
+      color: var(--el-text-color-regular);
       text-transform: uppercase;
       letter-spacing: 1px;
     }
@@ -73,7 +73,7 @@ const handleSelect = (key: string, keyPath: string) => {
   }
   
   :deep(.el-menu-item) {
-    color: var(--text1);
+    color: var(--el-text-color-primary);
     transition: var(--transition-normal);
     margin: var(--spacing-xs) var(--spacing-md);
     border-radius: var(--border-radius-md);
@@ -90,7 +90,7 @@ const handleSelect = (key: string, keyPath: string) => {
       transform: translateY(-50%);
       width: 3px;
       height: 0;
-      background: var(--accent-color);
+      background: var(--el-color-primary);
       border-radius: 0 2px 2px 0;
       transition: var(--transition-normal);
     }
@@ -98,7 +98,7 @@ const handleSelect = (key: string, keyPath: string) => {
     &:hover {
       background: rgba(255, 255, 255, 0.08);
       transform: translateX(4px);
-      color: var(--accent-color);
+      color: var(--el-color-primary);
       
       &::before {
         height: 60%;
@@ -111,7 +111,7 @@ const handleSelect = (key: string, keyPath: string) => {
     
     &.is-active {
       background: rgba(59, 130, 246, 0.15);
-      color: var(--accent-color);
+      color: var(--el-color-primary);
       font-weight: 600;
       
       &::before {
@@ -119,7 +119,7 @@ const handleSelect = (key: string, keyPath: string) => {
       }
       
       .el-icon {
-        color: var(--accent-color);
+        color: var(--el-color-primary);
       }
     }
     
@@ -136,8 +136,8 @@ const handleSelect = (key: string, keyPath: string) => {
   .menu-badge {
     margin-left: auto;
     background: rgba(59, 130, 246, 0.2);
-    border-color: var(--accent-color);
-    color: var(--accent-color);
+    border-color: var(--el-color-primary);
+    color: var(--el-color-primary);
     font-size: 0.65rem;
     padding: 0 6px;
     height: 18px;

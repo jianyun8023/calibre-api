@@ -90,7 +90,7 @@
                   </div>
                 </el-col>
                 <el-col :span="18" :xs="24">
-                  <el-descriptions :title="props.row.title" :column="1" size="large" border class="glass-descriptions">
+                  <el-descriptions :title="props.row.title" :column="1" size="large" border>
                     <el-descriptions-item>
                       <template #label>
                         <div class="cell-item">
@@ -152,7 +152,7 @@
                           :model-value="props.row.rating / 2"
                           disabled
                           show-score
-                          text-color="#ff9900"
+                          text-color="var(--el-color-warning)"
                           score-template="{value}分"
                       />
                     </el-descriptions-item>
@@ -606,51 +606,29 @@ export default {
 }
 
 .glass-text-title {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin-bottom: var(--spacing-xs);
 }
 
 .glass-text-secondary {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
 }
 
 .keyword-highlight {
-  color: var(--accent-color);
+  color: var(--el-color-primary);
 }
 
-/* Glass Table Styles */
-.glass-table {
-  background: transparent !important;
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: rgba(255, 255, 255, 0.05);
-  --el-table-row-hover-bg-color: rgba(255, 255, 255, 0.1);
-  --el-table-border-color: var(--glass-border);
-  --el-table-text-color: var(--text-primary);
-  --el-table-header-text-color: var(--text-primary);
-  
-  :deep(th.el-table__cell) {
-    background: rgba(255, 255, 255, 0.05) !important;
-    font-weight: 600;
-  }
-  
-  :deep(td.el-table__cell) {
-    border-bottom: 1px solid var(--glass-border);
-  }
-  
-  :deep(.warning-row) {
-    --el-table-tr-bg-color: rgba(230, 162, 60, 0.1);
-  }
-}
+/* Glass Table Styles - 已移至 index.scss */
+/* .glass-table, .glass-button, .glass-tag, .glass-descriptions 样式已移至 index.scss */
 
 .book-title {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   cursor: pointer;
   font-weight: 500;
   transition: color 0.2s;
   
   &:hover {
-    color: var(--accent-color);
+    color: var(--el-color-primary);
   }
 }
 
@@ -664,7 +642,7 @@ export default {
 .glass-btn-icon {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid var(--glass-border);
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   
   &:hover {
     transform: translateY(-2px);
@@ -672,7 +650,7 @@ export default {
   }
   
   &.el-button--primary {
-    color: var(--accent-color);
+    color: var(--el-color-primary);
     background: rgba(59, 130, 246, 0.1);
     border-color: rgba(59, 130, 246, 0.3);
     
@@ -709,39 +687,7 @@ export default {
   gap: 12px;
 }
 
-.glass-button {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid var(--glass-border);
-  color: var(--text-primary);
-  backdrop-filter: blur(4px);
-  transition: all 0.3s ease;
-  
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-  
-  &.primary {
-    background: var(--accent-color);
-    color: white;
-    border: none;
-    
-    &:hover {
-      opacity: 0.9;
-    }
-  }
-  
-  &.danger {
-    background: #f56c6c;
-    color: white;
-    border: none;
-    
-    &:hover {
-      opacity: 0.9;
-    }
-  }
-}
+
 
 /* Expand Row Styles */
 .expand-row-content {
@@ -766,20 +712,7 @@ export default {
   display: block;
 }
 
-.glass-descriptions {
-  :deep(.el-descriptions__body) {
-    background: transparent;
-  }
-  
-  :deep(.el-descriptions__label) {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-secondary);
-  }
-  
-  :deep(.el-descriptions__content) {
-    color: var(--text-primary);
-  }
-}
+
 
 .cell-item {
   display: flex;
@@ -793,17 +726,13 @@ export default {
   gap: 4px;
 }
 
-.glass-tag {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid var(--glass-border);
-  color: var(--text-primary);
-}
+
 
 /* Dialog Styles */
 .dialog-section-title {
   font-weight: 600;
   margin-bottom: 12px;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .status-text {

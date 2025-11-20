@@ -15,7 +15,7 @@
 }
 
 .footer-text {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   font-size: 0.9rem;
   margin: 0;
 }

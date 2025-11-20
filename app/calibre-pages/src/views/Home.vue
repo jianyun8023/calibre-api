@@ -197,28 +197,11 @@ export default {
   margin-bottom: var(--spacing-lg);
 }
 
-.section-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  position: relative;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    bottom: -8px;
-    width: 60px;
-    height: 3px;
-    background: var(--primary-gradient);
-    border-radius: 2px;
-  }
-}
+/* .section-title 样式已移至 index.scss */
 
 .section-link,
 .refresh-button {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   font-weight: 500;
   transition: var(--transition-fast);
   display: flex;
@@ -227,7 +210,7 @@ export default {
   
   &:hover {
     transform: translateX(4px);
-    color: var(--text-primary);
+    color: var(--el-text-color-primary);
   }
 }
 
@@ -245,16 +228,15 @@ export default {
 }
 
 .publisher-tag {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(8px);
+  background: var(--glass-bg-medium);
   border: 1px solid var(--glass-border);
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   cursor: pointer;
   transition: var(--transition-normal);
   padding: var(--spacing-sm) var(--spacing-md);
   
   &:hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: var(--glass-bg-strong);
     transform: translateY(-2px);
     box-shadow: var(--glass-shadow);
   }
@@ -269,14 +251,13 @@ export default {
     .btn-prev,
     .btn-next,
     .el-pager li {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(8px);
+      background: var(--glass-bg-medium);
       border: 1px solid var(--glass-border);
-      color: var(--text-primary);
+      color: var(--el-text-color-primary);
       transition: var(--transition-fast);
       
       &:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: var(--glass-bg-strong);
       }
       
       &.is-active {

@@ -186,17 +186,17 @@ export default {
 }
 
 .search-input-wrapper :deep(.el-input__inner) {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
 }
 
 .search-input-wrapper :deep(.el-input__inner::placeholder) {
-  color: var(--text-tertiary);
+  color: var(--el-text-color-placeholder);
 }
 
 .search-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   margin-bottom: var(--spacing-md);
 }
 
@@ -209,7 +209,7 @@ export default {
 }
 
 .search-count {
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   margin-bottom: var(--spacing-lg);
   display: block;
 }
@@ -231,7 +231,7 @@ export default {
   box-shadow: var(--glass-shadow);
   border-radius: var(--border-radius-sm);
   padding: var(--spacing-sm) var(--spacing-lg);
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   transition: all 0.3s ease;
 }
 

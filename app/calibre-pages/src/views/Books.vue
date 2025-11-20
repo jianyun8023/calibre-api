@@ -186,28 +186,11 @@ export default {
   margin-bottom: var(--spacing-lg);
 }
 
-.section-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  position: relative;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    bottom: -8px;
-    width: 60px;
-    height: 3px;
-    background: var(--primary-gradient);
-    border-radius: 2px;
-  }
-}
+/* .section-title 样式已移至 index.scss */
 
 .book-count {
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--el-text-color-regular);
   padding: 4px 12px;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(4px);
@@ -233,35 +216,13 @@ export default {
 }
 
 .page-info {
-  color: var(--text-primary);
+  color: var(--el-text-color-primary);
   font-size: 0.875rem;
   padding: 0 var(--spacing-md);
   font-weight: 500;
 }
 
-.glass-button {
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  border-radius: var(--border-radius-sm);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  color: var(--text-primary);
-  transition: all 0.3s ease;
-  
-  &:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.18);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-  }
-  
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none;
-  }
-}
+/* .glass-button 样式已移至 index.scss */
 
 /* 移动端优化 */
 @media (max-width: 768px) {
