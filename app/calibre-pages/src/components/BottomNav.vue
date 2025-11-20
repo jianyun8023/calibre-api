@@ -49,9 +49,10 @@ import { House, Files, Search, Setting } from '@element-plus/icons-vue'
   padding-bottom: env(safe-area-inset-bottom);
   border-top: 1px solid var(--glass-border);
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  /* 性能优化：移除 backdrop-filter */
+  /* backdrop-filter: blur(16px); */
+  /* -webkit-backdrop-filter: blur(16px); */
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .nav-item {

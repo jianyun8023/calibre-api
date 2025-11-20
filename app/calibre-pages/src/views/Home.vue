@@ -1,6 +1,6 @@
 <template>
   <div class="home-page">
-    <SearchBar/>
+    <!-- 移除 SearchBar，保持首页简洁 -->
     
     <section class="glass-container fade-in">
       <div class="section-header">
@@ -20,7 +20,7 @@
       
       <!-- 实际内容 -->
       <el-row v-else :gutter="20">
-        <el-col v-for="book in recentBooks" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24">
+        <el-col v-for="book in recentBooks" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24" class="book-col-spacing">
           <BookCard :book="book"/>
         </el-col>
       </el-row>
@@ -44,7 +44,7 @@
       
       <!-- 实际内容 -->
       <el-row v-else :gutter="20">
-        <el-col v-for="book in randomBooks" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24">
+        <el-col v-for="book in randomBooks" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24" class="book-col-spacing">
           <BookCard :book="book"/>
         </el-col>
       </el-row>
@@ -86,8 +86,8 @@
 
 <script lang="ts">
 import {ElButton, ElCard, ElCol, ElContainer, ElInput, ElLink, ElRow} from 'element-plus'
-import SearchBar from '@/components/SearchBar.vue'
 import BookCard from '@/components/BookCard.vue'
+// SearchBar 已移除，仅在搜索页保留
 import {Book} from '@/types/book'
 import {fetchPublishers, fetchRandomBooks, fetchRecentBooks} from "@/api/api";
 
@@ -95,7 +95,7 @@ export default {
   name: 'Home',
   components: {
     BookCard,
-    SearchBar,
+    // SearchBar 已移除
     ElContainer,
     ElRow,
     ElCol,

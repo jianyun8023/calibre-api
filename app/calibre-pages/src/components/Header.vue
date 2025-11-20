@@ -12,8 +12,8 @@
         </div>
       </el-link>
       
-      <!-- Search Hint (Desktop only) -->
-      <div class="search-hint hidden-sm-and-down">
+      <!-- Search Hint (Desktop only) - Click to search -->
+      <div class="search-hint hidden-sm-and-down" @click="goToSearch">
         <el-icon><Search /></el-icon>
         <span>快速搜索书籍...</span>
         <kbd>Ctrl+K</kbd>
@@ -34,10 +34,34 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTheme } from '../composables/useTheme'
 import { Sunny, Moon, Reading, Search } from '@element-plus/icons-vue'
 
 const { toggleTheme, isDark } = useTheme()
+const router = useRouter()
+
+// 跳转到搜索页
+const goToSearch = () => {
+  router.push('/search')
+}
+
+// Ctrl+K 快捷键
+const handleKeydown = (e: KeyboardEvent) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault()
+    goToSearch()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <style scoped lang="scss">

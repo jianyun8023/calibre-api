@@ -150,6 +150,7 @@ export default {
 .setting-wrapper {
   margin: var(--spacing-lg) auto;
   max-width: 1200px;
+  /* min-height 已由全局 .main-content 处理 */
 }
 
 .setting-title {

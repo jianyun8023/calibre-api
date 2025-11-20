@@ -1,7 +1,5 @@
 <template>
-  <el-row>
-    <SearchBar/>
-  </el-row>
+  <!-- 移除 SearchBar，统一使用 Header 搜索 -->
   <el-container class="publisher-wrapper">
     <section class="glass-container">
       <el-row>
@@ -33,14 +31,14 @@
 
 <script lang="ts">
 import {ElButton, ElCard, ElCol, ElContainer, ElInput, ElRow} from 'element-plus'
-import SearchBar from '@/components/SearchBar.vue'
+// SearchBar 已移除，统一使用 Header 搜索
 import BookCard from '@/components/BookCard.vue'
 
 export default {
   name: 'Publishers',
   components: {
     BookCard,
-    SearchBar,
+    // SearchBar 已移除
     ElContainer,
     ElRow,
     ElCol,

@@ -21,7 +21,7 @@
     </el-text>
 
     <el-row :gutter="20" class="books-grid">
-      <el-col v-for="book in books" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24">
+      <el-col v-for="book in books" :key="book.id" :span="6" :lg="6" :sm="12" :xs="24" class="book-col-spacing">
         <BookCard :book="book" :more_info="true"/>
       </el-col>
     </el-row>

@@ -103,7 +103,13 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
+  /* 全局确保内容区域足够高，Footer 固定在底部 */
+  min-height: calc(100vh - var(--header-height, 80px) - var(--footer-height, 60px));
+  
+  @media (max-width: 768px) {
+    padding-bottom: calc(var(--spacing-md) + 68px); // BottomNav height
+  }
   
   /* 自定义滚动条 */
   &::-webkit-scrollbar {

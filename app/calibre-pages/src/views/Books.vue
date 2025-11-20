@@ -1,8 +1,6 @@
 <template>
   <div class="books-page">
-    <el-row>
-      <SearchBar />
-    </el-row>
+    <!-- 移除 SearchBar，统一在Header中搜索 -->
     <el-container class="books-wrapper">
       <section class="glass-container">
         <el-row class="mb-4">
@@ -31,7 +29,7 @@
             :md="12" 
             :sm="24" 
             :xs="24"
-            class="book-col"
+            class="book-col-spacing"
           >
             <BookCard :book="book" :more_info="true" />
           </el-col>
@@ -70,7 +68,7 @@
 <script lang="ts">
 import { ElButton, ElCard, ElCol, ElContainer, ElInput, ElRow, ElSkeleton, ElEmpty } from 'element-plus'
 import { ArrowLeftBold, ArrowRightBold } from '@element-plus/icons-vue'
-import SearchBar from '@/components/SearchBar.vue'
+// SearchBar 已移除，仅在搜索页保留
 import BookCard from '@/components/BookCard.vue'
 import { Book } from '@/types/book'
 import { fetchRecentBooks } from "@/api/api";
@@ -79,7 +77,7 @@ export default {
   name: 'Books',
   components: {
     BookCard,
-    SearchBar,
+    // SearchBar 已移除
     ElContainer,
     ElRow,
     ElCol,

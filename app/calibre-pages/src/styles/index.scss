@@ -399,7 +399,7 @@ select:focus-visible {
 }
 
 // ====================================
-// 工具类
+// 通用工具类
 // ====================================
 
 .hidden-sm-and-down {
@@ -412,6 +412,11 @@ select:focus-visible {
   @media (min-width: 769px) {
     display: none !important;
   }
+}
+
+// 书籍卡片统一间距（全局复用）
+.book-col-spacing {
+  margin-bottom: var(--spacing-lg);
 }
 
 // ====================================
@@ -458,5 +463,35 @@ select:focus-visible {
 .glass-panel {
   &:hover {
     will-change: transform;
+  }
+}
+
+// ====================================
+// 响应式字体与间距优化
+// ====================================
+@media (max-width: 768px) {
+  :root {
+    // 移动端缩小间距
+    --spacing-md: 0.75rem;
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+    --spacing-2xl: 2rem;
+  }
+
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  h2 {
+    font-size: 1.25rem !important;
+  }
+
+  h3 {
+    font-size: 1.1rem !important;
+  }
+
+  // 优化移动端卡片间距
+  .book-col-spacing {
+    margin-bottom: var(--spacing-md);
   }
 }
