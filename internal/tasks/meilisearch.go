@@ -82,13 +82,28 @@ func (t *MeilisearchTask) Run() error {
 	// Determine query based on mode
 	query := ""
 	if t.mode == TaskModeIncremental {
-		// Find last successful sync time from Manager history
-		// For now, let's default to 24 hours ago if not found
-		// TODO: Implement history lookup
-		lastSync := time.Now().Add(-24 * time.Hour)
-		// Calibre date format: 2023-01-01T00:00:00
-		// modified:">=2023-01-01T00:00:00"
-		query = fmt.Sprintf("modified:\">=%s\"", lastSync.Format("2006-01-02T15:04:05"))
+		// Get max book ID from Meilisearch as the baseline for incremental sync
+		maxID, err := t.getMaxBookID(index)
+		if err != nil {
+			t.mu.Lock()
+			t.status.Message = fmt.Sprintf("Warning: Could not get max book ID, using full sync instead: %v", err)
+			t.mu.Unlock()
+			log.Printf("Failed to get max book ID from Meilisearch: %v", err)
+			// Fall back to empty query (full sync) if we can't get max ID
+			query = ""
+		} else if maxID > 0 {
+			// Query for books with ID greater than the max ID in Meilisearch
+			query = fmt.Sprintf("id:>%d", maxID)
+			t.mu.Lock()
+			t.status.Message = fmt.Sprintf("Incremental sync: indexing books with id > %d", maxID)
+			t.mu.Unlock()
+		} else {
+			// No books in Meilisearch yet, do full sync
+			t.mu.Lock()
+			t.status.Message = "No existing data in Meilisearch, performing full sync"
+			t.mu.Unlock()
+			query = ""
+		}
 	}
 
 	ids, err := t.contentApi.GetAllBooksIds(query)
@@ -143,4 +158,45 @@ func (t *MeilisearchTask) Run() error {
 	}
 
 	return nil
+}
+
+// getMaxBookID gets the maximum book ID from Meilisearch index
+func (t *MeilisearchTask) getMaxBookID(index *meilisearch.Index) (int64, error) {
+	// Use Meilisearch search API with sort by id descending and limit 1
+	searchReq := &meilisearch.SearchRequest{
+		Limit: 1,
+		Sort:  []string{"id:desc"},
+	}
+
+	result, err := index.Search("", searchReq)
+	if err != nil {
+		return 0, fmt.Errorf("failed to search for max ID: %w", err)
+	}
+
+	// Check if we got any results
+	if len(result.Hits) == 0 {
+		return 0, nil // No documents in index
+	}
+
+	// Extract ID from the first (and only) hit
+	hit := result.Hits[0].(map[string]interface{})
+	idValue, ok := hit["id"]
+	if !ok {
+		return 0, fmt.Errorf("id field not found in document")
+	}
+
+	// Convert to int64
+	var maxID int64
+	switch v := idValue.(type) {
+	case float64:
+		maxID = int64(v)
+	case int64:
+		maxID = v
+	case int:
+		maxID = int64(v)
+	default:
+		return 0, fmt.Errorf("unexpected id type: %T", idValue)
+	}
+
+	return maxID, nil
 }
