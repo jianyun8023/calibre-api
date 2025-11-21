@@ -32,6 +32,8 @@ watch(() => props.dialogPreviewVisible, () => {
 });
 
 
+const baseDir = ref('')
+
 const showBookMenu = async () => {
 
   menuLoding.value = true
@@ -40,6 +42,9 @@ const showBookMenu = async () => {
     if (!response.ok) throw new Error('Network response was not ok')
     const data = await response.json()
     bookMenu.value = data.points
+    if (data.baseDir) {
+      baseDir.value = data.baseDir
+    }
     menuLoding.value = false
     if (!data.points) {
       ElNotification({
@@ -61,19 +66,28 @@ const handleNodeClick = async (data: any) => {
 
   // this.previewLoding = true
   dialogContentVisible.value = true
-  currentPreviewUrl.value = "/api" + data.content.src
+  
+  let src = data.content.src
+  if (!src.startsWith('/read/')) {
+    // It's a relative path from extracted TOC
+    // Construct the full path: /read/{bookId}/file/{baseDir}/{src}
+    // Remove leading slash if present to avoid double slashes
+    if (src.startsWith('/')) {
+      src = src.substring(1)
+    }
+    
+    let dir = baseDir.value
+    if (dir && !dir.endsWith('/')) {
+      dir = dir + '/'
+    }
+    
+    currentPreviewUrl.value = `/api/read/${props.book.id}/file/${dir}${src}`
+  } else {
+    // Legacy absolute path
+    currentPreviewUrl.value = "/api" + src
+  }
+  
   currentPreviewTitle.value = data.text
-  // fetch("/api" + data.content.src)
-  //     .then(response => response.text())
-  //     .then(data => {
-  //       this.currentPreviewContent = data
-  //       this.previewLoding = false
-  //     })
-  //     .catch(error => {
-  //       this.previewLoding = false
-  //       ElMessage.error('There was a problem with the fetch operation:' + error.message)
-  //     })
-
 }
 
 </script>
@@ -81,7 +95,7 @@ const handleNodeClick = async (data: any) => {
 <template>
   <el-dialog
       :model-value="dialogPreviewVisible"
-      @update:model-value="val => emit('update:dialogPreviewVisible', val)"
+      @update:model-value="(val: boolean) => emit('update:dialogPreviewVisible', val)"
       title="查看目录"
       :close-on-click-modal="false"
       :close-on-press-escape="false"

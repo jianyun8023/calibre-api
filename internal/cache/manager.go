@@ -48,18 +48,22 @@ func NewManager(config Config, contentApi *content.Api) (*Manager, error) {
 
 // GetOrExtractEpub gets the EPUB file path, downloading if necessary
 func (cm *Manager) GetOrExtractEpub(bookID string) (string, error) {
+	filename := filepath.Join(cm.config.Dir, bookID+".epub")
+
+	// Fast path: check if file exists without lock
+	if _, err := os.Stat(filename); err == nil {
+		// Update access time (non-critical, ignore errors)
+		cm.updateAccessTime(filename)
+		return filename, nil
+	}
+
+	// Slow path: need to download, acquire lock
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
-	filename := filepath.Join(cm.config.Dir, bookID+".epub")
-
-	// Check if file exists
+	// Double-check after acquiring lock (another goroutine might have downloaded it)
 	if _, err := os.Stat(filename); err == nil {
-		// Update access time
-		if err := cm.updateAccessTime(filename); err != nil {
-			// Log error but continue
-			fmt.Printf("Warning: failed to update access time for %s: %v\n", filename, err)
-		}
+		cm.updateAccessTime(filename)
 		return filename, nil
 	}
 
