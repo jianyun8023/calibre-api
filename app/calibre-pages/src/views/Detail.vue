@@ -1,7 +1,4 @@
 <template>
-  <el-row class="detail-header">
-    <SearchBar/>
-  </el-row>
   <article class="detail-content">
     <el-row class="detail-row">
       <el-col :span="8" class="cover-container" :xs="24">
@@ -183,7 +180,6 @@
 <script lang="ts">
 import {h} from 'vue'
 import {ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow} from 'element-plus'
-import SearchBar from '@/components/SearchBar.vue'
 import MetadataSearch from '@/components/MetadataSearch.vue'
 import MetadataEdit from '@/components/MetadataEdit.vue'
 import MetadataUpdate from '@/components/MetadataUpdate.vue'
@@ -223,7 +219,6 @@ export default {
     MetadataEdit,
     MetadataSearch,
     ElCol,
-    SearchBar,
     ElRow,
     ElButton,
     ElInput,
@@ -364,12 +359,6 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.detail-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: var(--spacing-md);
-}
-
 .detail-content {
   padding: var(--spacing-lg);
   max-width: 1400px;
