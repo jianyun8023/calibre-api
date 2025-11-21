@@ -104,83 +104,154 @@ func (s *Searcher) Search(query string, topK int) ([]semantic.SearchResult, erro
 	return searchResults, nil
 }
 
-// HybridSearchCombined performs hybrid search by combining keyword and semantic search results using RRF
+// HybridSearchCombined performs hybrid search by combining keyword and semantic search results
+// Strategy: First use vector search to get semantically relevant candidates,
+// then rerank them using keyword matching for better precision
 func (s *Searcher) HybridSearchCombined(query string, limit int) ([]semantic.Book, error) {
-	// 1. Get results from Semantic Search
-	// We fetch more than limit to have enough candidates for fusion
-	semanticLimit := limit * 2
-	if semanticLimit < 50 {
-		semanticLimit = 50
+	// 1. Get a larger candidate set from Semantic Search (cast a wide net)
+	// This ensures we capture semantically relevant books
+	semanticLimit := limit * 3
+	if semanticLimit < 100 {
+		semanticLimit = 100
 	}
 	semanticResults, err := s.Search(query, semanticLimit)
 	if err != nil {
 		return nil, fmt.Errorf("semantic search failed: %w", err)
 	}
 
-	// 2. Get results from Keyword Search
-	// We use "title" filter as a proxy for general keyword search if no specific filter is provided
-	// Or we can use the default "all fields" search if filterType is empty
-	keywordLimit := limit * 2
-	if keywordLimit < 50 {
-		keywordLimit = 50
-	}
-	keywordBooks, _, err := s.SearchByKeyword(query, "", keywordLimit, 0)
-	if err != nil {
-		return nil, fmt.Errorf("keyword search failed: %w", err)
+	if len(semanticResults) == 0 {
+		return []semantic.Book{}, nil
 	}
 
-	// 3. Apply Reciprocal Rank Fusion (RRF)
-	// RRF score = 1 / (k + rank)
-	const k = 60.0
-	scores := make(map[int64]float64)
-	bookMap := make(map[int64]semantic.Book)
+	// 2. Rerank the semantic results using keyword matching
+	// This provides precision on top of semantic recall
+	queryLower := strings.ToLower(query)
+	keywords := strings.Fields(queryLower) // Split query into keywords
 
-	// Process Semantic Results
+	type scoredBook struct {
+		Book          semantic.Book
+		SemanticScore float64
+		KeywordScore  float64
+		FinalScore    float64
+	}
+
+	scoredBooks := make([]scoredBook, len(semanticResults))
 	for i, result := range semanticResults {
-		scores[result.Book.ID] += 1.0 / (k + float64(i+1))
-		bookMap[result.Book.ID] = result.Book
-	}
+		book := result.Book
 
-	// Process Keyword Results
-	for i, book := range keywordBooks {
-		scores[book.ID] += 1.0 / (k + float64(i+1))
-		bookMap[book.ID] = book
-	}
+		// Calculate keyword matching score
+		keywordScore := s.calculateKeywordScore(book, keywords, queryLower)
 
-	// 4. Sort by Score
-	type rankedBook struct {
-		Book  semantic.Book
-		Score float64
-	}
-	var ranked []rankedBook
-	for id, score := range scores {
-		ranked = append(ranked, rankedBook{
-			Book:  bookMap[id],
-			Score: score,
-		})
-	}
+		// Combine scores:
+		// - Semantic score (normalized): 40% weight
+		// - Keyword score (0-1): 60% weight
+		// This gives more weight to exact keyword matches while maintaining semantic relevance
+		normalizedSemanticScore := float64(result.Score) // Convert float32 to float64
+		finalScore := (normalizedSemanticScore * 0.4) + (keywordScore * 0.6)
 
-	// Simple bubble sort for top K (since K is small)
-	for i := 0; i < len(ranked)-1; i++ {
-		for j := i + 1; j < len(ranked); j++ {
-			if ranked[i].Score > ranked[j].Score { // Descending order
-				ranked[i], ranked[j] = ranked[j], ranked[i]
-			}
+		scoredBooks[i] = scoredBook{
+			Book:          book,
+			SemanticScore: float64(result.Score),
+			KeywordScore:  keywordScore,
+			FinalScore:    finalScore,
 		}
 	}
 
-	// 5. Return Top Limit
-	resultCount := len(ranked)
+	// 3. Sort by final score (descending order)
+	// Using insertion sort since it's efficient for small arrays
+	for i := 1; i < len(scoredBooks); i++ {
+		key := scoredBooks[i]
+		j := i - 1
+		for j >= 0 && scoredBooks[j].FinalScore < key.FinalScore {
+			scoredBooks[j+1] = scoredBooks[j]
+			j--
+		}
+		scoredBooks[j+1] = key
+	}
+
+	// 4. Return top limit results
+	resultCount := len(scoredBooks)
 	if resultCount > limit {
 		resultCount = limit
 	}
 
 	finalBooks := make([]semantic.Book, resultCount)
 	for i := 0; i < resultCount; i++ {
-		finalBooks[i] = ranked[i].Book
+		finalBooks[i] = scoredBooks[i].Book
 	}
 
 	return finalBooks, nil
+}
+
+// calculateKeywordScore calculates a keyword matching score for a book
+// Returns a score between 0 and 1 based on keyword matches in title, authors, publisher, tags, and comments
+func (s *Searcher) calculateKeywordScore(book semantic.Book, keywords []string, fullQuery string) float64 {
+	if len(keywords) == 0 {
+		return 0.0
+	}
+
+	score := 0.0
+	maxScore := 0.0
+
+	titleLower := strings.ToLower(book.Title)
+	authorsLower := strings.ToLower(strings.Join(book.Authors, " "))
+	publisherLower := strings.ToLower(book.Publisher)
+	tagsLower := strings.ToLower(strings.Join(book.Tags, " "))
+	commentsLower := strings.ToLower(book.Comments)
+
+	// Exact full query match (highest weight)
+	maxScore += 10.0
+	if strings.Contains(titleLower, fullQuery) {
+		score += 10.0 // Exact match in title
+	} else if strings.Contains(authorsLower, fullQuery) {
+		score += 8.0 // Exact match in authors
+	} else if strings.Contains(publisherLower, fullQuery) {
+		score += 6.0 // Exact match in publisher
+	} else if strings.Contains(tagsLower, fullQuery) {
+		score += 5.0 // Exact match in tags
+	} else if strings.Contains(commentsLower, fullQuery) {
+		score += 3.0 // Exact match in comments
+	}
+
+	// Individual keyword matches (weighted by field importance)
+	for _, keyword := range keywords {
+		if len(keyword) < 2 { // Skip very short keywords
+			continue
+		}
+
+		maxScore += 5.0 // Max possible score per keyword
+
+		// Title matches (highest priority)
+		if strings.Contains(titleLower, keyword) {
+			score += 3.0
+		}
+
+		// Author matches
+		if strings.Contains(authorsLower, keyword) {
+			score += 1.5
+		}
+
+		// Publisher matches
+		if strings.Contains(publisherLower, keyword) {
+			score += 1.0
+		}
+
+		// Tags matches
+		if strings.Contains(tagsLower, keyword) {
+			score += 0.8
+		}
+
+		// Comments matches (lowest priority)
+		if strings.Contains(commentsLower, keyword) {
+			score += 0.3
+		}
+	}
+
+	// Normalize to 0-1 range
+	if maxScore > 0 {
+		return score / maxScore
+	}
+	return 0.0
 }
 
 // SearchByKeyword performs keyword search using Qdrant scroll with filters
