@@ -726,7 +726,7 @@ func (c *Api) listTasks(r *gin.Context) {
 }
 
 type StartTaskRequest struct {
-	Type string `json:"type"` // "meilisearch_sync" or "vector_sync"
+	Type string `json:"type"` // "qdrant_sync"
 	Mode string `json:"mode"` // "full" or "incremental"
 }
 

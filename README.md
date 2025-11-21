@@ -1,12 +1,12 @@
 # Calibre-API
 
-基于 MeiliSearch 搭建的 Calibre 书籍管理系统，支持搜索、下载、预览和智能交互。
+基于 Qdrant 搭建的 Calibre 书籍管理系统，支持搜索、下载、预览和智能交互。
 
 ## ✨ 核心特性
 
 ### 📚 书籍管理
 - 使用 Calibre Content Server 作为数据来源
-- MeiliSearch 增强查询响应速度
+- Qdrant 增强查询响应速度
 - 支持书籍元数据的 CRUD 操作
 - 在线元数据获取和补全
 - 封面图片和文件下载
@@ -91,51 +91,6 @@ POST   /api/index/update             --> 更新搜索索引
 POST   /api/index/switch             --> 切换搜索索引
 ```
 
-## 数据导入
-
-创建索引，更新索引设置，该命令仅第一次使用需要执行。
-```shell
-## Create index
-curl -X "POST" "http://localhost:7700/indexes" \
-     -H 'Content-Type: application/json' \
-     -d $'{
-  "uid": "books"
-}'
-## Update settings
-curl -X "PATCH" "http://localhost:7700/indexes/books/settings" \
-     -H 'Content-Type: application/json' \
-     -d $'{
-  "displayedAttributes": [
-    "*"
-  ],
-  "filterableAttributes": [
-    "authors",
-    "file_path",
-    "id",
-    "last_modified",
-    "pubdate",
-    "publisher",
-    "isbn",
-    "tags"
-  ],
-  "searchableAttributes": [
-    "title",
-    "authors"
-  ],
-  "sortableAttributes": [
-    "authors_sort",
-    "id",
-    "last_modified",
-    "pubdate",
-    "publisher"
-  ]
-}'
-```
-
-使用下面命令更新索引
-```shell
-curl -X "POST" "http://localhost:8080/index/update" -H 'Content-Type: application/json' 
-```
 
 ## 接口
 
@@ -237,11 +192,11 @@ tmpDir: ".files"
 content:
   server: https://lib.pve.icu
 
-# MeiliSearch 搜索引擎配置  
-search:
-  host: http://127.0.0.1:7700
-  apikey: ""
-  index: books
+# Qdrant 搜索引擎配置
+qdrant:
+  url: http://localhost:6333
+  collection: books
+  timeout: 30
 
 # 元数据服务配置
 metadata:
@@ -270,10 +225,10 @@ CALIBRE_TMP_DIR=.files
 # Calibre Content Server
 CALIBRE_CONTENT_SERVER=https://your-calibre-server.com
 
-# MeiliSearch 配置
-CALIBRE_SEARCH_HOST=http://localhost:7700
-CALIBRE_SEARCH_APIKEY=your-api-key
-CALIBRE_SEARCH_INDEX=books
+# Qdrant 配置
+CALIBRE_QDRANT_URL=http://localhost:6333
+CALIBRE_QDRANT_COLLECTION=books
+CALIBRE_QDRANT_TIMEOUT=30
 
 # 元数据服务
 CALIBRE_METADATA_DOUBANURL=https://api.douban.com

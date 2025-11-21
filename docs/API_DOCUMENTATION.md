@@ -448,7 +448,7 @@ GET /api/publisher?limit=50&offset=0
 # 启动向量数据同步任务
 curl -X POST http://localhost:8080/api/tasks/start \
   -H 'Content-Type: application/json' \
-  -d '{"type": "vector_sync", "mode": "full"}'
+  -d '{"type": "qdrant_sync", "mode": "full"}'
 
 # 查看同步进度
 curl http://localhost:8080/api/tasks
@@ -529,7 +529,7 @@ GET /api/tasks
   "data": [
     {
       "id": "task-001",
-      "type": "vector_sync",
+      "type": "qdrant_sync",
       "mode": "incremental",
       "state": "running",
       "progress": 0.45,
@@ -549,13 +549,13 @@ POST /api/tasks/start
 **请求体**:
 ```json
 {
-  "type": "vector_sync",
+  "type": "qdrant_sync",
   "mode": "incremental"
 }
 ```
 
 **任务类型**:
-- `vector_sync`: 向量数据生成和同步（为书籍生成 Embedding 并同步到 Qdrant）
+- `qdrant_sync`: 向量数据生成和同步（为书籍生成 Embedding 并同步到 Qdrant）
 
 **任务模式**:
 - `full`: 全量同步
@@ -577,12 +577,12 @@ POST /api/tasks/start
 # 全量生成向量（为所有书籍生成 Embedding）
 curl -X POST http://localhost:8080/api/tasks/start \
   -H 'Content-Type: application/json' \
-  -d '{"type": "vector_sync", "mode": "full"}'
+  -d '{"type": "qdrant_sync", "mode": "full"}'
 
 # 增量生成向量（只为新书生成 Embedding）
 curl -X POST http://localhost:8080/api/tasks/start \
   -H 'Content-Type: application/json' \
-  -d '{"type": "vector_sync", "mode": "incremental"}'
+  -d '{"type": "qdrant_sync", "mode": "incremental"}'
 ```
 
 ##### 8.3 停止任务
@@ -1440,7 +1440,7 @@ mcp:
 # 在另一个终端执行向量生成任务
 curl -X POST http://localhost:8080/api/tasks/start \
   -H 'Content-Type: application/json' \
-  -d '{"type": "vector_sync", "mode": "full"}'
+  -d '{"type": "qdrant_sync", "mode": "full"}'
 
 # 查看同步进度
 curl http://localhost:8080/api/tasks | jq
@@ -1567,7 +1567,7 @@ EOF
 # 生成书籍向量数据
 curl -X POST http://localhost:8080/api/tasks/start \
   -H 'Content-Type: application/json' \
-  -d '{"type": "vector_sync", "mode": "full"}'
+  -d '{"type": "qdrant_sync", "mode": "full"}'
 ```
 
 ### 生产环境部署

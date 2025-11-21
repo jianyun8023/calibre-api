@@ -74,10 +74,6 @@ func registerMCPSchemas(mcp *ginmcp.GinMCP) {
 	// 元数据相关接口
 	mcp.RegisterSchema("GET", "/api/metadata/search", calibre.MetadataSearchRequest{}, nil)
 
-	// 索引管理相关接口
-	mcp.RegisterSchema("POST", "/api/index/update", nil, calibre.IndexUpdateRequest{})
-	mcp.RegisterSchema("POST", "/api/index/switch", nil, calibre.IndexSwitchRequest{})
-
 	// 出版社列表接口
 	mcp.RegisterSchema("GET", "/api/publisher", calibre.PublisherListRequest{}, nil)
 
