@@ -1,18 +1,18 @@
 <template>
-  <div class="app-layout">
+  <el-container class="app-layout">
     <!-- 顶部导航 -->
-    <header class="site-header">
+    <el-header height="auto" class="site-header">
       <SiteHeader />
-    </header>
+    </el-header>
 
-    <div class="main-container">
+    <el-container class="main-container">
       <!-- 桌面端侧边栏 -->
-      <aside class="sidebar-container hidden-sm-and-down">
+      <el-aside width="240px" class="sidebar-container hidden-sm-and-down">
         <Sidebar />
-      </aside>
+      </el-aside>
 
       <!-- 主要内容区域 -->
-      <main class="content-container">
+      <el-main class="content-container">
         <div class="scrollable-content">
           <router-view v-slot="{ Component }" :key="$route.fullPath">
             <transition name="fade" mode="out-in">
@@ -20,18 +20,18 @@
             </transition>
           </router-view>
           
-          <footer class="site-footer">
+          <el-footer height="auto" class="site-footer">
             <SiteFooter />
-          </footer>
+          </el-footer>
         </div>
-      </main>
-    </div>
+      </el-main>
+    </el-container>
 
     <!-- 移动端底部导航 -->
     <div class="bottom-nav-container hidden-md-and-up">
       <BottomNav />
     </div>
-  </div>
+  </el-container>
 </template>
 
 <script setup lang="ts">
@@ -52,45 +52,42 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .app-layout {
-  display: flex;
-  flex-direction: column;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
   background: var(--bg-gradient);
   background-size: 400% 400%;
-  /* 性能优化: 移除持续动画以减少 CPU 占用 */
-  /* animation: gradient-shift 15s ease infinite; */
   transition: background 0.3s ease;
 }
 
 .site-header {
-  flex-shrink: 0;
+  padding: 0;
   z-index: 100;
 }
 
 .main-container {
-  display: flex;
-  flex: 1;
   overflow: hidden;
   position: relative;
 }
 
 .sidebar-container {
-  width: 240px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.02);
+  overflow-y: auto;
+  overflow-x: hidden;
+  
+  &::-webkit-scrollbar {
+    width: 0;
+    background: transparent;
+  }
 }
 
 .content-container {
-  flex: 1;
+  padding: 0;
   position: relative;
   display: flex;
   flex-direction: column;
-  min-width: 0; /* 防止 flex 子项溢出 */
+  overflow: hidden;
 }
 
 .scrollable-content {
@@ -98,8 +95,6 @@ onMounted(() => {
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--spacing-md);
-  /* 全局确保内容区域足够高，Footer 固定在底部 */
-  min-height: calc(100vh - var(--header-height, 80px) - var(--footer-height, 60px));
   
   @media (max-width: 768px) {
     padding-bottom: calc(var(--spacing-md) + 68px); // BottomNav height
@@ -125,8 +120,7 @@ onMounted(() => {
 }
 
 .site-footer {
-  margin-top: auto;
-  padding-top: var(--spacing-xl);
+  padding: var(--spacing-xl) 0 0;
 }
 
 /* 移动端适配 */

@@ -1,35 +1,41 @@
 <template>
   <div class="header-wrapper glass-panel">
-    <div class="header-content">
+    <el-row class="header-content" justify="space-between" align="middle">
       <!-- Logo and Title -->
-      <el-link href="/" class="logo-section">
-        <div class="logo-icon">
-          <el-icon :size="32"><Reading /></el-icon>
-        </div>
-        <div class="title-group">
-          <el-text class="site-title">书海拾贝</el-text>
-          <el-text class="site-subtitle">Your Personal Library</el-text>
-        </div>
-      </el-link>
+      <el-col :span="8" :xs="16">
+        <el-link href="/" class="logo-section" :underline="false">
+          <div class="logo-icon">
+            <el-icon :size="32"><Reading /></el-icon>
+          </div>
+          <div class="title-group">
+            <el-text class="site-title">书海拾贝</el-text>
+            <el-text class="site-subtitle">Your Personal Library</el-text>
+          </div>
+        </el-link>
+      </el-col>
       
       <!-- Search Hint (Desktop only) - Click to search -->
-      <div class="search-hint hidden-sm-and-down" @click="goToSearch">
-        <el-icon><Search /></el-icon>
-        <span>快速搜索书籍...</span>
-        <kbd>Ctrl+K</kbd>
-      </div>
+      <el-col :span="8" class="hidden-sm-and-down">
+        <div class="search-hint" @click="goToSearch">
+          <el-icon><Search /></el-icon>
+          <span>快速搜索书籍...</span>
+          <kbd>Ctrl+K</kbd>
+        </div>
+      </el-col>
       
       <!-- Theme Toggle -->
-      <div class="theme-toggle-wrapper">
-        <el-button
-          circle
-          class="theme-toggle-button"
-          @click="toggleTheme"
-          :icon="isDark ? Sunny : Moon"
-          size="large"
-        />
-      </div>
-    </div>
+      <el-col :span="8" :xs="8" class="text-right">
+        <div class="theme-toggle-wrapper">
+          <el-button
+            circle
+            class="theme-toggle-button"
+            @click="toggleTheme"
+            :icon="isDark ? Sunny : Moon"
+            size="large"
+          />
+        </div>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
@@ -71,10 +77,12 @@ onUnmounted(() => {
 }
 
 .header-content {
+  width: 100%;
+}
+
+.text-right {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--spacing-lg);
+  justify-content: flex-end;
 }
 
 .logo-section {

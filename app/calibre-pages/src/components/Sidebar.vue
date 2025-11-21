@@ -1,6 +1,6 @@
 <template>
   <el-menu 
-    class="sidebar-menu glass-panel" 
+    class="sidebar-menu" 
     default-active="1" 
     @select="handleSelect" 
     :router="true"

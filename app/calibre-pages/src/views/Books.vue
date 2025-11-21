@@ -1,6 +1,5 @@
 <template>
   <div class="books-page">
-    <!-- 移除 SearchBar，统一在Header中搜索 -->
     <el-container class="books-wrapper">
       <section class="glass-container">
         <el-row class="mb-4">
@@ -65,105 +64,96 @@
   </div>
 </template>
 
-<script lang="ts">
-import { ElButton, ElCard, ElCol, ElContainer, ElInput, ElRow, ElSkeleton, ElEmpty } from 'element-plus'
+<script setup lang="ts">
+import { ref, computed, watch, onActivated, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeftBold, ArrowRightBold } from '@element-plus/icons-vue'
-// SearchBar 已移除，仅在搜索页保留
 import BookCard from '@/components/BookCard.vue'
 import { Book } from '@/types/book'
-import { fetchRecentBooks } from "@/api/api";
+import { fetchRecentBooks } from "@/api/api"
 
-export default {
-  name: 'Books',
-  components: {
-    BookCard,
-    // SearchBar 已移除
-    ElContainer,
-    ElRow,
-    ElCol,
-    ElInput,
-    ElButton,
-    ElCard,
-    ElSkeleton,
-    ElEmpty,
-    ArrowLeftBold,
-    ArrowRightBold
-  },
-  data() {
-    return {
-      searchQuery: '',
-      recentBooks: [] as Book[],
-      limit: 12 as number,
-      offset: 0 as number,
-      total: 0,
-      loading: false
-    }
-  },
-  computed: {
-    totalPages() {
-      return Math.ceil(this.total / this.limit)
-    },
-    currentPage() {
-      return Math.floor(this.offset / this.limit) + 1
-    }
-  },
-  created() {
-    this.initializeFromQueryParams()
-    this.fetchBooks()
-  },
-  // 当组件被激活时重新获取数据
-  activated() {
-    console.log('Books page activated, refreshing data...')
-    this.initializeFromQueryParams()
-    this.fetchBooks()
-  },
-  watch: {
-    offset() {
-      this.updateQueryParams()
-      this.fetchBooks()
-    },
-    limit() {
-      this.updateQueryParams()
-      this.fetchBooks()
-    }
-  },
-  methods: {
-    async fetchBooks() {
-      this.loading = true
-      try {
-        const data = await fetchRecentBooks(this.limit, this.offset)
-        this.recentBooks = data.records
-        this.total = data.total
-      } finally {
-        this.loading = false
-      }
-    },
-    prevPage() {
-      if (this.offset > 0) {
-        this.offset -= this.limit
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      }
-    },
-    nextPage() {
-      if (this.offset + this.limit < this.total) {
-        this.offset += this.limit
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      }
-    },
-    updateQueryParams() {
-      this.$router.push({ query: { ...this.$route.query, offset: this.offset, limit: this.limit } })
-    },
-    initializeFromQueryParams() {
-      const query = this.$route.query
-      if (query.offset) {
-        this.offset = parseInt(query.offset as string, 10)
-      }
-      if (query.limit) {
-        this.limit = parseInt(query.limit as string, 10)
-      }
-    }
+const router = useRouter()
+const route = useRoute()
+
+// State
+const recentBooks = ref<Book[]>([])
+const limit = ref(12)
+const offset = ref(0)
+const total = ref(0)
+const loading = ref(false)
+
+// Computed
+const totalPages = computed(() => Math.ceil(total.value / limit.value))
+const currentPage = computed(() => Math.floor(offset.value / limit.value) + 1)
+
+// Methods
+const fetchBooks = async () => {
+  loading.value = true
+  try {
+    const data = await fetchRecentBooks(limit.value, offset.value)
+    recentBooks.value = data.records
+    total.value = data.total
+  } finally {
+    loading.value = false
   }
 }
+
+const prevPage = () => {
+  if (offset.value > 0) {
+    offset.value -= limit.value
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+const nextPage = () => {
+  if (offset.value + limit.value < total.value) {
+    offset.value += limit.value
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+const updateQueryParams = () => {
+  router.push({ 
+    query: { 
+      ...route.query, 
+      offset: offset.value, 
+      limit: limit.value 
+    } 
+  })
+}
+
+const initializeFromQueryParams = () => {
+  const query = route.query
+  if (query.offset) {
+    offset.value = parseInt(query.offset as string, 10)
+  }
+  if (query.limit) {
+    limit.value = parseInt(query.limit as string, 10)
+  }
+}
+
+// Watchers
+watch(offset, () => {
+  updateQueryParams()
+  fetchBooks()
+})
+
+watch(limit, () => {
+  updateQueryParams()
+  fetchBooks()
+})
+
+// Lifecycle
+onMounted(() => {
+  initializeFromQueryParams()
+  fetchBooks()
+})
+
+onActivated(() => {
+  console.log('Books page activated, refreshing data...')
+  initializeFromQueryParams()
+  fetchBooks()
+})
 </script>
 
 <style scoped lang="scss">
@@ -186,8 +176,6 @@ export default {
   margin-bottom: var(--spacing-lg);
 }
 
-/* .section-title 样式已移至 index.scss */
-
 .book-count {
   font-size: 0.875rem;
   color: var(--el-text-color-regular);
@@ -200,11 +188,6 @@ export default {
 
 .book-grid {
   min-height: 400px;
-}
-
-.book-col {
-  margin-bottom: var(--spacing-lg);
-  transition: all 0.3s ease;
 }
 
 .pagination-row {
@@ -221,8 +204,6 @@ export default {
   padding: 0 var(--spacing-md);
   font-weight: 500;
 }
-
-/* .glass-button 样式已移至 index.scss */
 
 /* 移动端优化 */
 @media (max-width: 768px) {
