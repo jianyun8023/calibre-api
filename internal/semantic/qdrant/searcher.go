@@ -582,87 +582,41 @@ func (s *Searcher) IndexBooks(ctx context.Context, books []semantic.Book) error 
 	return nil
 }
 
-// scrollAndFilterByField scrolls through all books and filters by a specific field
-// For ISBN, use exact match; for other fields, use contains match
-func (s *Searcher) scrollAndFilterByField(keyword string, fieldName string, limit, offset int) ([]semantic.Book, int64, error) {
+// GetBookToc retrieves TOC data for a book from Qdrant
+func (s *Searcher) GetBookToc(bookID int64) (interface{}, error) {
 	ctx := context.Background()
-	keywordLower := strings.ToLower(keyword)
 
-	// Determine if exact match is needed
-	exactMatch := (fieldName == "isbn")
-
-	var matchedBooks []semantic.Book
-	var scrollOffset *uint64
-	batchSize := 100
-
-	// Scroll through all books
-	for {
-		points, nextOffset, err := s.client.Scroll(ctx, batchSize, scrollOffset, false)
-		if err != nil {
-			return nil, 0, fmt.Errorf("qdrant scroll failed: %w", err)
-		}
-
-		// Filter by field
-		for _, point := range points {
-			var match bool
-			if fieldValue, ok := point.Payload[fieldName]; ok {
-				switch v := fieldValue.(type) {
-				case string:
-					if exactMatch {
-						// Exact match for ISBN
-						match = strings.EqualFold(v, keyword)
-					} else {
-						// Contains match for other fields
-						match = strings.Contains(strings.ToLower(v), keywordLower)
-					}
-				case []interface{}:
-					// For array fields like authors, tags
-					for _, item := range v {
-						if str, ok := item.(string); ok {
-							if exactMatch {
-								match = strings.EqualFold(str, keyword)
-							} else {
-								match = strings.Contains(strings.ToLower(str), keywordLower)
-							}
-							if match {
-								break
-							}
-						}
-					}
-				}
-			}
-
-			if match {
-				book := PayloadToBook(point.ID, point.Payload)
-				matchedBooks = append(matchedBooks, book)
-			}
-		}
-
-		// Check if we have enough results
-		if len(matchedBooks) >= offset+limit {
-			break
-		}
-
-		// Check if there are more results
-		if nextOffset == nil {
-			break
-		}
-		scrollOffset = nextOffset
+	point, err := s.client.Retrieve(ctx, uint64(bookID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve book: %w", err)
 	}
 
-	// Apply pagination
-	total := int64(len(matchedBooks))
-	start := offset
-	end := offset + limit
-
-	if start >= len(matchedBooks) {
-		return []semantic.Book{}, total, nil
-	}
-	if end > len(matchedBooks) {
-		end = len(matchedBooks)
+	if point == nil {
+		return nil, fmt.Errorf("book not found in Qdrant")
 	}
 
-	return matchedBooks[start:end], total, nil
+	// Extract TOC from payload
+	if toc, ok := point.Payload["toc"]; ok {
+		return toc, nil
+	}
+
+	return nil, nil // TOC not present
+}
+
+// UpdateToc updates the TOC field for a book in Qdrant
+func (s *Searcher) UpdateToc(bookID int64, toc interface{}) error {
+	ctx := context.Background()
+
+	payload := map[string]interface{}{
+		"toc": toc,
+	}
+
+	err := s.client.SetPayload(ctx, []uint64{uint64(bookID)}, payload)
+	if err != nil {
+		return fmt.Errorf("failed to update TOC in Qdrant: %w", err)
+	}
+
+	return nil
 }
 
 // filterByQdrantMatch uses Qdrant's native Match filter for keyword fields (contains matching)

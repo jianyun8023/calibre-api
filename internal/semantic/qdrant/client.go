@@ -395,6 +395,41 @@ func (c *Client) Retrieve(ctx context.Context, id uint64) (*Point, error) {
 	}, nil
 }
 
+// SetPayload partially updates payload fields for specified points
+// This method only updates the specified fields without affecting other fields
+func (c *Client) SetPayload(ctx context.Context, pointIDs []uint64, payload map[string]interface{}) error {
+	url := fmt.Sprintf("%s/collections/%s/points/payload", c.baseURL, c.collection)
+
+	reqBody := map[string]interface{}{
+		"points":  pointIDs,
+		"payload": payload,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("set payload failed: status=%d, body=%s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return nil
+}
+
 // BookToPayload converts a semantic.Book to Qdrant payload
 func BookToPayload(book semantic.Book) map[string]interface{} {
 	payload := map[string]interface{}{
@@ -415,6 +450,10 @@ func BookToPayload(book semantic.Book) map[string]interface{} {
 		"identifiers":   book.Identifiers,
 		"cover":         book.Cover,
 		"file_path":     book.FilePath,
+	}
+	// Add TOC if present
+	if book.Toc != nil {
+		payload["toc"] = book.Toc
 	}
 	return payload
 }
@@ -499,6 +538,11 @@ func PayloadToBook(id uint64, payload map[string]interface{}) semantic.Book {
 		if t, err := time.Parse(time.RFC3339, v); err == nil {
 			book.LastModified = t
 		}
+	}
+
+	// Handle TOC
+	if v, ok := payload["toc"]; ok {
+		book.Toc = v
 	}
 
 	return book

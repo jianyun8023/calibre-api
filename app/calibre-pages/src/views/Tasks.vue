@@ -32,9 +32,31 @@
           </el-card>
         </el-col>
 
+        <!-- TOC Extract Controls -->
+        <el-col :span="24" :lg="8">
+          <el-card class="control-card glass-card">
+            <template #header>
+              <div class="card-header">
+                <span>目录提取任务</span>
+                <el-tag size="small" type="warning" effect="dark">TOC</el-tag>
+              </div>
+            </template>
+            <div class="control-actions">
+              <el-button type="primary" @click="startTask('toc_extract', 'incremental')" :loading="loading.toc_incremental">
+                增量提取
+              </el-button>
+              <el-button type="warning" @click="startTask('toc_extract', 'full')" :loading="loading.toc_full">
+                全量提取
+              </el-button>
+            </div>
+            <p class="control-desc">
+              批量提取 EPUB 书籍目录并存储到 Qdrant，提升目录查询速度。支持断点续传，中断后可继续。
+            </p>
+          </el-card>
+        </el-col>
 
         <!-- Task List -->
-        <el-col :span="24" :lg="16">
+        <el-col :span="24" :lg="24">
           <el-card class="list-card glass-card">
             <template #header>
               <div class="card-header">
@@ -49,6 +71,7 @@
               <el-table-column prop="type" label="类型" width="140">
                 <template #default="scope">
                   <el-tag v-if="scope.row.type === 'qdrant_sync'" type="success">Qdrant Sync</el-tag>
+                  <el-tag v-else-if="scope.row.type === 'toc_extract'" type="warning">TOC 提取</el-tag>
                   <el-tag v-else type="info">{{ scope.row.type }}</el-tag>
                 </template>
               </el-table-column>
@@ -121,7 +144,9 @@ const tasks = ref<Task[]>([])
 const loading = ref({
   list: false,
   qdrant_full: false,
-  qdrant_incremental: false
+  qdrant_incremental: false,
+  toc_full: false,
+  toc_incremental: false
 })
 
 let pollTimer: number | null = null
@@ -139,10 +164,11 @@ const fetchTasks = async () => {
 }
 
 const startTask = async (type: string, mode: string) => {
-  const key = `qdrant_${mode}` as keyof typeof loading.value
+  // Generate loading key based on task type
+  const typePrefix = type === 'qdrant_sync' ? 'qdrant' : 'toc'
+  const key = `${typePrefix}_${mode}` as keyof typeof loading.value
   loading.value[key] = true
 
-  
   try {
     const res = await fetch('/api/tasks/start', {
       method: 'POST',

@@ -23,6 +23,7 @@ type Book struct {
 	Title        string            `json:"title"`
 	Rating       float64           `json:"rating"`
 	Identifiers  map[string]string `json:"identifiers"`
+	Toc          interface{}       `json:"toc,omitempty"` // Table of Contents data
 }
 
 // BookEmbedding represents a book with its vector embedding

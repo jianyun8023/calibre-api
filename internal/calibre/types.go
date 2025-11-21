@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/jianyun8023/calibre-api/internal/cache"
 	"github.com/jianyun8023/calibre-api/internal/semantic"
 )
 
@@ -61,6 +62,7 @@ type Config struct {
 	MCP       MCPConfig          `mapstructure:"mcp"`
 	Embedding semantic.Embedding `mapstructure:"embedding"`
 	Qdrant    QdrantConfig       `mapstructure:"qdrant"`
+	Cache     cache.Config       `mapstructure:"cache"`
 }
 
 type QdrantConfig struct {

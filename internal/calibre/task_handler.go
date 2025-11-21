@@ -73,6 +73,45 @@ func (c *Api) startTask(r *gin.Context) {
 			"data":    gin.H{"id": taskID},
 		})
 		return
+
+	case tasks.TaskTypeTocExtract:
+		if c.cacheManager == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Cache manager is not initialized",
+			})
+			return
+		}
+
+		searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+		if !ok || searcher == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Qdrant searcher is not initialized",
+			})
+			return
+		}
+
+		manager := tasks.GetManager()
+		taskID, err := manager.StartTask(tasks.TaskTypeTocExtract, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
+			return tasks.NewTocExtractTask(id, tasks.TaskMode(req.Mode), c.contentApi, searcher, c.cacheManager)
+		})
+
+		if err != nil {
+			r.JSON(http.StatusConflict, gin.H{
+				"code":    409,
+				"message": err.Error(),
+			})
+			return
+		}
+
+		r.JSON(http.StatusOK, gin.H{
+			"code":    200,
+			"message": "TOC extraction task started",
+			"data":    gin.H{"id": taskID},
+		})
+		return
+
 	default:
 		r.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,

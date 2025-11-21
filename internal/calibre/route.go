@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jianyun8023/calibre-api/internal/cache"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/pkg/client"
@@ -22,6 +23,7 @@ type Api struct {
 	http             *client.Client
 	qdrantClient     *qdrant.Client
 	semanticSearcher interface{} // *qdrant.Searcher
+	cacheManager     *cache.Manager
 }
 
 // SetupRouter 设置路由
@@ -113,6 +115,18 @@ func NewClient(config *Config) *Api {
 		}
 	}
 
+	// Initialize cache manager
+	var cacheManager *cache.Manager
+	if config.Cache.Dir != "" {
+		cacheManager, err = cache.NewManager(config.Cache, &newClient)
+		if err != nil {
+			log.Warnf("Failed to initialize cache manager: %v", err)
+		} else {
+			log.Infof("Cache manager initialized: dir=%s, max_size=%.1fGB",
+				config.Cache.Dir, config.Cache.MaxSizeGB)
+		}
+	}
+
 	api := Api{
 		config:           config,
 		baseDir:          config.TmpDir,
@@ -120,6 +134,7 @@ func NewClient(config *Config) *Api {
 		http:             newClient.Client,
 		qdrantClient:     qdrantClient,
 		semanticSearcher: qdrantSearcher,
+		cacheManager:     cacheManager,
 	}
 
 	// 初始化 SSE MCP 服务器（在 HTTP 模式下默认启用）

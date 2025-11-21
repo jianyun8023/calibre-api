@@ -6,6 +6,7 @@ type TaskType string
 
 const (
 	TaskTypeQdrantSync TaskType = "qdrant_sync"
+	TaskTypeTocExtract TaskType = "toc_extract"
 )
 
 type TaskMode string

@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/kapmahc/epub"
 )
 
@@ -67,11 +69,74 @@ func (c *Api) getBookFile(r *gin.Context) {
 }
 
 // getBookToc 获取书籍目录
+// 优先从 Qdrant 获取 TOC，缺失时从 EPUB 文件提取并自动更新到 Qdrant
 func (c *Api) getBookToc(r *gin.Context) {
 	id := strings.TrimSuffix(r.Param("id"), ".epub")
 
-	filepath, _ := c.getFileOrCache(id)
-	book, _ := epub.Open(filepath)
+	// Try to get TOC from Qdrant first
+	if c.semanticSearcher != nil {
+		if searcher, ok := c.semanticSearcher.(*qdrant.Searcher); ok {
+			bookID := stringToInt64(id)
+			if bookID > 0 {
+				toc, err := searcher.GetBookToc(bookID)
+				if err == nil && toc != nil {
+					// TOC found in Qdrant, return it
+					r.JSON(http.StatusOK, toc)
+					return
+				}
+			}
+		}
+	}
+
+	// TOC not found in Qdrant, extract from EPUB file
+	tocData, err := c.extractTocFromEpub(id)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": fmt.Sprintf("Failed to extract TOC: %v", err),
+		})
+		return
+	}
+
+	// Asynchronously update TOC to Qdrant (don't block response)
+	if c.semanticSearcher != nil {
+		if searcher, ok := c.semanticSearcher.(*qdrant.Searcher); ok {
+			bookID := stringToInt64(id)
+			if bookID > 0 {
+				go func() {
+					if err := searcher.UpdateToc(bookID, tocData); err != nil {
+						fmt.Printf("Warning: failed to update TOC in Qdrant for book %s: %v\n", id, err)
+					}
+				}()
+			}
+		}
+	}
+
+	r.JSON(http.StatusOK, tocData)
+}
+
+// extractTocFromEpub extracts TOC structure from EPUB file
+func (c *Api) extractTocFromEpub(id string) (map[string]interface{}, error) {
+	var filepath string
+	var err error
+
+	// Use cache manager if available, otherwise fall back to old method
+	if c.cacheManager != nil {
+		filepath, err = c.cacheManager.GetOrExtractEpub(id)
+	} else {
+		filepath, err = c.getFileOrCache(id)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get EPUB file: %w", err)
+	}
+
+	book, err := epub.Open(filepath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open EPUB: %w", err)
+	}
+	defer book.Close()
+
 	points := c.expansionTree(book.Ncx.Points)
 	var p []epub.NavPoint
 	for i := range points {
@@ -84,14 +149,14 @@ func (c *Api) getBookToc(r *gin.Context) {
 		})
 	}
 
-	defer book.Close()
-
-	r.JSON(http.StatusOK, gin.H{
+	result := map[string]interface{}{
 		"points":   p,
 		"metadata": book.Opf.Metadata,
 		"manifest": book.Opf.Manifest,
 		"baseDir":  path.Dir(book.Container.Rootfile.Path),
-	})
+	}
+
+	return result, nil
 }
 
 // getBookContent 获取书籍内容（通过路径参数）
@@ -246,4 +311,13 @@ func (c *Api) expansionTree(ori []epub.NavPoint) []epub.NavPoint {
 		}
 	}
 	return points
+}
+
+// stringToInt64 converts string to int64, returns 0 on error
+func stringToInt64(s string) int64 {
+	val, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return val
 }

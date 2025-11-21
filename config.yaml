@@ -39,3 +39,8 @@ qdrant:
   url: "http://192.168.2.236:6333"
   collection: "books"
   timeout: 30
+
+cache:
+  dir: ".cache/epub"
+  max_size_gb: 5
+  cleanup_threshold: 0.9
