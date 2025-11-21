@@ -63,9 +63,27 @@ func (t *VectorTask) Run() error {
 	// Determine query based on mode
 	query := ""
 	if t.mode == TaskModeIncremental {
-		// Default to 24 hours ago
-		lastSync := time.Now().Add(-24 * time.Hour)
-		query = fmt.Sprintf("modified:\">=%s\"", lastSync.Format("2006-01-02T15:04:05"))
+		// Get max book_id from Milvus as the baseline for incremental sync
+		maxID, err := t.indexer.GetMaxBookID()
+		if err != nil {
+			t.mu.Lock()
+			t.status.Message = fmt.Sprintf("Warning: Could not get max book_id, using full sync instead: %v", err)
+			t.mu.Unlock()
+			// Fall back to empty query (full sync) if we can't get max ID
+			query = ""
+		} else if maxID > 0 {
+			// Query for books with ID greater than the max ID in Milvus
+			query = fmt.Sprintf("id:>%d", maxID)
+			t.mu.Lock()
+			t.status.Message = fmt.Sprintf("Incremental sync: indexing books with id > %d", maxID)
+			t.mu.Unlock()
+		} else {
+			// No books in Milvus yet, do full sync
+			t.mu.Lock()
+			t.status.Message = "No existing data in vector database, performing full sync"
+			t.mu.Unlock()
+			query = ""
+		}
 	}
 
 	// Use the Index method we just added to Indexer

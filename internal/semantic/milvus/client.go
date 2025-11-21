@@ -281,6 +281,44 @@ func (c *Client) GetCollectionStats() (int64, error) {
 	return 0, nil
 }
 
+// GetMaxBookID returns the maximum book_id in the collection
+func (c *Client) GetMaxBookID() (int64, error) {
+	ctx := context.Background()
+
+	// Check if collection exists and is loaded
+	has, err := c.conn.HasCollection(ctx, c.collectionName)
+	if err != nil || !has {
+		return 0, fmt.Errorf("collection not found or inaccessible")
+	}
+
+	// Query all book_ids
+	expr := "book_id >= 0"
+	results, err := c.conn.Query(ctx, c.collectionName, []string{}, expr, []string{"book_id"})
+	if err != nil {
+		return 0, fmt.Errorf("failed to query book_ids: %w", err)
+	}
+
+	if len(results) == 0 {
+		return 0, nil // No data in collection
+	}
+
+	// Get book_id column
+	bookIDColumn := results[0].(*entity.ColumnInt64)
+	if bookIDColumn.Len() == 0 {
+		return 0, nil
+	}
+
+	// Find maximum book_id
+	maxID := int64(0)
+	for _, id := range bookIDColumn.Data() {
+		if id > maxID {
+			maxID = id
+		}
+	}
+
+	return maxID, nil
+}
+
 // Helper functions from textutil.go
 
 func truncateUTF8ByBytes(s string, maxBytes int) string {

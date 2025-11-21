@@ -83,6 +83,11 @@ func (i *Indexer) GetStatus() IndexStatus {
 	return i.status
 }
 
+// GetMaxBookID returns the maximum book_id from the Milvus collection
+func (i *Indexer) GetMaxBookID() (int64, error) {
+	return i.client.GetMaxBookID()
+}
+
 // Index runs the indexing process with a query
 func (i *Indexer) Index(ctx context.Context, query string) error {
 	// 1. Get all book IDs
