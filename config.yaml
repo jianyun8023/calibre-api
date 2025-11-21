@@ -9,7 +9,7 @@ search:
   apikey:
   index: books
 metadata:
-  doubanurl: http://192.168.2.236:8085
+  doubanurl: http://192.168.2.236:8075
 
 # MCP 服务器配置
 mcp:
@@ -18,3 +18,19 @@ mcp:
   version: "1.1.0"                      # MCP 服务器版本
   base_url: "http://localhost:8080"     # API 基础 URL（用于 MCP 工具调用）
   timeout: 30                           # API 请求超时时间（秒）
+
+milvus:
+  host: "192.168.2.236"
+  port: 19530
+  collection_name: "calibre_books"
+  vector_dim: 4096
+
+embedding:
+  provider: "ollama"  # 或 "siliconflow"
+  ollama:
+    api_url: "http://localhost:11434/api/embeddings"
+    model: "qwen3-embedding:8b"
+  siliconflow:
+    api_url: "https://api.siliconflow.cn/v1/embeddings"
+    model: "Qwen/Qwen3-Embedding-8B"
+    api_token: ""  # 建议使用环境变量 SILICONFLOW_API_TOKEN
