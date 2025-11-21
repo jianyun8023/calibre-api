@@ -61,6 +61,14 @@ a {
   --border-radius-lg: var(--el-border-radius-round);
   --border-radius-xl: 16px;
 
+  // Typography
+  --font-family-base: var(--el-font-family);
+  --font-size-base: var(--el-font-size-base);
+  --font-size-lg: var(--el-font-size-large);
+  --font-size-sm: var(--el-font-size-small);
+  --font-size-xl: var(--el-font-size-extra-large);
+  --line-height-base: 1.5;
+
   // 过渡
   --transition-fast: var(--el-transition-duration-fast) cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: var(--el-transition-duration) cubic-bezier(0.4, 0, 0.2, 1);
@@ -287,7 +295,7 @@ select:focus-visible {
   }
 
   .el-table__body tr.current-row>td {
-    background: rgba(59, 130, 246, 0.2) !important;
+    background: var(--el-color-primary-light-9) !important;
     color: var(--accent-color);
     font-weight: 600;
   }
