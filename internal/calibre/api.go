@@ -1,6 +1,7 @@
 package calibre
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -53,6 +54,8 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	// 最近更新Recently
 	base.GET("/recently", c.recently)
 	base.GET("/random", c.random)
+	// 所有书籍（支持排序）
+	base.GET("/books/all", c.getAllBooks)
 
 	// Enhanced Tools MCP 端点
 	base.GET("/mcp/tools/enhanced", c.getEnhancedTools)
@@ -138,6 +141,14 @@ func NewClient(config *Config) *Api {
 		} else {
 			qdrantSearcher = qdrant.NewSearcher(qdrantProvider, qdrantClient)
 			log.Info("Qdrant searcher initialized successfully")
+
+			// Ensure required payload indexes exist
+			ctx := context.Background()
+			if err := qdrantSearcher.EnsureIndexes(ctx); err != nil {
+				log.Warnf("Failed to ensure Qdrant indexes (indexes may already exist): %v", err)
+			} else {
+				log.Info("Qdrant payload indexes ensured successfully")
+			}
 		}
 	}
 
@@ -187,7 +198,55 @@ func (c *Api) search(r *gin.Context) {
 		}
 	}
 
-	log.Infof("Qdrant search query: %s, filter: %s, limit: %d, offset: %d", q, filterType, limit, offset)
+	// Parse POST body for filters
+	type SearchRequest struct {
+		Filter []string `json:"Filter"`
+		Limit  int      `json:"Limit"`
+		Offset int      `json:"Offset"`
+		Sort   []string `json:"Sort"`
+	}
+
+	var searchReq SearchRequest
+	hasFilter := false
+	if r.Request.Method == "POST" {
+		if err := r.ShouldBindJSON(&searchReq); err == nil {
+			// Use POST body parameters if available
+			if searchReq.Limit > 0 {
+				limit = searchReq.Limit
+			}
+			if searchReq.Offset >= 0 {
+				offset = searchReq.Offset
+			}
+			// Parse filter from Filter array
+			if len(searchReq.Filter) > 0 {
+				hasFilter = true
+				// Parse filter like: 'publisher = "xxx"' or 'authors = "xxx"'
+				for _, filter := range searchReq.Filter {
+					parts := strings.SplitN(filter, "=", 2)
+					if len(parts) == 2 {
+						fieldName := strings.TrimSpace(parts[0])
+						fieldValue := strings.Trim(strings.TrimSpace(parts[1]), "\"")
+
+						// Override query with filter value
+						q = fieldValue
+						// Set filterType based on field name
+						if fieldName == "publisher" {
+							filterType = "publisher"
+						} else if fieldName == "authors" {
+							filterType = "author"
+						} else if fieldName == "tags" {
+							filterType = "tags"
+						} else if fieldName == "isbn" {
+							filterType = "isbn"
+						}
+						break // Use first filter
+					}
+				}
+			}
+		}
+	}
+
+	log.Infof("Qdrant search query: %s, filter: %s, limit: %d, offset: %d, hasFilter: %v", q, filterType, limit, offset, hasFilter)
 
 	// Check if Qdrant searcher is available
 	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
@@ -203,6 +262,11 @@ func (c *Api) search(r *gin.Context) {
 	mode := r.Query("mode")
 	if mode == "" {
 		mode = "hybrid" // default to hybrid
+	}
+
+	// Force keyword mode for filtered searches (publisher, author, tags, isbn)
+	if hasFilter {
+		mode = "keyword"
 	}
 
 	var books []semantic.Book
@@ -668,6 +732,71 @@ func (c *Api) random(r *gin.Context) {
 
 	r.JSON(http.StatusOK, gin.H{
 		"data": calibreBooks,
+		"code": 200,
+	})
+}
+
+// getAllBooks returns all books with cursor-based pagination (no offset needed)
+func (c *Api) getAllBooks(r *gin.Context) {
+	limit, err := strconv.Atoi(r.DefaultQuery("limit", "12"))
+	if err != nil {
+		r.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit"})
+		return
+	}
+
+	// Use cursor instead of offset
+	// cursor format: "last_modified:2024-01-01T00:00:00Z,id:123"
+	cursor := r.DefaultQuery("cursor", "")
+
+	// Use Qdrant searcher
+	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+	if !ok || searcher == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Search service not available",
+			"code":  503,
+		})
+		return
+	}
+
+	// Get books with cursor-based pagination
+	books, total, nextCursor, err := searcher.GetAllWithCursor(limit, cursor)
+	if err != nil {
+		log.Warnf("GetAllWithCursor failed: %v", err)
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"code":  500,
+		})
+		return
+	}
+
+	// Convert semantic.Book to calibre.Book
+	calibreBooks := make([]Book, len(books))
+	for i, book := range books {
+		calibreBooks[i] = Book{
+			ID:           book.ID,
+			Title:        book.Title,
+			Authors:      book.Authors,
+			Publisher:    book.Publisher,
+			PubDate:      book.PubDate,
+			Isbn:         book.Isbn,
+			Tags:         book.Tags,
+			Rating:       book.Rating,
+			SeriesIndex:  book.SeriesIndex,
+			Comments:     book.Comments,
+			Languages:    book.Languages,
+			LastModified: book.LastModified,
+			Cover:        book.Cover,
+			FilePath:     book.FilePath,
+		}
+	}
+
+	r.JSON(http.StatusOK, gin.H{
+		"data": map[string]interface{}{
+			"records":     calibreBooks,
+			"total":       total,
+			"limit":       limit,
+			"next_cursor": nextCursor,
+		},
 		"code": 200,
 	})
 }

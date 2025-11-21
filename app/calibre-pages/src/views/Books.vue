@@ -42,18 +42,18 @@
           <el-button 
             class="glass-button" 
             @click="prevPage" 
-            :disabled="offset === 0 || loading"
+            :disabled="!hasPrevPage || loading"
           >
             <el-icon><ArrowLeftBold /></el-icon>
             上一页
           </el-button>
           <span class="page-info">
-            第 {{ currentPage }} / {{ totalPages }} 页
+            第 {{ currentPage }} 页 (共 {{ total }} 本书)
           </span>
           <el-button 
             class="glass-button" 
             @click="nextPage" 
-            :disabled="offset + limit >= total || loading"
+            :disabled="!hasNextPage || loading"
           >
             下一页
             <el-icon><ArrowRightBold /></el-icon>
@@ -70,7 +70,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeftBold, ArrowRightBold } from '@element-plus/icons-vue'
 import BookCard from '@/components/BookCard.vue'
 import { Book } from '@/types/book'
-import { fetchRecentBooks } from "@/api/api"
+import { fetchAllBooks } from "@/api/api"
 
 const router = useRouter()
 const route = useRoute()
@@ -78,45 +78,58 @@ const route = useRoute()
 // State
 const recentBooks = ref<Book[]>([])
 const limit = ref(12)
-const offset = ref(0)
 const total = ref(0)
 const loading = ref(false)
+const cursor = ref('')
+const nextCursor = ref('')
+const prevCursors = ref<string[]>([]) // Stack to store previous page cursors
+const currentPage = ref(1)
 
 // Computed
 const totalPages = computed(() => Math.ceil(total.value / limit.value))
-const currentPage = computed(() => Math.floor(offset.value / limit.value) + 1)
+const hasPrevPage = computed(() => prevCursors.value.length > 0)
+const hasNextPage = computed(() => !!nextCursor.value)
 
 // Methods
 const fetchBooks = async () => {
   loading.value = true
   try {
-    const data = await fetchRecentBooks(limit.value, offset.value)
+    const data = await fetchAllBooks(limit.value, cursor.value)
     recentBooks.value = data.records
     total.value = data.total
+    nextCursor.value = data.next_cursor || ''
   } finally {
     loading.value = false
   }
 }
 
 const prevPage = () => {
-  if (offset.value > 0) {
-    offset.value -= limit.value
+  if (prevCursors.value.length > 0) {
+    // Pop the last cursor from stack
+    cursor.value = prevCursors.value.pop() || ''
+    currentPage.value--
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    fetchBooks()
   }
 }
 
 const nextPage = () => {
-  if (offset.value + limit.value < total.value) {
-    offset.value += limit.value
+  if (nextCursor.value) {
+    // Push current cursor to stack before moving forward
+    prevCursors.value.push(cursor.value)
+    cursor.value = nextCursor.value
+    currentPage.value++
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    fetchBooks()
   }
 }
 
 const updateQueryParams = () => {
   router.push({ 
     query: { 
-      ...route.query, 
-      offset: offset.value, 
+      ...route.query,
+      cursor: cursor.value,
+      page: currentPage.value,
       limit: limit.value 
     } 
   })
@@ -124,8 +137,11 @@ const updateQueryParams = () => {
 
 const initializeFromQueryParams = () => {
   const query = route.query
-  if (query.offset) {
-    offset.value = parseInt(query.offset as string, 10)
+  if (query.cursor) {
+    cursor.value = query.cursor as string
+  }
+  if (query.page) {
+    currentPage.value = parseInt(query.page as string, 10) || 1
   }
   if (query.limit) {
     limit.value = parseInt(query.limit as string, 10)
@@ -133,14 +149,8 @@ const initializeFromQueryParams = () => {
 }
 
 // Watchers
-watch(offset, () => {
+watch([cursor, limit], () => {
   updateQueryParams()
-  fetchBooks()
-})
-
-watch(limit, () => {
-  updateQueryParams()
-  fetchBooks()
 })
 
 // Lifecycle

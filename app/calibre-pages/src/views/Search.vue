@@ -77,6 +77,7 @@ export default {
       keyword: '',
       publisher: '',
       author: '',
+      tag: '',
       books: [] as Book[],
       filter: [] as string[],
       limit: 12,
@@ -103,6 +104,10 @@ export default {
       this.fetchBooks()
     },
     author() {
+      this.updateQueryParams()
+      this.fetchBooks()
+    },
+    tag() {
       this.updateQueryParams()
       this.fetchBooks()
     },
@@ -135,15 +140,22 @@ export default {
     },
 
     async fetchBooks() {
-      if (!this.searchQuery && !this.publisher && !this.author) {
+      if (!this.searchQuery && !this.publisher && !this.author && !this.tag) {
         this.books = []
         return
       }
 
-      this.keyword = this.searchQuery || this.publisher || this.author
+      this.keyword = this.searchQuery || this.publisher || this.author || this.tag
+      
+      // Determine the query to send
+      let queryToSend = this.searchQuery
+      if (!queryToSend && (this.publisher || this.author || this.tag)) {
+        // If no search query but has publisher/author/tag filter, use the filter value as query
+        queryToSend = this.publisher || this.author || this.tag
+      }
       
       try {
-        const data = await fetchBooks(this.searchQuery, this.filter, this.limit, this.offset, [], this.searchMode);
+        const data = await fetchBooks(queryToSend, this.filter, this.limit, this.offset, [], this.searchMode);
         this.books = data.records
         this.total = data.total
       } catch (e) {
@@ -175,6 +187,9 @@ export default {
       if (this.author) {
         query.author = this.author
       }
+      if (this.tag) {
+        query.tag = this.tag
+      }
       this.$router.push({query: query as any})
     },
     initializeFromQueryParams() {
@@ -185,11 +200,17 @@ export default {
       if (query.limit) {
         this.limit = parseInt(query.limit as string, 10) || 12
       }
-      if (query.mode) {
+      
+      // Determine search mode - force keyword mode for filtered searches
+      const hasFilter = !!(query.publisher || query.author || query.tag)
+      if (query.mode && !hasFilter) {
         this.searchMode = (query.mode as string) || 'hybrid'
+      } else if (hasFilter) {
+        this.searchMode = 'keyword' // Force keyword mode for filtered searches
       } else {
         this.searchMode = 'hybrid'
       }
+      
       if (query.q) {
         this.searchQuery = (query.q as string) || ''
         this.keyword = this.searchQuery
@@ -204,6 +225,11 @@ export default {
         this.author = (query.author as string) || ''
         this.keyword = this.author
         this.filter[0] = 'authors = "' + this.author + '"'
+      }
+      if (query.tag) {
+        this.tag = (query.tag as string) || ''
+        this.keyword = this.tag
+        this.filter[0] = 'tags = "' + this.tag + '"'
       }
     }
   },

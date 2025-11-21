@@ -110,7 +110,13 @@
                   Tags
                 </div>
               </template>
-              <el-tag v-for="item in book.tags" :key="item" effect="dark" round>
+              <el-tag 
+                v-for="item in book.tags" 
+                :key="item" 
+                effect="dark" 
+                round
+                @click="searchByTag(item)"
+              >
                 {{ item }}
               </el-tag>
             </el-descriptions-item>
@@ -314,6 +320,14 @@ export default {
         path: '/search',
         query: {
           author: author
+        }
+      })
+    },
+    searchByTag(tag: string) {
+      this.$router.push({
+        path: '/search',
+        query: {
+          tag: tag
         }
       })
     },

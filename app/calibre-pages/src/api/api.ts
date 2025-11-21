@@ -20,7 +20,18 @@ export async function fetchRandomBooks() {
 export async function fetchRecentBooks(limit: number, offset: number) {
     const response = await fetch(`/api/recently?limit=${limit}&offset=${offset}`)
     if (!response.ok) {
-        throw new Error('Failed to random');
+        throw new Error('Failed to fetch recent books');
+    }
+    return handleApiResponse(response);
+}
+
+export async function fetchAllBooks(limit: number, cursor: string = '') {
+    const url = cursor 
+        ? `/api/books/all?limit=${limit}&cursor=${encodeURIComponent(cursor)}`
+        : `/api/books/all?limit=${limit}`
+    const response = await fetch(url)
+    if (!response.ok) {
+        throw new Error('Failed to fetch all books');
     }
     return handleApiResponse(response);
 }

@@ -24,6 +24,21 @@ func NewSearcher(provider embedding.Provider, client *Client) *Searcher {
 	}
 }
 
+// EnsureIndexes ensures that required payload indexes exist
+func (s *Searcher) EnsureIndexes(ctx context.Context) error {
+	// Create index for last_modified (datetime type) to support order_by
+	if err := s.client.CreatePayloadIndex(ctx, "last_modified", "datetime"); err != nil {
+		return fmt.Errorf("failed to create last_modified index: %w", err)
+	}
+
+	// Create index for book_id (integer type) for filtering
+	if err := s.client.CreatePayloadIndex(ctx, "book_id", "integer"); err != nil {
+		return fmt.Errorf("failed to create book_id index: %w", err)
+	}
+
+	return nil
+}
+
 // GetMaxID retrieves the maximum book ID from Qdrant
 func (s *Searcher) GetMaxID() (uint64, error) {
 	ctx := context.Background()
@@ -182,13 +197,17 @@ func (s *Searcher) SearchByKeyword(keyword string, filterType string, limit, off
 		// For production, consider using Qdrant's full-text index feature
 		return s.scrollAndFilterByTitle(keyword, limit, offset)
 	case "publisher":
-		// For exact matches, we could use Qdrant filter
-		// But for simplicity, we'll also use scroll and filter in memory
-		return s.scrollAndFilterByField(keyword, "publisher", limit, offset)
+		// Use Qdrant native filter for precise matching (indexed keyword field)
+		return s.filterByQdrantMatch(keyword, "publisher", limit, offset)
 	case "author":
-		return s.scrollAndFilterByField(keyword, "authors", limit, offset)
+		// Use Qdrant native filter for precise matching (indexed keyword field)
+		return s.filterByQdrantMatch(keyword, "authors", limit, offset)
+	case "tags":
+		// Use Qdrant native filter for precise matching (indexed keyword field)
+		return s.filterByQdrantMatch(keyword, "tags", limit, offset)
 	case "isbn":
-		return s.scrollAndFilterByField(keyword, "isbn", limit, offset)
+		// Use Qdrant native filter for exact matching (indexed keyword field)
+		return s.filterByQdrantExact(keyword, "isbn", limit, offset)
 	case "id":
 		id, err := strconv.ParseUint(keyword, 10, 64)
 		if err != nil {
@@ -203,25 +222,8 @@ func (s *Searcher) SearchByKeyword(keyword string, filterType string, limit, off
 		}
 		return []semantic.Book{PayloadToBook(point.ID, point.Payload)}, 1, nil
 	default:
-		// Return all books if no filter type specified
-		scrollOffset := uint64(offset)
-		points, _, err := s.client.Scroll(ctx, limit, &scrollOffset, false)
-		if err != nil {
-			return nil, 0, fmt.Errorf("qdrant scroll failed: %w", err)
-		}
-
-		books := make([]semantic.Book, len(points))
-		for i, point := range points {
-			books[i] = PayloadToBook(point.ID, point.Payload)
-		}
-
-		// Get total count
-		total, err := s.client.Count(ctx)
-		if err != nil {
-			return books, int64(len(books)), nil
-		}
-
-		return books, int64(total), nil
+		// Return all books if no filter type specified, sorted by book_id desc
+		return s.getAllBooksSorted(limit, offset)
 	}
 }
 
@@ -311,57 +313,107 @@ func (s *Searcher) HybridSearch(query string, filter map[string]interface{}, lim
 	return searchResults, nil
 }
 
-// GetRecent retrieves recent books sorted by last_modified time
+// GetRecent retrieves recent books sorted by book_id descending (newest first)
 func (s *Searcher) GetRecent(limit, offset int) ([]semantic.Book, int64, error) {
 	ctx := context.Background()
 
-	// Qdrant doesn't support sorting in Scroll API
-	// We need to scroll through all books and sort in memory
-	// For production, consider maintaining a separate sorted index
-
-	var allBooks []semantic.Book
-	var scrollOffset *uint64
-	batchSize := 1000
-
-	// Scroll through all books
-	for {
-		points, nextOffset, err := s.client.Scroll(ctx, batchSize, scrollOffset, false)
-		if err != nil {
-			return nil, 0, fmt.Errorf("qdrant scroll failed: %w", err)
-		}
-
-		for _, point := range points {
-			book := PayloadToBook(point.ID, point.Payload)
-			allBooks = append(allBooks, book)
-		}
-
-		if nextOffset == nil {
-			break
-		}
-		scrollOffset = nextOffset
-
-		// Limit total books to avoid memory issues
-		if len(allBooks) >= 10000 {
-			break
-		}
+	// Get total count
+	total, err := s.client.Count(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get count: %w", err)
 	}
 
-	// Sort by last_modified (descending)
-	// Note: This is done in memory, which may not be efficient for large datasets
-	// For production, consider using a different approach
+	if total == 0 {
+		return []semantic.Book{}, 0, nil
+	}
 
-	total := int64(len(allBooks))
+	// Create OrderBy using book_id payload field (indexed as integer)
+	// Order by book_id descending to get newest books first
+	orderBy := &OrderBy{
+		Key:       "book_id",
+		Direction: "desc",
+	}
+
+	// For offset-based pagination with order_by, we need to fetch from beginning
+	// This is a limitation but acceptable for "recent" endpoint which usually shows first page
+	totalToFetch := offset + limit
+
+	// Get ordered points from Qdrant
+	points, _, err := s.client.ScrollWithOrder(ctx, totalToFetch, nil, false, orderBy)
+	if err != nil {
+		return nil, 0, fmt.Errorf("qdrant scroll with order failed: %w", err)
+	}
+
+	// Convert to books
+	var allBooks []semantic.Book
+	for _, point := range points {
+		book := PayloadToBook(point.ID, point.Payload)
+		allBooks = append(allBooks, book)
+	}
+
+	// Apply offset pagination
 	start := offset
 	end := offset + limit
 
 	if start >= len(allBooks) {
-		return []semantic.Book{}, total, nil
+		return []semantic.Book{}, int64(total), nil
 	}
 	if end > len(allBooks) {
 		end = len(allBooks)
 	}
 
-	return allBooks[start:end], total, nil
+	return allBooks[start:end], int64(total), nil
+}
+
+// GetAllWithCursor retrieves all books using cursor-based pagination with order_by on book_id
+// Requires book_id payload index to be created
+func (s *Searcher) GetAllWithCursor(limit int, cursor string) ([]semantic.Book, int64, string, error) {
+	ctx := context.Background()
+
+	// Get total count
+	total, err := s.client.Count(ctx)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("failed to get count: %w", err)
+	}
+
+	if total == 0 {
+		return []semantic.Book{}, 0, "", nil
+	}
+
+	// Create OrderBy using book_id payload field (indexed as integer)
+	// Order by book_id descending to get newest books first
+	orderBy := &OrderBy{
+		Key:       "book_id", // Use indexed payload field
+		Direction: "desc",
+	}
+
+	// Parse cursor as start_from value (the book_id to start from)
+	if cursor != "" {
+		parsedID, err := strconv.ParseInt(cursor, 10, 64)
+		if err == nil {
+			orderBy.StartFrom = parsedID
+		}
+	}
+
+	// Get ordered points from Qdrant using book_id ordering
+	points, _, err := s.client.ScrollWithOrder(ctx, limit, nil, false, orderBy)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("qdrant scroll with order failed: %w", err)
+	}
+
+	// Convert to books
+	books := make([]semantic.Book, len(points))
+	for i, point := range points {
+		books[i] = PayloadToBook(point.ID, point.Payload)
+	}
+
+	// Prepare next cursor (smallest book_id in current page for descending order)
+	var nextCursor string
+	if len(books) > 0 {
+		nextCursor = strconv.FormatInt(books[len(books)-1].ID, 10)
+	}
+
+	return books, int64(total), nextCursor, nil
 }
 
 // GetRandom retrieves random books
@@ -460,10 +512,13 @@ func (s *Searcher) IndexBooks(ctx context.Context, books []semantic.Book) error 
 }
 
 // scrollAndFilterByField scrolls through all books and filters by a specific field
-
+// For ISBN, use exact match; for other fields, use contains match
 func (s *Searcher) scrollAndFilterByField(keyword string, fieldName string, limit, offset int) ([]semantic.Book, int64, error) {
 	ctx := context.Background()
-	keyword = strings.ToLower(keyword)
+	keywordLower := strings.ToLower(keyword)
+
+	// Determine if exact match is needed
+	exactMatch := (fieldName == "isbn")
 
 	var matchedBooks []semantic.Book
 	var scrollOffset *uint64
@@ -482,13 +537,23 @@ func (s *Searcher) scrollAndFilterByField(keyword string, fieldName string, limi
 			if fieldValue, ok := point.Payload[fieldName]; ok {
 				switch v := fieldValue.(type) {
 				case string:
-					match = strings.Contains(strings.ToLower(v), keyword)
+					if exactMatch {
+						// Exact match for ISBN
+						match = strings.EqualFold(v, keyword)
+					} else {
+						// Contains match for other fields
+						match = strings.Contains(strings.ToLower(v), keywordLower)
+					}
 				case []interface{}:
-					// For array fields like authors
+					// For array fields like authors, tags
 					for _, item := range v {
 						if str, ok := item.(string); ok {
-							if strings.Contains(strings.ToLower(str), keyword) {
-								match = true
+							if exactMatch {
+								match = strings.EqualFold(str, keyword)
+							} else {
+								match = strings.Contains(strings.ToLower(str), keywordLower)
+							}
+							if match {
 								break
 							}
 						}
@@ -527,4 +592,182 @@ func (s *Searcher) scrollAndFilterByField(keyword string, fieldName string, limi
 	}
 
 	return matchedBooks[start:end], total, nil
+}
+
+// filterByQdrantMatch uses Qdrant's native Match filter for keyword fields (contains matching)
+// This is much faster than scrollAndFilterByField as it uses indexed keyword fields
+func (s *Searcher) filterByQdrantMatch(keyword string, fieldName string, limit, offset int) ([]semantic.Book, int64, error) {
+	ctx := context.Background()
+
+	// Create Qdrant Match filter for keyword field
+	// Match filter performs case-insensitive text matching for keyword fields
+	filter := map[string]interface{}{
+		"must": []map[string]interface{}{
+			{
+				"key": fieldName,
+				"match": map[string]interface{}{
+					"text": keyword,
+				},
+			},
+		},
+	}
+
+	// Create OrderBy for book_id descending
+	orderBy := &OrderBy{
+		Key:       "book_id",
+		Direction: "desc",
+	}
+
+	// For offset-based pagination with filters, we need to fetch all and slice
+	// This is acceptable for filtered results which are usually smaller
+	totalToFetch := offset + limit
+	if totalToFetch > 1000 {
+		totalToFetch = 1000 // Cap at 1000 to prevent excessive memory usage
+	}
+
+	// Scroll with filter and order
+	req := ScrollRequest{
+		Limit:       totalToFetch,
+		WithPayload: true,
+		WithVector:  false,
+		Filter:      filter,
+		OrderBy:     orderBy,
+	}
+
+	points, _, err := s.client.ScrollWithFilter(ctx, req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("qdrant scroll with filter failed: %w", err)
+	}
+
+	// Convert to books
+	var books []semantic.Book
+	for _, point := range points {
+		book := PayloadToBook(point.ID, point.Payload)
+		books = append(books, book)
+	}
+
+	// Get total count (approximate from fetched results)
+	total := int64(len(books))
+
+	// Apply offset pagination
+	start := offset
+	end := offset + limit
+
+	if start >= len(books) {
+		return []semantic.Book{}, total, nil
+	}
+	if end > len(books) {
+		end = len(books)
+	}
+
+	return books[start:end], total, nil
+}
+
+// filterByQdrantExact uses Qdrant's native Match filter for exact matching (e.g., ISBN)
+func (s *Searcher) filterByQdrantExact(keyword string, fieldName string, limit, offset int) ([]semantic.Book, int64, error) {
+	ctx := context.Background()
+
+	// Create Qdrant Match filter with exact value
+	filter := map[string]interface{}{
+		"must": []map[string]interface{}{
+			{
+				"key": fieldName,
+				"match": map[string]interface{}{
+					"value": keyword,
+				},
+			},
+		},
+	}
+
+	// Create OrderBy for book_id descending
+	orderBy := &OrderBy{
+		Key:       "book_id",
+		Direction: "desc",
+	}
+
+	// Scroll with filter and order
+	req := ScrollRequest{
+		Limit:       limit + offset,
+		WithPayload: true,
+		WithVector:  false,
+		Filter:      filter,
+		OrderBy:     orderBy,
+	}
+
+	points, _, err := s.client.ScrollWithFilter(ctx, req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("qdrant scroll with filter failed: %w", err)
+	}
+
+	// Convert to books
+	var books []semantic.Book
+	for _, point := range points {
+		book := PayloadToBook(point.ID, point.Payload)
+		books = append(books, book)
+	}
+
+	total := int64(len(books))
+
+	// Apply offset pagination
+	start := offset
+	end := offset + limit
+
+	if start >= len(books) {
+		return []semantic.Book{}, total, nil
+	}
+	if end > len(books) {
+		end = len(books)
+	}
+
+	return books[start:end], total, nil
+}
+
+// getAllBooksSorted returns all books sorted by book_id descending using Qdrant's order_by
+func (s *Searcher) getAllBooksSorted(limit, offset int) ([]semantic.Book, int64, error) {
+	ctx := context.Background()
+
+	// Get total count
+	totalCount, err := s.client.Count(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get count: %w", err)
+	}
+
+	if totalCount == 0 {
+		return []semantic.Book{}, 0, nil
+	}
+
+	// Create OrderBy for book_id descending
+	orderBy := &OrderBy{
+		Key:       "book_id",
+		Direction: "desc",
+	}
+
+	// For offset-based pagination with order_by, fetch from beginning
+	totalToFetch := offset + limit
+
+	// Scroll with order
+	points, _, err := s.client.ScrollWithOrder(ctx, totalToFetch, nil, false, orderBy)
+	if err != nil {
+		return nil, 0, fmt.Errorf("qdrant scroll with order failed: %w", err)
+	}
+
+	// Convert to books
+	var books []semantic.Book
+	for _, point := range points {
+		book := PayloadToBook(point.ID, point.Payload)
+		books = append(books, book)
+	}
+
+	// Apply offset pagination
+	start := offset
+	end := offset + limit
+
+	if start >= len(books) {
+		return []semantic.Book{}, int64(totalCount), nil
+	}
+	if end > len(books) {
+		end = len(books)
+	}
+
+	return books[start:end], int64(totalCount), nil
 }

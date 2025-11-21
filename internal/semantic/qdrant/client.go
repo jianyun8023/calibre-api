@@ -83,6 +83,14 @@ type ScrollRequest struct {
 	WithVector  bool                   `json:"with_vector"`
 	Offset      *uint64                `json:"offset,omitempty"`
 	Filter      map[string]interface{} `json:"filter,omitempty"`
+	OrderBy     *OrderBy               `json:"order_by,omitempty"`
+}
+
+// OrderBy represents sorting configuration for scroll requests
+type OrderBy struct {
+	Key       string      `json:"key"`
+	Direction string      `json:"direction,omitempty"`  // "asc" or "desc", default is "asc"
+	StartFrom interface{} `json:"start_from,omitempty"` // Value to start from for pagination
 }
 
 // ScrollResponse represents scroll results
@@ -194,6 +202,45 @@ func (c *Client) Search(ctx context.Context, vector []float32, filter map[string
 
 // Scroll retrieves points with pagination
 func (c *Client) Scroll(ctx context.Context, limit int, offset *uint64, withVector bool) ([]ScrollPoint, *uint64, error) {
+	return c.ScrollWithOrder(ctx, limit, offset, withVector, nil)
+}
+
+// ScrollWithFilter retrieves points with filter
+func (c *Client) ScrollWithFilter(ctx context.Context, req ScrollRequest) ([]ScrollPoint, *uint64, error) {
+	url := fmt.Sprintf("%s/collections/%s/points/scroll", c.baseURL, c.collection)
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return nil, nil, fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, nil, fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, nil, fmt.Errorf("scroll failed: status=%d, body=%s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var scrollResp ScrollResponse
+	if err := json.NewDecoder(resp.Body).Decode(&scrollResp); err != nil {
+		return nil, nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return scrollResp.Result.Points, scrollResp.Result.NextPageOffset, nil
+}
+
+// ScrollWithOrder retrieves points with pagination and optional ordering
+func (c *Client) ScrollWithOrder(ctx context.Context, limit int, offset *uint64, withVector bool, orderBy *OrderBy) ([]ScrollPoint, *uint64, error) {
 	url := fmt.Sprintf("%s/collections/%s/points/scroll", c.baseURL, c.collection)
 
 	req := ScrollRequest{
@@ -201,6 +248,7 @@ func (c *Client) Scroll(ctx context.Context, limit int, offset *uint64, withVect
 		WithPayload: true,
 		WithVector:  withVector,
 		Offset:      offset,
+		OrderBy:     orderBy,
 	}
 
 	body, err := json.Marshal(req)
@@ -271,6 +319,40 @@ type RetrieveResponse struct {
 	} `json:"result"`
 	Status string  `json:"status"`
 	Time   float64 `json:"time"`
+}
+
+// CreatePayloadIndex creates an index for a payload field
+func (c *Client) CreatePayloadIndex(ctx context.Context, fieldName, fieldType string) error {
+	url := fmt.Sprintf("%s/collections/%s/index", c.baseURL, c.collection)
+
+	reqBody := map[string]interface{}{
+		"field_name":   fieldName,
+		"field_schema": fieldType,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("create index failed: status=%d, body=%s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return nil
 }
 
 // Retrieve gets a single point by ID
