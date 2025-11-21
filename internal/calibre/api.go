@@ -1,16 +1,13 @@
 package calibre
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
 	"os"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -20,9 +17,8 @@ import (
 	"github.com/jianyun8023/calibre-api/pkg/content"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 	"github.com/kapmahc/epub"
-	"github.com/meilisearch/meilisearch-go"
-	"github.com/spf13/cast"
 
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
@@ -34,7 +30,7 @@ type Api struct {
 	baseDir          string
 	http             *client.Client
 	qdrantClient     *qdrant.Client
-	semanticSearcher interface{} // Can be *qdrant.Searcher or nil
+	semanticSearcher interface{} // *qdrant.Searcher
 }
 
 func (c *Api) SetupRouter(r *gin.Engine) {
@@ -57,23 +53,52 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	// 最近更新Recently
 	base.GET("/recently", c.recently)
 	base.GET("/random", c.random)
-	base.POST("/index/update", c.updateIndex)
-	base.POST("/index/switch", c.switchIndex)
 
 	// Enhanced Tools MCP 端点
 	base.GET("/mcp/tools/enhanced", c.getEnhancedTools)
 	base.POST("/mcp/tools/enhanced/:tool", c.executeEnhancedTool)
 
 	// Semantic Search Endpoints
-	base.POST("/search/semantic/index", c.semanticIndexStart)
-	base.POST("/search/semantic/index/stop", c.semanticIndexStop)
-	base.GET("/search/semantic/index/status", c.semanticIndexStatus)
 	base.GET("/search/semantic", c.semanticSearch)
 
 	// Task Management Endpoints
 	base.GET("/tasks", c.listTasks)
 	base.POST("/tasks/start", c.startTask)
 	base.POST("/tasks/:id/stop", c.stopTask)
+}
+
+// Deprecated: This function will be removed after migration to Qdrant
+
+// getBookByID retrieves a book by ID from Qdrant
+func (c *Api) getBookByID(id string) (*Book, error) {
+	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+	if !ok || searcher == nil {
+		return nil, fmt.Errorf("search service not available")
+	}
+
+	books, _, err := searcher.SearchByKeyword(id, "id", 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	if len(books) == 0 {
+		return nil, fmt.Errorf("book not found")
+	}
+
+	book := &Book{
+		ID:           books[0].ID,
+		Title:        books[0].Title,
+		Authors:      books[0].Authors,
+		Publisher:    books[0].Publisher,
+		PubDate:      books[0].PubDate,
+		Isbn:         books[0].Isbn,
+		Tags:         books[0].Tags,
+		Rating:       books[0].Rating,
+		SeriesIndex:  books[0].SeriesIndex,
+		Comments:     books[0].Comments,
+		Languages:    books[0].Languages,
+		LastModified: books[0].LastModified,
+	}
+	return book, nil
 }
 
 func NewClient(config *Config) *Api {
@@ -100,18 +125,18 @@ func NewClient(config *Config) *Api {
 		log.Info("Qdrant client initialized successfully")
 
 		// Initialize embedding provider for Qdrant searcher
-		providerConfig := embedding.ProviderConfig{
+		qdrantProviderConfig := embedding.ProviderConfig{
 			Provider:    config.Embedding.Provider,
 			Ollama:      config.Embedding.Ollama,
 			SiliconFlow: config.Embedding.SiliconFlow,
 			VectorDim:   4096, // Qdrant uses 4096 dimensions
 		}
 
-		provider, err := embedding.NewProvider(providerConfig)
+		qdrantProvider, err := embedding.NewProvider(qdrantProviderConfig)
 		if err != nil {
-			log.Warnf("Failed to create embedding provider: %v", err)
+			log.Warnf("Failed to create Qdrant embedding provider: %v", err)
 		} else {
-			qdrantSearcher = qdrant.NewSearcher(provider, qdrantClient)
+			qdrantSearcher = qdrant.NewSearcher(qdrantProvider, qdrantClient)
 			log.Info("Qdrant searcher initialized successfully")
 		}
 	}
@@ -134,49 +159,6 @@ func NewClient(config *Config) *Api {
 	log.Infof("SSE MCP Server initialized with base URL: %s", baseURL)
 
 	return &api
-}
-
-// ensureIndexExists checks if a Meilisearch index exists, and if not, creates it and updates its settings.
-//
-// Parameters:
-// - client: A pointer to the Meilisearch client.
-// - indexName: The name of the index to check or create.
-//
-// Returns:
-// - A pointer to the Meilisearch index.
-// - An error if the index creation or settings update fails.
-func ensureIndexExists(client *meilisearch.Client, indexName string) (*meilisearch.Index, error) {
-	index := client.Index(indexName)
-
-	// Fetch index information to check if it exists
-	log.Infof("Checking if index %q exists", indexName)
-	_, err := index.FetchInfo()
-	if err != nil {
-		log.Infof("Failed to fetch index info for %q: %v", indexName, err)
-		// Index does not exist, create it
-		log.Infof("Creating index %q", indexName)
-		_, err = client.CreateIndex(&meilisearch.IndexConfig{
-			Uid:        indexName,
-			PrimaryKey: "id",
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create index: %w", err)
-		}
-		log.Infof("Index %q created", indexName)
-		// Update index settings
-		log.Infof("Updating index settings for %q", indexName)
-		_, err = index.UpdateSettings(&meilisearch.Settings{
-			//RankingRules:         []string{"typo", "words", "proximity", "attribute", "exactness"},
-			DisplayedAttributes:  []string{"*"},
-			FilterableAttributes: []string{"authors", "file_path", "id", "last_modified", "pubdate", "publisher", "isbn", "tags"},
-			SearchableAttributes: []string{"title", "authors", "isbn", "publisher"},
-			SortableAttributes:   []string{"authors_sort", "id", "last_modified", "pubdate", "publisher"},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to update index settings: %w", err)
-		}
-	}
-	return index, nil
 }
 
 func (c *Api) search(r *gin.Context) {
@@ -210,7 +192,7 @@ func (c *Api) search(r *gin.Context) {
 	// Check if Qdrant searcher is available
 	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
 	if !ok || searcher == nil {
-		log.Error("Qdrant searcher not available")
+		log.Warnf("Qdrant searcher not available")
 		r.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Search service not available",
 			"code":  500,
@@ -218,10 +200,40 @@ func (c *Api) search(r *gin.Context) {
 		return
 	}
 
-	// Perform keyword search using Qdrant
-	books, total, err := searcher.SearchByKeyword(q, filterType, limit, offset)
+	mode := r.Query("mode")
+	if mode == "" {
+		mode = "hybrid" // default to hybrid
+	}
+
+	var books []semantic.Book
+	var total int64
+	var err error
+
+	switch mode {
+	case "semantic":
+		// Semantic search
+		var results []semantic.SearchResult
+		results, err = searcher.Search(q, limit)
+		if err == nil {
+			books = make([]semantic.Book, len(results))
+			for i, res := range results {
+				books[i] = res.Book
+			}
+			total = int64(len(books)) // Approximate total for semantic
+		}
+	case "hybrid":
+		// Hybrid search
+		books, err = searcher.HybridSearchCombined(q, limit)
+		if err == nil {
+			total = int64(len(books)) // Approximate total for hybrid
+		}
+	default:
+		// Keyword search (default fallback or explicit 'keyword')
+		books, total, err = searcher.SearchByKeyword(q, filterType, limit, offset)
+	}
+
 	if err != nil {
-		log.Errorf("Qdrant search failed: %v", err)
+		log.Warnf("Search failed (mode=%s): %v", mode, err)
 		r.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 			"code":  500,
@@ -237,14 +249,16 @@ func (c *Api) search(r *gin.Context) {
 			Title:        book.Title,
 			Authors:      book.Authors,
 			Publisher:    book.Publisher,
-			Pubdate:      book.Pubdate,
-			ISBN:         book.ISBN,
+			PubDate:      book.PubDate,
+			Isbn:         book.Isbn,
 			Tags:         book.Tags,
 			Rating:       book.Rating,
 			SeriesIndex:  book.SeriesIndex,
 			Comments:     book.Comments,
 			Languages:    book.Languages,
 			LastModified: book.LastModified,
+			Cover:        book.Cover,
+			FilePath:     book.FilePath,
 		}
 	}
 
@@ -262,17 +276,45 @@ func (c *Api) search(r *gin.Context) {
 // 获取书籍信息接口
 func (c *Api) getBook(r *gin.Context) {
 	id := r.Param("id")
-	var book Book
-	err := c.currentIndex().GetDocument(id, nil, &book)
 
-	if err != nil {
-		// 返回文件找不到
+	// Use Qdrant to search by ID
+	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+	if !ok || searcher == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{
+			"message": "Search service not available",
+			"code":    http.StatusServiceUnavailable,
+		})
+		return
+	}
+
+	// Search by ID using keyword search
+	books, _, err := searcher.SearchByKeyword(id, "id", 1, 0)
+	if err != nil || len(books) == 0 {
 		r.JSON(http.StatusOK, gin.H{
-			"message": "book not found" + err.Error(),
+			"message": "book not found",
 			"code":    http.StatusNotFound,
 		})
 		return
 	}
+
+	// Convert semantic.Book to calibre.Book
+	book := Book{
+		ID:           books[0].ID,
+		Title:        books[0].Title,
+		Authors:      books[0].Authors,
+		Publisher:    books[0].Publisher,
+		PubDate:      books[0].PubDate,
+		Isbn:         books[0].Isbn,
+		Tags:         books[0].Tags,
+		Rating:       books[0].Rating,
+		SeriesIndex:  books[0].SeriesIndex,
+		Comments:     books[0].Comments,
+		Languages:    books[0].Languages,
+		LastModified: books[0].LastModified,
+		Cover:        books[0].Cover,
+		FilePath:     books[0].FilePath,
+	}
+
 	r.JSON(http.StatusOK, gin.H{
 		"data":    &book,
 		"message": "ok",
@@ -293,15 +335,9 @@ func (c *Api) deleteBook(r *gin.Context) {
 		})
 		return
 	}
-	_, err = c.currentIndex().DeleteDocument(id)
-	if err != nil {
-		// 返回文件找不到
-		r.JSON(http.StatusOK, gin.H{
-			"message": "book not found" + err.Error(),
-			"code":    http.StatusNotFound,
-		})
-		return
-	}
+
+	// TODO: Also delete from Qdrant when delete API is implemented
+
 	r.JSON(http.StatusOK, gin.H{
 		"data":    true,
 		"message": "ok",
@@ -356,11 +392,11 @@ func (c *Api) getBookContent(r *gin.Context) {
 
 	//path1 := path.Join(c.Query("baseDir"), c.Query("path"))
 	path1 := r.Param("path")
-	var book Book
-	err := c.currentIndex().GetDocument(id, nil, &book)
+	_, err := c.getBookByID(id)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, err)
 	} else {
+
 		filepath, _ := c.getFileOrCache(id)
 
 		destDir := path.Join(c.baseDir, id)
@@ -403,8 +439,7 @@ func (c *Api) getBookContentByQuery(r *gin.Context) {
 		filePath = "OEBPS/content.opf" // 默认返回 OPF 文件
 	}
 
-	var book Book
-	err := c.currentIndex().GetDocument(id, nil, &book)
+	_, err := c.getBookByID(id)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -521,153 +556,6 @@ func (c *Api) getFileOrCache(id string) (string, error) {
 	return filename, err
 }
 
-func (c *Api) switchIndex(c2 *gin.Context) {
-
-	resp, err := c.client.GetTasks(&meilisearch.TasksQuery{
-		Limit:     2,
-		Statuses:  []string{"enqueued", "processing"},
-		IndexUIDS: []string{c.config.Search.Index, c.config.Search.Index + "-bak"},
-	})
-	if err != nil {
-		log.Warn(err)
-		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
-		return
-	}
-	if len(resp.Results) != 0 {
-		log.Warn(err)
-		c2.JSON(http.StatusOK, gin.H{"code": 400, "error": "有任务正在执行，请稍后再试"})
-		return
-	}
-
-	targetIndex := ""
-	if c.useIndex == c.config.Search.Index {
-		targetIndex = c.config.Search.Index + "-bak"
-	} else {
-		targetIndex = c.config.Search.Index
-	}
-
-	// Check if target index exists and has documents
-	stats, err := c.client.Index(targetIndex).GetStats()
-	if err != nil {
-		log.Warnf("Failed to get stats for target index %s: %v", targetIndex, err)
-		c2.JSON(http.StatusOK, gin.H{"code": 400, "error": fmt.Sprintf("无法切换：目标索引 '%s' 不存在或无法访问", targetIndex)})
-		return
-	}
-
-	if stats.NumberOfDocuments == 0 {
-		c2.JSON(http.StatusOK, gin.H{"code": 400, "error": fmt.Sprintf("无法切换：目标索引 '%s' 为空，请先执行全量重建", targetIndex)})
-		return
-	}
-
-	c.useIndex = targetIndex
-	c2.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"current_index": c.useIndex,
-		},
-	})
-}
-func (c *Api) updateIndex(c2 *gin.Context) {
-	booksIds, err2 := c.contentApi.GetAllBooksIds("")
-	if err2 != nil {
-		log.Warn(err2)
-		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err2.Error()})
-		return
-	}
-	index := c.currentIndex()
-	if c.useIndex == c.config.Search.Index {
-		index = c.client.Index(c.config.Search.Index + "-bak")
-	} else {
-		index = c.client.Index(c.config.Search.Index)
-	}
-	_, err := index.DeleteAllDocuments()
-	if err != nil {
-		log.Warn(err)
-		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
-		return
-	}
-
-	// 按 2000 分段 booksIds,查询书籍，更新索引
-	var books []Book
-	var taskIds []int64
-	for i := 0; i < len(booksIds); i += 2000 {
-		ids := booksIds[i:min(i+2000, len(booksIds))]
-		log.Infof("update index %d [%d - %d]", i, ids[0], ids[len(ids)-1])
-
-		data, err := c.contentApi.GetBookMetaDatas(ids, "")
-		if err != nil {
-			log.Warnf("get book metadata error: %v", err)
-			c2.JSON(http.StatusOK, gin.H{"code": 500, "error": "get book metadata error: " + err.Error()})
-			return
-		}
-		books, err = convertContentBooks(data)
-		if err != nil {
-			c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
-			return
-		}
-		task, err := index.AddDocumentsInBatches(books, len(ids))
-		if err != nil {
-			c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
-			return
-		}
-		for _, info := range task {
-			taskIds = append(taskIds, info.TaskUID)
-		}
-	}
-
-	err = waitForTask(c, taskIds)
-	if err != nil {
-		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err.Error()})
-		return
-	}
-
-	c2.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    len(booksIds),
-	})
-}
-
-func waitForTask(c *Api, taskIds []int64) error {
-	timeout := time.After(30 * time.Second) // Set timeout duration
-	done := make(chan bool)
-
-	go func() {
-		for {
-			resp, err := c.client.GetTasks(&meilisearch.TasksQuery{
-				Limit:    2,
-				Statuses: []string{"enqueued", "processing"},
-				UIDS:     taskIds,
-			})
-			if err != nil {
-				log.Warn(err)
-				done <- true
-				return
-			}
-			if len(resp.Results) == 0 {
-				done <- true
-				return
-			}
-			time.Sleep(3 * time.Second) // Add a small delay to avoid tight loop
-		}
-	}()
-
-	select {
-	case <-timeout:
-		log.Warn("Timeout reached while waiting for tasks to complete")
-		return fmt.Errorf("Timeout reached while waiting for tasks to complete")
-	case <-done:
-		log.Info("Tasks completed successfully")
-		if c.useIndex == c.config.Search.Index {
-			c.useIndex = c.config.Search.Index + "-bak"
-		} else {
-			c.useIndex = c.config.Search.Index
-		}
-		return nil
-	}
-}
-
 func (c *Api) recently(r *gin.Context) {
 	limit, err := strconv.Atoi(r.DefaultQuery("limit", "10"))
 	if err != nil {
@@ -680,43 +568,52 @@ func (c *Api) recently(r *gin.Context) {
 		return
 	}
 
-	searchRequest := meilisearch.SearchRequest{
-		Sort:   []string{"id:desc"},
-		Limit:  int64(limit),
-		Offset: int64(offset),
-	}
-
-	c.currentIndex().Search("", &searchRequest)
-
-	search, err := c.currentIndex().Search("", &searchRequest)
-	if err != nil {
-		r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Use Qdrant GetRecent
+	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+	if !ok || searcher == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Search service not available",
+			"code":  503,
+		})
 		return
 	}
 
-	books := make([]Book, len(search.Hits))
-	for i := range search.Hits {
-		tmp := search.Hits[i].(map[string]interface{})
-		jsonb, err := json.Marshal(tmp)
-		if err != nil {
-			r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+	books, total, err := searcher.GetRecent(limit, offset)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"code":  500,
+		})
+		return
+	}
 
-		book := Book{}
-		if err := json.Unmarshal(jsonb, &book); err != nil {
-			r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+	// Convert semantic.Book to calibre.Book
+	calibreBooks := make([]Book, len(books))
+	for i, book := range books {
+		calibreBooks[i] = Book{
+			ID:           book.ID,
+			Title:        book.Title,
+			Authors:      book.Authors,
+			Publisher:    book.Publisher,
+			PubDate:      book.PubDate,
+			Isbn:         book.Isbn,
+			Tags:         book.Tags,
+			Rating:       book.Rating,
+			SeriesIndex:  book.SeriesIndex,
+			Comments:     book.Comments,
+			Languages:    book.Languages,
+			LastModified: book.LastModified,
+			Cover:        book.Cover,
+			FilePath:     book.FilePath,
 		}
-		books[i] = book
 	}
 
 	r.JSON(http.StatusOK, gin.H{
 		"data": map[string]interface{}{
-			"records": &books,
-			"total":   search.EstimatedTotalHits,
-			"limit":   search.Limit,
-			"offset":  search.Offset,
+			"records": calibreBooks,
+			"total":   total,
+			"limit":   limit,
+			"offset":  offset,
 		},
 		"code": 200,
 	})
@@ -729,42 +626,48 @@ func (c *Api) random(r *gin.Context) {
 		return
 	}
 
-	RandomInt := func(min, max int) int {
-		return min + rand.Intn(max-min)
-	}
-	offset := RandomInt(0, 1000)
-
-	// 使用随机排序
-	searchRequest := meilisearch.SearchRequest{
-		Limit:  int64(limit),
-		Offset: int64(offset),
-	}
-
-	c.currentIndex().Search("", &searchRequest)
-	search, err := c.currentIndex().Search("", &searchRequest)
-	if err != nil {
-		r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Use Qdrant GetRandom
+	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+	if !ok || searcher == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Search service not available",
+			"code":  503,
+		})
 		return
 	}
 
-	books := make([]Book, len(search.Hits))
-	for i := range search.Hits {
-		tmp := search.Hits[i].(map[string]interface{})
-		jsonb, err := json.Marshal(tmp)
-		if err != nil {
-			r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+	books, err := searcher.GetRandom(limit)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"code":  500,
+		})
+		return
+	}
+
+	// Convert semantic.Book to calibre.Book
+	calibreBooks := make([]Book, len(books))
+	for i, book := range books {
+		calibreBooks[i] = Book{
+			ID:           book.ID,
+			Title:        book.Title,
+			Authors:      book.Authors,
+			Publisher:    book.Publisher,
+			PubDate:      book.PubDate,
+			Isbn:         book.Isbn,
+			Tags:         book.Tags,
+			Rating:       book.Rating,
+			SeriesIndex:  book.SeriesIndex,
+			Comments:     book.Comments,
+			Languages:    book.Languages,
+			LastModified: book.LastModified,
+			Cover:        book.Cover,
+			FilePath:     book.FilePath,
 		}
-		book := Book{}
-		if err := json.Unmarshal(jsonb, &book); err != nil {
-			r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		books[i] = book
 	}
 
 	r.JSON(http.StatusOK, gin.H{
-		"data": &books,
+		"data": calibreBooks,
 		"code": 200,
 	})
 }
@@ -782,8 +685,7 @@ func (c *Api) updateMetadata(r *gin.Context) {
 		return
 	}
 
-	oldBook := &Book{}
-	err = c.currentIndex().GetDocument(id, nil, oldBook)
+	oldBook, err := c.getBookByID(id)
 	if err != nil {
 		r.JSON(http.StatusOK, gin.H{
 			"code":    500,
@@ -802,95 +704,13 @@ func (c *Api) updateMetadata(r *gin.Context) {
 		return
 	}
 
-	data, err := c.contentApi.GetBookMetaDatas([]int64{cast.ToInt64(id)}, "")
-	if err != nil {
-		log.Warnf("get book metadata error: %v", err)
-		r.JSON(http.StatusOK, gin.H{
-			"code":    500,
-			"data":    false,
-			"message": "元数据更新成功，但是查询元数据失败",
-		})
-		return
-	}
-	books, err := convertContentBooks(data)
-	if err != nil {
-		r.JSON(http.StatusOK, gin.H{
-			"code":    500,
-			"data":    false,
-			"message": "书籍元数据翻译失败，请刷新索引",
-		})
-		return
-	}
-	_, err = c.currentIndex().AddDocuments(books)
-	if err != nil {
-		// 返回文件找不到
-		r.JSON(http.StatusOK, gin.H{
-			"code":    500,
-			"data":    false,
-			"message": "元数据更新成功，但是索引更新失败，请刷新索引",
-		})
-		return
-	}
-	r.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data":    &books[0],
-	})
-
-}
-
-func (c *Api) semanticIndexStart(r *gin.Context) {
-	if c.semanticIndexer == nil {
-		r.JSON(http.StatusServiceUnavailable, gin.H{
-			"code":    503,
-			"message": "Semantic search is not initialized",
-		})
-		return
-	}
-
-	if err := c.semanticIndexer.Start(); err != nil {
-		r.JSON(http.StatusConflict, gin.H{
-			"code":    409,
-			"message": err.Error(),
-		})
-		return
-	}
+	// TODO: Update Qdrant metadata when UpdateBookMetadata is implemented
+	// For now, metadata will be updated on next sync
 
 	r.JSON(http.StatusOK, gin.H{
 		"code":    200,
-		"message": "Semantic indexing started",
-	})
-}
-
-func (c *Api) semanticIndexStop(r *gin.Context) {
-	if c.semanticIndexer == nil {
-		r.JSON(http.StatusServiceUnavailable, gin.H{
-			"code":    503,
-			"message": "Semantic search is not initialized",
-		})
-		return
-	}
-
-	c.semanticIndexer.Stop()
-	r.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "Semantic indexing stopped",
-	})
-}
-
-func (c *Api) semanticIndexStatus(r *gin.Context) {
-	if c.semanticIndexer == nil {
-		r.JSON(http.StatusServiceUnavailable, gin.H{
-			"code":    503,
-			"message": "Semantic search is not initialized",
-		})
-		return
-	}
-
-	status := c.semanticIndexer.GetStatus()
-	r.JSON(http.StatusOK, gin.H{
-		"code": 200,
-		"data": status,
+		"data":    true,
+		"message": "元数据更新成功",
 	})
 }
 
@@ -920,44 +740,8 @@ func (c *Api) startTask(r *gin.Context) {
 		return
 	}
 
-	manager := tasks.GetManager()
-	var taskID string
-	var err error
-
 	switch tasks.TaskType(req.Type) {
-	case tasks.TaskTypeMeilisearchSync:
-		targetIndex := c.useIndex
-		// If Full Sync, target the inactive index (backup)
-		if tasks.TaskMode(req.Mode) == tasks.TaskModeFull {
-			if c.useIndex == c.config.Search.Index {
-				targetIndex = c.config.Search.Index + "-bak"
-			} else {
-				targetIndex = c.config.Search.Index
-			}
-		}
-
-		taskID, err = manager.StartTask(tasks.TaskTypeMeilisearchSync, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
-			return tasks.NewMeilisearchTask(id, tasks.TaskMode(req.Mode), c.contentApi, c.client, targetIndex)
-		})
-	case tasks.TaskTypeVectorSync:
-		if c.semanticIndexer == nil {
-			r.JSON(http.StatusServiceUnavailable, gin.H{
-				"code":    503,
-				"message": "Semantic search is not initialized",
-			})
-			return
-		}
-		taskID, err = manager.StartTask(tasks.TaskTypeVectorSync, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
-			return tasks.NewVectorTask(id, tasks.TaskMode(req.Mode), c.semanticIndexer)
-		})
-	case tasks.TaskTypeQdrantMigration:
-		if c.milvusClient == nil {
-			r.JSON(http.StatusServiceUnavailable, gin.H{
-				"code":    503,
-				"message": "Milvus client is not initialized",
-			})
-			return
-		}
+	case tasks.TaskTypeQdrantSync:
 		if c.qdrantClient == nil {
 			r.JSON(http.StatusServiceUnavailable, gin.H{
 				"code":    503,
@@ -965,9 +749,35 @@ func (c *Api) startTask(r *gin.Context) {
 			})
 			return
 		}
-		taskID, err = manager.StartTask(tasks.TaskTypeQdrantMigration, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
-			return tasks.NewQdrantMigrationTask(c.milvusClient, c.qdrantClient, c.contentApi)
+
+		searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+		if !ok || searcher == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Qdrant searcher is not initialized",
+			})
+			return
+		}
+
+		manager := tasks.GetManager()
+		taskID, err := manager.StartTask(tasks.TaskTypeQdrantSync, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
+			return tasks.NewQdrantSyncTask(id, tasks.TaskMode(req.Mode), c.contentApi, c.qdrantClient, searcher)
 		})
+
+		if err != nil {
+			r.JSON(http.StatusConflict, gin.H{
+				"code":    409,
+				"message": err.Error(),
+			})
+			return
+		}
+
+		r.JSON(http.StatusOK, gin.H{
+			"code":    200,
+			"message": "Task started",
+			"data":    gin.H{"id": taskID},
+		})
+		return
 	default:
 		r.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
@@ -975,20 +785,6 @@ func (c *Api) startTask(r *gin.Context) {
 		})
 		return
 	}
-
-	if err != nil {
-		r.JSON(http.StatusConflict, gin.H{
-			"code":    409,
-			"message": err.Error(),
-		})
-		return
-	}
-
-	r.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "Task started",
-		"data":    gin.H{"id": taskID},
-	})
 }
 
 func (c *Api) stopTask(r *gin.Context) {
@@ -1033,7 +829,18 @@ func (c *Api) semanticSearch(r *gin.Context) {
 		}
 	}
 
-	results, err := c.semanticSearcher.Search(q, limit)
+	// Use Qdrant for semantic search
+	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+	if !ok || searcher == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{
+			"code":    503,
+			"message": "Qdrant semantic search service not available",
+		})
+		return
+	}
+
+	// Perform semantic search with Qdrant
+	results, err := searcher.Search(q, limit)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -1042,83 +849,30 @@ func (c *Api) semanticSearch(r *gin.Context) {
 		return
 	}
 
-	// Extract book IDs from semantic search results
-	bookIDs := make([]int64, len(results))
-	scoreMap := make(map[int64]float32)
-	rankMap := make(map[int64]int)
-
+	// Convert results to response format
+	books := make([]map[string]interface{}, len(results))
 	for i, result := range results {
-		bookIDs[i] = result.Book.ID
-		scoreMap[result.Book.ID] = result.Score
-		rankMap[result.Book.ID] = result.Rank
-	}
-
-	// Fetch full book data from Meilisearch
-	if len(bookIDs) == 0 {
-		r.JSON(http.StatusOK, gin.H{
-			"code": 200,
-			"data": []interface{}{},
-		})
-		return
-	}
-
-	// Build filter for Meilisearch: id IN [id1, id2, id3]
-	idFilters := make([]string, len(bookIDs))
-	for i, id := range bookIDs {
-		idFilters[i] = fmt.Sprintf("id = %d", id)
-	}
-	filter := strings.Join(idFilters, " OR ")
-
-	// Search in Meilisearch with filter
-	searchReq := &meilisearch.SearchRequest{
-		Limit:  int64(limit),
-		Filter: filter,
-	}
-
-	searchResp, err := c.currentIndex().Search("", searchReq)
-	if err != nil {
-		log.Warnf("Failed to fetch books from Meilisearch: %v", err)
-		// Fallback to basic results from Milvus
-		r.JSON(http.StatusOK, gin.H{
-			"code": 200,
-			"data": results,
-		})
-		return
-	}
-
-	// Convert Meilisearch results to Books
-	books := make([]Book, 0, len(searchResp.Hits))
-	for _, hit := range searchResp.Hits {
-		// Convert hit (map[string]interface{}) to Book
-		hitBytes, err := json.Marshal(hit)
-		if err != nil {
-			continue
+		books[i] = map[string]interface{}{
+			"id":            result.Book.ID,
+			"title":         result.Book.Title,
+			"authors":       result.Book.Authors,
+			"publisher":     result.Book.Publisher,
+			"pubdate":       result.Book.PubDate,
+			"isbn":          result.Book.Isbn,
+			"tags":          result.Book.Tags,
+			"rating":        result.Book.Rating,
+			"series_index":  result.Book.SeriesIndex,
+			"comments":      result.Book.Comments,
+			"languages":     result.Book.Languages,
+			"last_modified": result.Book.LastModified,
+			"score":         result.Score,
+			"rank":          result.Rank,
 		}
-
-		var book Book
-		if err := json.Unmarshal(hitBytes, &book); err != nil {
-			continue
-		}
-
-		books = append(books, book)
 	}
 
-	// Sort by rank to maintain semantic search order
-	sort.Slice(books, func(i, j int) bool {
-		rankI := rankMap[books[i].ID]
-		rankJ := rankMap[books[j].ID]
-		return rankI < rankJ
-	})
-
-	// Return in the same format as keyword search
 	r.JSON(http.StatusOK, gin.H{
 		"code": 200,
-		"data": map[string]interface{}{
-			"records": books,
-			"total":   len(books),
-			"limit":   limit,
-			"offset":  0,
-		},
+		"data": books,
 	})
 }
 

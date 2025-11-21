@@ -20,14 +20,15 @@
           </el-input>
           
           <el-radio-group v-model="searchMode" @change="handleModeChange" class="mode-switch">
-            <el-radio-button label="keyword">关键词搜索</el-radio-button>
+            <el-radio-button label="hybrid">混合搜索</el-radio-button>
+            <el-radio-button label="keyword">关键词</el-radio-button>
             <el-radio-button label="semantic">语义搜索</el-radio-button>
           </el-radio-group>
         </div>
       </el-affix>
     </div>
     <h2 class="search-title">
-      {{ searchMode === 'semantic' ? '语义匹配结果：' : '搜索结果：' }}
+      {{ searchMode === 'semantic' ? '语义匹配结果：' : (searchMode === 'hybrid' ? '混合搜索结果：' : '搜索结果：') }}
       <strong>{{ keyword }}</strong>
     </h2>
     <el-text class="search-count" v-if="searchMode === 'keyword'"
@@ -64,7 +65,7 @@
 import BookCard from '@/components/BookCard.vue'
 import {ElButton, ElCol, ElInput, ElRow, ElRadioGroup, ElRadioButton, ElIcon} from 'element-plus'
 import { Search as SearchIcon, ArrowLeftBold, ArrowRightBold } from '@element-plus/icons-vue'
-import {fetchBooks, searchSemantic} from "@/api/api";
+import {fetchBooks} from "@/api/api";
 import type { Book } from '@/types/book';
 
 export default {
@@ -81,7 +82,7 @@ export default {
       limit: 12,
       offset: 0,
       total: 0,
-      searchMode: 'keyword', // 'keyword' | 'semantic'
+      searchMode: 'hybrid', // 'hybrid' | 'keyword' | 'semantic'
       debounceTimer: null as number | null
     }
   },
@@ -142,16 +143,9 @@ export default {
       this.keyword = this.searchQuery || this.publisher || this.author
       
       try {
-        if (this.searchMode === 'semantic' && this.searchQuery) {
-          const data = await searchSemantic(this.searchQuery, this.limit)
-          // Semantic search now returns the same structure as keyword search
-          this.books = data.records
-          this.total = data.total
-        } else {
-          const data = await fetchBooks(this.searchQuery, this.filter, this.limit, this.offset);
-          this.books = data.records
-          this.total = data.total
-        }
+        const data = await fetchBooks(this.searchQuery, this.filter, this.limit, this.offset, [], this.searchMode);
+        this.books = data.records
+        this.total = data.total
       } catch (e) {
         console.error("Search failed:", e)
         this.books = []
@@ -192,7 +186,9 @@ export default {
         this.limit = parseInt(query.limit as string, 10) || 12
       }
       if (query.mode) {
-        this.searchMode = (query.mode as string) || 'keyword'
+        this.searchMode = (query.mode as string) || 'hybrid'
+      } else {
+        this.searchMode = 'hybrid'
       }
       if (query.q) {
         this.searchQuery = (query.q as string) || ''

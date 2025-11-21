@@ -14,43 +14,24 @@
           <el-card class="control-card glass-card">
             <template #header>
               <div class="card-header">
-                <span>Meilisearch 索引</span>
-                <el-tag size="small" effect="dark">搜索服务</el-tag>
-              </div>
-            </template>
-            <div class="control-actions">
-              <el-button type="primary" @click="startTask('meilisearch_sync', 'incremental')" :loading="loading.meilisearch_incremental">
-                增量同步
-              </el-button>
-              <el-button type="warning" @click="startTask('meilisearch_sync', 'full')" :loading="loading.meilisearch_full">
-                全量重建
-              </el-button>
-            </div>
-            <p class="control-desc">
-              同步书籍元数据到 Meilisearch 搜索引擎。增量模式仅同步最近变更的书籍。
-            </p>
-          </el-card>
-
-          <el-card class="control-card glass-card" style="margin-top: 20px">
-            <template #header>
-              <div class="card-header">
-                <span>向量索引 (Milvus)</span>
+                <span>Qdrant 数据同步</span>
                 <el-tag size="small" type="success" effect="dark">语义搜索</el-tag>
               </div>
             </template>
             <div class="control-actions">
-              <el-button type="primary" @click="startTask('vector_sync', 'incremental')" :loading="loading.vector_incremental">
+              <el-button type="primary" @click="startTask('qdrant_sync', 'incremental')" :loading="loading.qdrant_incremental">
                 增量同步
               </el-button>
-              <el-button type="warning" @click="startTask('vector_sync', 'full')" :loading="loading.vector_full">
+              <el-button type="warning" @click="startTask('qdrant_sync', 'full')" :loading="loading.qdrant_full">
                 全量重建
               </el-button>
             </div>
             <p class="control-desc">
-              生成书籍嵌入向量并存入 Milvus。用于支持自然语言语义搜索。
+              同步书籍元数据并生成嵌入向量存入 Qdrant。用于支持自然语言语义搜索和相关书籍推荐。
             </p>
           </el-card>
         </el-col>
+
 
         <!-- Task List -->
         <el-col :span="24" :lg="16">
@@ -67,8 +48,8 @@
             <el-table :data="tasks" style="width: 100%" v-loading="loading.list">
               <el-table-column prop="type" label="类型" width="140">
                 <template #default="scope">
-                  <el-tag v-if="scope.row.type === 'meilisearch_sync'">Meilisearch</el-tag>
-                  <el-tag v-else type="success">Vector</el-tag>
+                  <el-tag v-if="scope.row.type === 'qdrant_sync'" type="success">Qdrant Sync</el-tag>
+                  <el-tag v-else type="info">{{ scope.row.type }}</el-tag>
                 </template>
               </el-table-column>
               <el-table-column prop="mode" label="模式" width="100">
@@ -76,12 +57,6 @@
                   <el-tag size="small" :type="scope.row.mode === 'full' ? 'warning' : 'info'">
                     {{ scope.row.mode === 'full' ? '全量' : '增量' }}
                   </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="target_index" label="目标索引" width="120">
-                <template #default="scope">
-                  <span v-if="scope.row.target_index" class="mono-text">{{ scope.row.target_index }}</span>
-                  <span v-else>-</span>
                 </template>
               </el-table-column>
               <el-table-column prop="state" label="状态" width="100">
@@ -145,10 +120,8 @@ interface Task {
 const tasks = ref<Task[]>([])
 const loading = ref({
   list: false,
-  meilisearch_full: false,
-  meilisearch_incremental: false,
-  vector_full: false,
-  vector_incremental: false
+  qdrant_full: false,
+  qdrant_incremental: false
 })
 
 let pollTimer: number | null = null
@@ -166,8 +139,9 @@ const fetchTasks = async () => {
 }
 
 const startTask = async (type: string, mode: string) => {
-  const key = `${type === 'meilisearch_sync' ? 'meilisearch' : 'vector'}_${mode}` as keyof typeof loading.value
+  const key = `qdrant_${mode}` as keyof typeof loading.value
   loading.value[key] = true
+
   
   try {
     const res = await fetch('/api/tasks/start', {

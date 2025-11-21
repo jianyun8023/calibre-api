@@ -3,8 +3,8 @@ package calibre
 import (
 	"fmt"
 
+	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/pkg/log"
-	"github.com/meilisearch/meilisearch-go"
 )
 
 // EnhancedTool 增强的工具定义
@@ -299,41 +299,53 @@ func (etm *EnhancedToolManager) executeSearchBooksEnhanced(args map[string]inter
 		includeResources = ir.(bool)
 	}
 
-	// 执行搜索
-	searchReq := meilisearch.SearchRequest{
-		Limit:  int64(limit),
-		Offset: int64(offset),
+	// Use Qdrant for search
+	searcher, ok := etm.api.semanticSearcher.(*qdrant.Searcher)
+	if !ok || searcher == nil {
+		return nil, fmt.Errorf("search service not available")
 	}
 
-	search, err := etm.api.currentIndex().Search(query, &searchReq)
+	books, total, err := searcher.SearchByKeyword(query, "title", limit, offset)
 	if err != nil {
 		return nil, err
 	}
 
 	// 处理结果
-	books := make([]map[string]interface{}, len(search.Hits))
-	for i, hit := range search.Hits {
-		bookData := hit.(map[string]interface{})
-		books[i] = bookData
+	results := make([]map[string]interface{}, len(books))
+	for i, book := range books {
+		bookData := map[string]interface{}{
+			"id":            book.ID,
+			"title":         book.Title,
+			"authors":       book.Authors,
+			"publisher":     book.Publisher,
+			"pubdate":       book.PubDate,
+			"isbn":          book.Isbn,
+			"tags":          book.Tags,
+			"rating":        book.Rating,
+			"series_index":  book.SeriesIndex,
+			"comments":      book.Comments,
+			"languages":     book.Languages,
+			"last_modified": book.LastModified,
+		}
+		results[i] = bookData
 
 		// 如果需要包含资源信息
 		if includeResources {
-			if bookID, ok := bookData["id"].(string); ok {
-				resources, err := etm.resourceMgr.ListResources(bookID)
-				if err == nil {
-					books[i]["resources"] = resources
-				}
+			bookID := fmt.Sprintf("%d", book.ID)
+			resources, err := etm.resourceMgr.ListResources(bookID)
+			if err == nil {
+				results[i]["resources"] = resources
 			}
 		}
 	}
 
 	return map[string]interface{}{
-		"books":    books,
-		"total":    search.EstimatedTotalHits,
+		"books":    results,
+		"total":    total,
 		"query":    query,
 		"limit":    limit,
 		"offset":   offset,
-		"has_more": search.EstimatedTotalHits > int64(offset+limit),
+		"has_more": total > int64(offset+limit),
 	}, nil
 }
 

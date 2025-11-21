@@ -57,10 +57,8 @@ type Config struct {
 	StaticDir string             `mapstructure:"staticDir"`
 	TmpDir    string             `mapstructure:"tmpdir"`
 	Content   Content            `mapstructure:"content"`
-	Search    Search             `mapstructure:"search"`
 	Metadata  Metadata           `mapstructure:"metadata"`
 	MCP       MCPConfig          `mapstructure:"mcp"`
-	Milvus    semantic.Milvus    `mapstructure:"milvus"`
 	Embedding semantic.Embedding `mapstructure:"embedding"`
 	Qdrant    QdrantConfig       `mapstructure:"qdrant"`
 }
@@ -73,12 +71,6 @@ type QdrantConfig struct {
 
 type Content struct {
 	Server string `mapstructure:"server"`
-}
-
-type Search struct {
-	Host   string `mapstructure:"host"`
-	APIKey string `mapstructure:"apikey"`
-	Index  string `mapstructure:"index"`
 }
 
 type MCPConfig struct {

@@ -262,6 +262,57 @@ func (c *Client) Count(ctx context.Context) (uint64, error) {
 	return countResp.Result.Count, nil
 }
 
+// RetrieveResponse represents the response for a single point retrieval
+type RetrieveResponse struct {
+	Result struct {
+		ID      uint64                 `json:"id"`
+		Payload map[string]interface{} `json:"payload"`
+		Vector  []float32              `json:"vector"`
+	} `json:"result"`
+	Status string  `json:"status"`
+	Time   float64 `json:"time"`
+}
+
+// Retrieve gets a single point by ID
+func (c *Client) Retrieve(ctx context.Context, id uint64) (*Point, error) {
+	url := fmt.Sprintf("%s/collections/%s/points/%d", c.baseURL, c.collection, id)
+
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("retrieve failed: status=%d, body=%s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var retrieveResp RetrieveResponse
+	if err := json.NewDecoder(resp.Body).Decode(&retrieveResp); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	if retrieveResp.Result.ID == 0 && len(retrieveResp.Result.Payload) == 0 {
+		return nil, nil
+	}
+
+	return &Point{
+		ID:      retrieveResp.Result.ID,
+		Payload: retrieveResp.Result.Payload,
+		Vector:  retrieveResp.Result.Vector,
+	}, nil
+}
+
 // BookToPayload converts a semantic.Book to Qdrant payload
 func BookToPayload(book semantic.Book) map[string]interface{} {
 	payload := map[string]interface{}{

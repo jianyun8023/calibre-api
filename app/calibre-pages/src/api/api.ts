@@ -25,8 +25,8 @@ export async function fetchRecentBooks(limit: number, offset: number) {
     return handleApiResponse(response);
 }
 
-export async function fetchBooks(keyword: string, filter: string[], limit: number, offset: number, sort?: string[]) {
-    const response = await fetch('/api/search?q=' + keyword, {
+export async function fetchBooks(keyword: string, filter: string[], limit: number, offset: number, sort?: string[], mode?: string) {
+    const response = await fetch('/api/search?q=' + keyword + '&mode=' + (mode || 'hybrid'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

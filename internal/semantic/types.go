@@ -38,13 +38,6 @@ type SearchResult struct {
 	Rank  int
 }
 
-type Milvus struct {
-	Host           string `mapstructure:"host"`
-	Port           int    `mapstructure:"port"`
-	CollectionName string `mapstructure:"collection_name"`
-	VectorDim      int    `mapstructure:"vector_dim"`
-}
-
 type Embedding struct {
 	Provider    string            `mapstructure:"provider"`
 	Ollama      OllamaConfig      `mapstructure:"ollama"`
