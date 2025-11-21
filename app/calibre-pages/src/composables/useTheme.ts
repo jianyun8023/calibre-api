@@ -32,6 +32,11 @@ export function useTheme() {
         (newTheme) => {
             localStorage.setItem(THEME_KEY, newTheme)
             document.documentElement.setAttribute('data-theme', newTheme)
+            if (newTheme === 'dark') {
+                document.documentElement.classList.add('dark')
+            } else {
+                document.documentElement.classList.remove('dark')
+            }
         },
         { immediate: true }
     )

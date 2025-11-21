@@ -76,7 +76,7 @@ a {
 }
 
 // 深色模式 - Element Plus 会自动处理大部分变量，这里只需处理特殊自定义的
-:root[data-theme="dark"] {
+html.dark {
   // 背景渐变（深色）
   --bg-gradient: linear-gradient(-45deg,
       var(--el-bg-color-page) 0%,
