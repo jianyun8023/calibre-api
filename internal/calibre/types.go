@@ -62,6 +62,13 @@ type Config struct {
 	MCP       MCPConfig          `mapstructure:"mcp"`
 	Milvus    semantic.Milvus    `mapstructure:"milvus"`
 	Embedding semantic.Embedding `mapstructure:"embedding"`
+	Qdrant    QdrantConfig       `mapstructure:"qdrant"`
+}
+
+type QdrantConfig struct {
+	URL        string `mapstructure:"url"`
+	Collection string `mapstructure:"collection"`
+	Timeout    int    `mapstructure:"timeout"`
 }
 
 type Content struct {

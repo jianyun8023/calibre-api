@@ -24,21 +24,17 @@ import (
 	"github.com/spf13/cast"
 
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
-	"github.com/jianyun8023/calibre-api/internal/semantic/indexer"
-	"github.com/jianyun8023/calibre-api/internal/semantic/milvus"
-	"github.com/jianyun8023/calibre-api/internal/semantic/search"
+	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 )
 
 type Api struct {
 	config           *Config
 	contentApi       *content.Api
-	client           *meilisearch.Client
 	baseDir          string
 	http             *client.Client
-	useIndex         string
-	semanticIndexer  *indexer.Indexer
-	semanticSearcher *search.Searcher
+	qdrantClient     *qdrant.Client
+	semanticSearcher interface{} // Can be *qdrant.Searcher or nil
 }
 
 func (c *Api) SetupRouter(r *gin.Engine) {
@@ -80,71 +76,53 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.POST("/tasks/:id/stop", c.stopTask)
 }
 
-func (c *Api) currentIndex() *meilisearch.Index {
-	return c.client.Index(c.useIndex)
-}
-
 func NewClient(config *Config) *Api {
-	client := meilisearch.NewClient(meilisearch.ClientConfig{
-		Host:   config.Search.Host,
-		APIKey: config.Search.APIKey,
-	})
-
 	baseDir := config.TmpDir
 	if !Exists(baseDir) {
 		os.MkdirAll(baseDir, fs.ModePerm)
 	}
 
-	//index := client.Index(config.Search.Index)
-	_, err := ensureIndexExists(client, config.Search.Index)
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = ensureIndexExists(client, config.Search.Index+"-bak")
-	if err != nil {
-		log.Fatal(err)
-	}
 	newClient, err := content.NewClient(config.Content.Server)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Initialize Semantic Search Components
-	milvusClient := milvus.NewClient(config.Milvus.CollectionName, config.Milvus.VectorDim)
-	providerConfig := embedding.ProviderConfig{
-		Provider:    config.Embedding.Provider,
-		Ollama:      config.Embedding.Ollama,
-		SiliconFlow: config.Embedding.SiliconFlow,
-		VectorDim:   config.Milvus.VectorDim,
-	}
+	// Initialize Qdrant client and searcher
+	var qdrantClient *qdrant.Client
+	var qdrantSearcher *qdrant.Searcher
 
-	var idx *indexer.Indexer
-	var srch *search.Searcher
+	if config.Qdrant.URL != "" {
+		qdrantClient = qdrant.NewClient(
+			config.Qdrant.URL,
+			config.Qdrant.Collection,
+			time.Duration(config.Qdrant.Timeout)*time.Second,
+		)
+		log.Info("Qdrant client initialized successfully")
 
-	provider, err := embedding.NewProvider(providerConfig)
-	if err != nil {
-		log.Warnf("Failed to create embedding provider: %v", err)
-	} else {
-		// Try to connect to Milvus
-		err := milvusClient.Connect(config.Milvus.Host, config.Milvus.Port)
+		// Initialize embedding provider for Qdrant searcher
+		providerConfig := embedding.ProviderConfig{
+			Provider:    config.Embedding.Provider,
+			Ollama:      config.Embedding.Ollama,
+			SiliconFlow: config.Embedding.SiliconFlow,
+			VectorDim:   4096, // Qdrant uses 4096 dimensions
+		}
+
+		provider, err := embedding.NewProvider(providerConfig)
 		if err != nil {
-			log.Warnf("Failed to connect to Milvus: %v", err)
+			log.Warnf("Failed to create embedding provider: %v", err)
 		} else {
-			idx = indexer.NewIndexer(provider, milvusClient, &newClient)
-			srch = search.NewSearcher(provider, milvusClient)
-			log.Info("Semantic search initialized successfully")
+			qdrantSearcher = qdrant.NewSearcher(provider, qdrantClient)
+			log.Info("Qdrant searcher initialized successfully")
 		}
 	}
 
 	api := Api{
 		config:           config,
-		client:           client,
 		baseDir:          config.TmpDir,
 		contentApi:       &newClient,
 		http:             newClient.Client,
-		useIndex:         config.Search.Index,
-		semanticIndexer:  idx,
-		semanticSearcher: srch,
+		qdrantClient:     qdrantClient,
+		semanticSearcher: qdrantSearcher,
 	}
 
 	// 初始化 SSE MCP 服务器（在 HTTP 模式下默认启用）
@@ -202,47 +180,80 @@ func ensureIndexExists(client *meilisearch.Client, indexName string) (*meilisear
 }
 
 func (c *Api) search(r *gin.Context) {
-	var req = meilisearch.SearchRequest{}
-	err2 := r.Bind(&req)
-	if err2 != nil {
-		log.Infof("====== Only Bind By Query String ======\n%v", err2)
-	}
-	log.Infof("search request: %v", req)
+	// Get search parameters
 	q := r.Query("q")
 	if q == "" {
 		q = r.PostForm("q")
 	}
-	log.Infof("search query: %s", q)
-	search, err := c.currentIndex().Search(q, &req)
 
-	books := make([]Book, len(search.Hits))
-	for i := range search.Hits {
-		tmp := search.Hits[i].(map[string]interface{})
-		jsonb, err := json.Marshal(tmp)
-		if err != nil {
-			// do error check
-			fmt.Println(err)
-			return
-		}
-
-		book := Book{}
-		if err := json.Unmarshal(jsonb, &book); err != nil {
-			// do error check
-			fmt.Println(err)
-			return
-		}
-		books[i] = book
+	filterType := r.Query("filter")
+	if filterType == "" {
+		filterType = "title" // default to title search
 	}
 
+	limit := 20
+	if limitStr := r.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil {
+			limit = l
+		}
+	}
+
+	offset := 0
+	if offsetStr := r.Query("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil {
+			offset = o
+		}
+	}
+
+	log.Infof("Qdrant search query: %s, filter: %s, limit: %d, offset: %d", q, filterType, limit, offset)
+
+	// Check if Qdrant searcher is available
+	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+	if !ok || searcher == nil {
+		log.Error("Qdrant searcher not available")
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Search service not available",
+			"code":  500,
+		})
+		return
+	}
+
+	// Perform keyword search using Qdrant
+	books, total, err := searcher.SearchByKeyword(q, filterType, limit, offset)
 	if err != nil {
-		r.JSON(http.StatusInternalServerError, err)
+		log.Errorf("Qdrant search failed: %v", err)
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"code":  500,
+		})
+		return
 	}
+
+	// Convert semantic.Book to calibre.Book
+	calibreBooks := make([]Book, len(books))
+	for i, book := range books {
+		calibreBooks[i] = Book{
+			ID:           book.ID,
+			Title:        book.Title,
+			Authors:      book.Authors,
+			Publisher:    book.Publisher,
+			Pubdate:      book.Pubdate,
+			ISBN:         book.ISBN,
+			Tags:         book.Tags,
+			Rating:       book.Rating,
+			SeriesIndex:  book.SeriesIndex,
+			Comments:     book.Comments,
+			Languages:    book.Languages,
+			LastModified: book.LastModified,
+		}
+	}
+
 	r.JSON(http.StatusOK, gin.H{
 		"data": map[string]interface{}{
-			"records": &books,
-			"total":   search.EstimatedTotalHits,
-			"limit":   search.Limit,
-			"offset":  search.Offset,
+			"records": calibreBooks,
+			"total":   total,
+			"limit":   limit,
+			"offset":  offset,
 		},
 		"code": 200,
 	})
@@ -938,6 +949,24 @@ func (c *Api) startTask(r *gin.Context) {
 		}
 		taskID, err = manager.StartTask(tasks.TaskTypeVectorSync, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
 			return tasks.NewVectorTask(id, tasks.TaskMode(req.Mode), c.semanticIndexer)
+		})
+	case tasks.TaskTypeQdrantMigration:
+		if c.milvusClient == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Milvus client is not initialized",
+			})
+			return
+		}
+		if c.qdrantClient == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Qdrant client is not initialized",
+			})
+			return
+		}
+		taskID, err = manager.StartTask(tasks.TaskTypeQdrantMigration, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
+			return tasks.NewQdrantMigrationTask(c.milvusClient, c.qdrantClient, c.contentApi)
 		})
 	default:
 		r.JSON(http.StatusBadRequest, gin.H{

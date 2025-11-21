@@ -34,3 +34,8 @@ embedding:
     api_url: "https://api.siliconflow.cn/v1/embeddings"
     model: "Qwen/Qwen3-Embedding-8B"
     api_token: ""  # 建议使用环境变量 SILICONFLOW_API_TOKEN
+
+qdrant:
+  url: "http://192.168.2.236:6333"
+  collection: "books"
+  timeout: 30

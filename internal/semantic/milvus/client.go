@@ -319,6 +319,33 @@ func (c *Client) GetMaxBookID() (int64, error) {
 	return maxID, nil
 }
 
+// QueryBatch queries a batch of records with book_id and embedding
+func (c *Client) QueryBatch(expr string, limit int, offset int64) ([]entity.Column, error) {
+	ctx := context.Background()
+
+	// Check if collection exists and is loaded
+	has, err := c.conn.HasCollection(ctx, c.collectionName)
+	if err != nil || !has {
+		return nil, fmt.Errorf("collection not found or inaccessible")
+	}
+
+	// Query book_ids and embeddings
+	results, err := c.conn.Query(
+		ctx,
+		c.collectionName,
+		[]string{},
+		expr,
+		[]string{"book_id", "embedding"},
+		client.WithLimit(int64(limit)),
+		client.WithOffset(offset),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query batch: %w", err)
+	}
+
+	return results, nil
+}
+
 // Helper functions from textutil.go
 
 func truncateUTF8ByBytes(s string, maxBytes int) string {

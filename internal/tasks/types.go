@@ -7,6 +7,7 @@ type TaskType string
 const (
 	TaskTypeMeilisearchSync TaskType = "meilisearch_sync"
 	TaskTypeVectorSync      TaskType = "vector_sync"
+	TaskTypeQdrantMigration TaskType = "qdrant_migration"
 )
 
 type TaskMode string

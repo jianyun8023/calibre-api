@@ -262,6 +262,21 @@ func convertInt64Map(input map[string]interface{}) (map[string]int64, error) {
 
 }
 
+// GetBookDetail gets a single book's metadata by ID
+func (a *Api) GetBookDetail(id int64) (Book, error) {
+	books, err := a.GetBookMetaDatas([]int64{id}, "library")
+	if err != nil {
+		return Book{}, err
+	}
+	if len(books) == 0 {
+		return Book{}, fmt.Errorf("book not found: %d", id)
+	}
+
+	// Enrich with cover and file path
+	enrichedBooks := EnrichBooks(books)
+	return enrichedBooks[0], nil
+}
+
 // EnrichBooks adds Cover and FilePath fields to books for API usage
 func EnrichBooks(books []Book) []Book {
 	for i := range books {
