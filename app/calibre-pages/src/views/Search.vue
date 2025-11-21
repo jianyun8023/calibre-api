@@ -2,22 +2,40 @@
   <div class="search-wrapper glass-container">
     <div class="search-input-wrapper">
       <el-affix target=".search-wrapper">
-        <el-input
-            v-model="searchQuery"
-            @input="fetchBooks"
-            type="text"
-            placeholder="书名、作者、ISBN"
-            size="large"
-        />
+        <div class="search-bar">
+          <el-input
+              v-model="searchQuery"
+              @input="handleInput"
+              @keyup.enter="fetchBooks"
+              type="text"
+              :placeholder="searchMode === 'semantic' ? '描述您想找的书籍情节、主题...' : '书名、作者、ISBN'"
+              size="large"
+              class="search-input"
+          >
+            <template #append>
+              <el-button @click="fetchBooks">
+                <el-icon><SearchIcon /></el-icon>
+              </el-button>
+            </template>
+          </el-input>
+          
+          <el-radio-group v-model="searchMode" @change="handleModeChange" class="mode-switch">
+            <el-radio-button label="keyword">关键词搜索</el-radio-button>
+            <el-radio-button label="semantic">语义搜索</el-radio-button>
+          </el-radio-group>
+        </div>
       </el-affix>
     </div>
     <h2 class="search-title">
-      搜索结果：
+      {{ searchMode === 'semantic' ? '语义匹配结果：' : '搜索结果：' }}
       <strong>{{ keyword }}</strong>
     </h2>
-    <el-text class="search-count"
+    <el-text class="search-count" v-if="searchMode === 'keyword'"
     >共计 {{ total }} 条, 当前{{ offset }} --
       {{ offset + limit >= total ? total : offset + limit }}
+    </el-text>
+    <el-text class="search-count" v-else>
+      找到最相关的结果
     </el-text>
 
     <el-row :gutter="20" class="books-grid">
@@ -25,7 +43,7 @@
         <BookCard :book="book" :more_info="true"/>
       </el-col>
     </el-row>
-    <el-row class="pagination-row" justify="center">
+    <el-row class="pagination-row" justify="center" v-if="searchMode === 'keyword'">
       <el-button class="glass-button" @click="prevPage" :disabled="offset === 0">
         <el-icon>
           <ArrowLeftBold/>
@@ -44,13 +62,14 @@
 
 <script lang="ts">
 import BookCard from '@/components/BookCard.vue'
-import {ElButton, ElCol, ElInput, ElRow} from 'element-plus'
-import {fetchBooks} from "@/api/api";
+import {ElButton, ElCol, ElInput, ElRow, ElRadioGroup, ElRadioButton, ElIcon} from 'element-plus'
+import { Search as SearchIcon, ArrowLeftBold, ArrowRightBold } from '@element-plus/icons-vue'
+import {fetchBooks, searchSemantic} from "@/api/api";
 import type { Book } from '@/types/book';
 
 export default {
   name: 'Search',
-  components: {ElInput, ElButton, ElRow, ElCol, BookCard},
+  components: {ElInput, ElButton, ElRow, ElCol, BookCard, ElRadioGroup, ElRadioButton, ElIcon, SearchIcon, ArrowLeftBold, ArrowRightBold},
   data() {
     return {
       searchQuery: '',
@@ -61,7 +80,9 @@ export default {
       filter: [] as string[],
       limit: 12,
       offset: 0,
-      total: 0
+      total: 0,
+      searchMode: 'keyword', // 'keyword' | 'semantic'
+      debounceTimer: null as number | null
     }
   },
   created() {
@@ -71,13 +92,11 @@ export default {
   activated() {
     console.log('Search page activated, refreshing data...')
     this.initializeFromQueryParams()
-    this.fetchBooks()
+    if (this.searchQuery) {
+      this.fetchBooks()
+    }
   },
   watch: {
-    searchQuery() {
-      this.updateQueryParams()
-      this.fetchBooks()
-    },
     publisher() {
       this.updateQueryParams()
       this.fetchBooks()
@@ -97,10 +116,46 @@ export default {
   },
 
   methods: {
+    handleInput() {
+      if (this.debounceTimer) clearTimeout(this.debounceTimer)
+      this.debounceTimer = setTimeout(() => {
+        this.updateQueryParams()
+        this.fetchBooks()
+      }, 500) as unknown as number
+    },
+    
+    handleModeChange() {
+      this.offset = 0
+      this.books = []
+      this.updateQueryParams()
+      if (this.searchQuery) {
+        this.fetchBooks()
+      }
+    },
+
     async fetchBooks() {
-      const data = await fetchBooks(this.searchQuery, this.filter, this.limit, this.offset);
-      this.books = data.records
-      this.total = data.total
+      if (!this.searchQuery && !this.publisher && !this.author) {
+        this.books = []
+        return
+      }
+
+      this.keyword = this.searchQuery || this.publisher || this.author
+      
+      try {
+        if (this.searchMode === 'semantic' && this.searchQuery) {
+          const data = await searchSemantic(this.searchQuery, this.limit)
+          // Semantic search now returns the same structure as keyword search
+          this.books = data.records
+          this.total = data.total
+        } else {
+          const data = await fetchBooks(this.searchQuery, this.filter, this.limit, this.offset);
+          this.books = data.records
+          this.total = data.total
+        }
+      } catch (e) {
+        console.error("Search failed:", e)
+        this.books = []
+      }
     },
 
     prevPage() {
@@ -116,7 +171,7 @@ export default {
       }
     },
     updateQueryParams() {
-      const query: Record<string, string | number> = { offset: this.offset, limit: this.limit }
+      const query: Record<string, string | number> = { offset: this.offset, limit: this.limit, mode: this.searchMode }
       if (this.searchQuery) {
         query.q = this.searchQuery
       }
@@ -135,6 +190,9 @@ export default {
       }
       if (query.limit) {
         this.limit = parseInt(query.limit as string, 10) || 12
+      }
+      if (query.mode) {
+        this.searchMode = (query.mode as string) || 'keyword'
       }
       if (query.q) {
         this.searchQuery = (query.q as string) || ''
@@ -170,6 +228,20 @@ export default {
   margin-bottom: var(--spacing-xl);
 }
 
+.search-bar {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
+}
+
+.mode-switch {
+  flex-shrink: 0;
+}
+
 .search-input-wrapper :deep(.el-input__wrapper) {
   background: rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(12px);
@@ -177,6 +249,13 @@ export default {
   border: 1px solid var(--glass-border);
   box-shadow: none;
   transition: all 0.3s ease;
+}
+
+.search-input-wrapper :deep(.el-input-group__append) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--glass-border);
+  color: var(--el-text-color-primary);
+  box-shadow: none;
 }
 
 .search-input-wrapper :deep(.el-input__wrapper:hover),

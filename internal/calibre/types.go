@@ -3,6 +3,8 @@ package calibre
 import (
 	"database/sql"
 	"time"
+
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 )
 
 type Book struct {
@@ -50,14 +52,16 @@ type Metadata struct {
 }
 
 type Config struct {
-	Address   string    `mapstructure:"address"`
-	Debug     bool      `mapstructure:"debug"`
-	StaticDir string    `mapstructure:"staticDir"`
-	TmpDir    string    `mapstructure:"tmpdir"`
-	Content   Content   `mapstructure:"content"`
-	Search    Search    `mapstructure:"search"`
-	Metadata  Metadata  `mapstructure:"metadata"`
-	MCP       MCPConfig `mapstructure:"mcp"`
+	Address   string             `mapstructure:"address"`
+	Debug     bool               `mapstructure:"debug"`
+	StaticDir string             `mapstructure:"staticDir"`
+	TmpDir    string             `mapstructure:"tmpdir"`
+	Content   Content            `mapstructure:"content"`
+	Search    Search             `mapstructure:"search"`
+	Metadata  Metadata           `mapstructure:"metadata"`
+	MCP       MCPConfig          `mapstructure:"mcp"`
+	Milvus    semantic.Milvus    `mapstructure:"milvus"`
+	Embedding semantic.Embedding `mapstructure:"embedding"`
 }
 
 type Content struct {

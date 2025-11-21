@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,15 +22,23 @@ import (
 	"github.com/kapmahc/epub"
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/spf13/cast"
+
+	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
+	"github.com/jianyun8023/calibre-api/internal/semantic/indexer"
+	"github.com/jianyun8023/calibre-api/internal/semantic/milvus"
+	"github.com/jianyun8023/calibre-api/internal/semantic/search"
+	"github.com/jianyun8023/calibre-api/internal/tasks"
 )
 
 type Api struct {
-	config     *Config
-	contentApi *content.Api
-	client     *meilisearch.Client
-	baseDir    string
-	http       *client.Client
-	useIndex   string
+	config           *Config
+	contentApi       *content.Api
+	client           *meilisearch.Client
+	baseDir          string
+	http             *client.Client
+	useIndex         string
+	semanticIndexer  *indexer.Indexer
+	semanticSearcher *search.Searcher
 }
 
 func (c *Api) SetupRouter(r *gin.Engine) {
@@ -58,6 +67,17 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	// Enhanced Tools MCP 端点
 	base.GET("/mcp/tools/enhanced", c.getEnhancedTools)
 	base.POST("/mcp/tools/enhanced/:tool", c.executeEnhancedTool)
+
+	// Semantic Search Endpoints
+	base.POST("/search/semantic/index", c.semanticIndexStart)
+	base.POST("/search/semantic/index/stop", c.semanticIndexStop)
+	base.GET("/search/semantic/index/status", c.semanticIndexStatus)
+	base.GET("/search/semantic", c.semanticSearch)
+
+	// Task Management Endpoints
+	base.GET("/tasks", c.listTasks)
+	base.POST("/tasks/start", c.startTask)
+	base.POST("/tasks/:id/stop", c.stopTask)
 }
 
 func (c *Api) currentIndex() *meilisearch.Index {
@@ -88,13 +108,43 @@ func NewClient(config *Config) *Api {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Initialize Semantic Search Components
+	milvusClient := milvus.NewClient(config.Milvus.CollectionName, config.Milvus.VectorDim)
+	providerConfig := embedding.ProviderConfig{
+		Provider:    config.Embedding.Provider,
+		Ollama:      config.Embedding.Ollama,
+		SiliconFlow: config.Embedding.SiliconFlow,
+		VectorDim:   config.Milvus.VectorDim,
+	}
+
+	var idx *indexer.Indexer
+	var srch *search.Searcher
+
+	provider, err := embedding.NewProvider(providerConfig)
+	if err != nil {
+		log.Warnf("Failed to create embedding provider: %v", err)
+	} else {
+		// Try to connect to Milvus
+		err := milvusClient.Connect(config.Milvus.Host, config.Milvus.Port)
+		if err != nil {
+			log.Warnf("Failed to connect to Milvus: %v", err)
+		} else {
+			idx = indexer.NewIndexer(provider, milvusClient, &newClient)
+			srch = search.NewSearcher(provider, milvusClient)
+			log.Info("Semantic search initialized successfully")
+		}
+	}
+
 	api := Api{
-		config:     config,
-		client:     client,
-		baseDir:    config.TmpDir,
-		contentApi: &newClient,
-		http:       newClient.Client,
-		useIndex:   config.Search.Index,
+		config:           config,
+		client:           client,
+		baseDir:          config.TmpDir,
+		contentApi:       &newClient,
+		http:             newClient.Client,
+		useIndex:         config.Search.Index,
+		semanticIndexer:  idx,
+		semanticSearcher: srch,
 	}
 
 	// 初始化 SSE MCP 服务器（在 HTTP 模式下默认启用）
@@ -451,12 +501,12 @@ func (c *Api) getFileOrCache(id string) (string, error) {
 	closer.Close()
 
 	f, err := os.Create(filename)
-	defer f.Close()
 	if err != nil {
 		fmt.Println(err.Error())
-	} else {
-		_, err = f.Write(b)
+		return "", err
 	}
+	defer f.Close()
+	_, err = f.Write(b)
 	return filename, err
 }
 
@@ -478,18 +528,37 @@ func (c *Api) switchIndex(c2 *gin.Context) {
 		return
 	}
 
+	targetIndex := ""
 	if c.useIndex == c.config.Search.Index {
-		c.useIndex = c.config.Search.Index + "-bak"
+		targetIndex = c.config.Search.Index + "-bak"
 	} else {
-		c.useIndex = c.config.Search.Index
+		targetIndex = c.config.Search.Index
 	}
+
+	// Check if target index exists and has documents
+	stats, err := c.client.Index(targetIndex).GetStats()
+	if err != nil {
+		log.Warnf("Failed to get stats for target index %s: %v", targetIndex, err)
+		c2.JSON(http.StatusOK, gin.H{"code": 400, "error": fmt.Sprintf("无法切换：目标索引 '%s' 不存在或无法访问", targetIndex)})
+		return
+	}
+
+	if stats.NumberOfDocuments == 0 {
+		c2.JSON(http.StatusOK, gin.H{"code": 400, "error": fmt.Sprintf("无法切换：目标索引 '%s' 为空，请先执行全量重建", targetIndex)})
+		return
+	}
+
+	c.useIndex = targetIndex
 	c2.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
+		"data": gin.H{
+			"current_index": c.useIndex,
+		},
 	})
 }
 func (c *Api) updateIndex(c2 *gin.Context) {
-	booksIds, err2 := c.contentApi.GetAllBooksIds()
+	booksIds, err2 := c.contentApi.GetAllBooksIds("")
 	if err2 != nil {
 		log.Warn(err2)
 		c2.JSON(http.StatusOK, gin.H{"code": 500, "error": err2.Error()})
@@ -756,35 +825,302 @@ func (c *Api) updateMetadata(r *gin.Context) {
 		"message": "success",
 		"data":    &books[0],
 	})
-	return
+
 }
 
-func convertContentBooks(content []content.Book) ([]Book, error) {
-	var books []Book
-	for _, c := range content {
-		book := Book{
-			// Map fields from Content to Book
-			AuthorSort:   c.AuthorSort,
-			Authors:      c.Authors,
-			Comments:     c.Comments,
-			ID:           c.ID,
-			Isbn:         c.Isbn,
-			Languages:    c.Languages,
-			LastModified: c.LastModified,
-			PubDate:      c.PubDate,
-			Publisher:    c.Publisher,
-			SeriesIndex:  c.SeriesIndex,
-			Size:         c.Size,
-			Title:        c.Title,
-			Tags:         c.Tags,
-			Rating:       c.Rating,
-			Identifiers:  c.Identifiers,
-			Cover:        "/api/get/cover/" + strconv.FormatInt(c.ID, 10) + ".jpg",
-			FilePath:     "/api/download/book/" + strconv.FormatInt(c.ID, 10) + ".epub",
+func (c *Api) semanticIndexStart(r *gin.Context) {
+	if c.semanticIndexer == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{
+			"code":    503,
+			"message": "Semantic search is not initialized",
+		})
+		return
+	}
+
+	if err := c.semanticIndexer.Start(); err != nil {
+		r.JSON(http.StatusConflict, gin.H{
+			"code":    409,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	r.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "Semantic indexing started",
+	})
+}
+
+func (c *Api) semanticIndexStop(r *gin.Context) {
+	if c.semanticIndexer == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{
+			"code":    503,
+			"message": "Semantic search is not initialized",
+		})
+		return
+	}
+
+	c.semanticIndexer.Stop()
+	r.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "Semantic indexing stopped",
+	})
+}
+
+func (c *Api) semanticIndexStatus(r *gin.Context) {
+	if c.semanticIndexer == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{
+			"code":    503,
+			"message": "Semantic search is not initialized",
+		})
+		return
+	}
+
+	status := c.semanticIndexer.GetStatus()
+	r.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"data": status,
+	})
+}
+
+// Task Management Handlers
+
+func (c *Api) listTasks(r *gin.Context) {
+	manager := tasks.GetManager()
+	taskList := manager.GetTasks()
+	r.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"data": taskList,
+	})
+}
+
+type StartTaskRequest struct {
+	Type string `json:"type"` // "meilisearch_sync" or "vector_sync"
+	Mode string `json:"mode"` // "full" or "incremental"
+}
+
+func (c *Api) startTask(r *gin.Context) {
+	var req StartTaskRequest
+	if err := r.ShouldBindJSON(&req); err != nil {
+		r.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "Invalid request body",
+		})
+		return
+	}
+
+	manager := tasks.GetManager()
+	var taskID string
+	var err error
+
+	switch tasks.TaskType(req.Type) {
+	case tasks.TaskTypeMeilisearchSync:
+		targetIndex := c.useIndex
+		// If Full Sync, target the inactive index (backup)
+		if tasks.TaskMode(req.Mode) == tasks.TaskModeFull {
+			if c.useIndex == c.config.Search.Index {
+				targetIndex = c.config.Search.Index + "-bak"
+			} else {
+				targetIndex = c.config.Search.Index
+			}
 		}
+
+		taskID, err = manager.StartTask(tasks.TaskTypeMeilisearchSync, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
+			return tasks.NewMeilisearchTask(id, tasks.TaskMode(req.Mode), c.contentApi, c.client, targetIndex)
+		})
+	case tasks.TaskTypeVectorSync:
+		if c.semanticIndexer == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Semantic search is not initialized",
+			})
+			return
+		}
+		taskID, err = manager.StartTask(tasks.TaskTypeVectorSync, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
+			return tasks.NewVectorTask(id, tasks.TaskMode(req.Mode), c.semanticIndexer)
+		})
+	default:
+		r.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "Unknown task type",
+		})
+		return
+	}
+
+	if err != nil {
+		r.JSON(http.StatusConflict, gin.H{
+			"code":    409,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	r.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "Task started",
+		"data":    gin.H{"id": taskID},
+	})
+}
+
+func (c *Api) stopTask(r *gin.Context) {
+	id := r.Param("id")
+	manager := tasks.GetManager()
+	if err := manager.StopTask(id); err != nil {
+		r.JSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	r.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "Task stopped",
+	})
+}
+
+func (c *Api) semanticSearch(r *gin.Context) {
+	if c.semanticSearcher == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{
+			"code":    503,
+			"message": "Semantic search is not initialized",
+		})
+		return
+	}
+
+	q := r.Query("q")
+	if q == "" {
+		r.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "Query parameter 'q' is required",
+		})
+		return
+	}
+
+	limit := 10
+	if l := r.Query("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 {
+			limit = val
+		}
+	}
+
+	results, err := c.semanticSearcher.Search(q, limit)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "Search failed: " + err.Error(),
+		})
+		return
+	}
+
+	// Extract book IDs from semantic search results
+	bookIDs := make([]int64, len(results))
+	scoreMap := make(map[int64]float32)
+	rankMap := make(map[int64]int)
+
+	for i, result := range results {
+		bookIDs[i] = result.Book.ID
+		scoreMap[result.Book.ID] = result.Score
+		rankMap[result.Book.ID] = result.Rank
+	}
+
+	// Fetch full book data from Meilisearch
+	if len(bookIDs) == 0 {
+		r.JSON(http.StatusOK, gin.H{
+			"code": 200,
+			"data": []interface{}{},
+		})
+		return
+	}
+
+	// Build filter for Meilisearch: id IN [id1, id2, id3]
+	idFilters := make([]string, len(bookIDs))
+	for i, id := range bookIDs {
+		idFilters[i] = fmt.Sprintf("id = %d", id)
+	}
+	filter := strings.Join(idFilters, " OR ")
+
+	// Search in Meilisearch with filter
+	searchReq := &meilisearch.SearchRequest{
+		Limit:  int64(limit),
+		Filter: filter,
+	}
+
+	searchResp, err := c.currentIndex().Search("", searchReq)
+	if err != nil {
+		log.Warnf("Failed to fetch books from Meilisearch: %v", err)
+		// Fallback to basic results from Milvus
+		r.JSON(http.StatusOK, gin.H{
+			"code": 200,
+			"data": results,
+		})
+		return
+	}
+
+	// Convert Meilisearch results to Books
+	books := make([]Book, 0, len(searchResp.Hits))
+	for _, hit := range searchResp.Hits {
+		// Convert hit (map[string]interface{}) to Book
+		hitBytes, err := json.Marshal(hit)
+		if err != nil {
+			continue
+		}
+
+		var book Book
+		if err := json.Unmarshal(hitBytes, &book); err != nil {
+			continue
+		}
+
 		books = append(books, book)
 	}
-	return books, nil
+
+	// Sort by rank to maintain semantic search order
+	sort.Slice(books, func(i, j int) bool {
+		rankI := rankMap[books[i].ID]
+		rankJ := rankMap[books[j].ID]
+		return rankI < rankJ
+	})
+
+	// Return in the same format as keyword search
+	r.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"data": map[string]interface{}{
+			"records": books,
+			"total":   len(books),
+			"limit":   limit,
+			"offset":  0,
+		},
+	})
+}
+
+func convertContentBooks(books []content.Book) ([]Book, error) {
+	// Use the centralized EnrichBooks method from content package
+	enrichedBooks := content.EnrichBooks(books)
+
+	// Convert content.Book to calibre.Book
+	result := make([]Book, len(enrichedBooks))
+	for i, b := range enrichedBooks {
+		result[i] = Book{
+			AuthorSort:   b.AuthorSort,
+			Authors:      b.Authors,
+			Comments:     b.Comments,
+			ID:           b.ID,
+			Isbn:         b.Isbn,
+			Languages:    b.Languages,
+			LastModified: b.LastModified,
+			PubDate:      b.PubDate,
+			Publisher:    b.Publisher,
+			SeriesIndex:  b.SeriesIndex,
+			Size:         b.Size,
+			Title:        b.Title,
+			Tags:         b.Tags,
+			Rating:       b.Rating,
+			Identifiers:  b.Identifiers,
+			Cover:        b.Cover,
+			FilePath:     b.FilePath,
+		}
+	}
+	return result, nil
 }
 
 func convertContentToBooks(content map[string]content.Content) ([]Book, error) {

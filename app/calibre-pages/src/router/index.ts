@@ -11,6 +11,7 @@ const Detail = () => import('../views/Detail.vue')
 const BatchMeta = () => import('../views/BatchMeta.vue')
 const ReadBook = () => import('../views/ReadBook.vue')
 const Publisher = () => import('../views/Publisher.vue')
+const Tasks = () => import('../views/Tasks.vue')
 
 
 const router = createRouter({
@@ -24,6 +25,7 @@ const router = createRouter({
         { path: '/detail/:id', component: Detail, props: true },
         { path: '/read/:id', component: ReadBook, props: true },
         { path: '/publisher', component: Publisher },
+        { path: '/tasks', component: Tasks },
     ]
 })
 

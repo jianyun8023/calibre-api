@@ -132,19 +132,10 @@ func (t *MeilisearchTask) Run() error {
 			continue
 		}
 
-		// We need convertContentBooks from internal/calibre/api.go
-		// But we can't import internal/calibre because of cycle if api.go imports tasks.
-		// So we should probably duplicate the conversion logic or move it to a shared package.
-		// For now, let's assume we can access it or implement a simple version.
-		// Actually, we can't easily access it if it's private in calibre package.
-		// Let's implement a local conversion or move `Book` to `pkg/content` or `internal/common`.
-		// `content.Book` is already available. `meilisearch` expects a struct or map.
-		// Let's use `content.Book` directly or map it.
+		// Enrich books with Cover and FilePath fields
+		enrichedBooks := content.EnrichBooks(data)
 
-		// Using content.Book directly might be enough if JSON tags match.
-		// content.Book has JSON tags.
-
-		_, err = index.AddDocuments(data)
+		_, err = index.AddDocuments(enrichedBooks)
 		if err != nil {
 			log.Printf("Error adding documents: %v", err)
 			continue

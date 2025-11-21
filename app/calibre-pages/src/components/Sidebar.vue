@@ -29,6 +29,11 @@
       <el-icon><Shop/></el-icon>
       <span>出版社</span>
     </el-menu-item>
+
+    <el-menu-item index="/tasks" class="menu-item-enhanced">
+      <el-icon><List/></el-icon>
+      <span>任务</span>
+    </el-menu-item>
     
     <el-divider class="menu-divider" />
     
@@ -40,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { House, Files, Search, Setting, Shop } from '@element-plus/icons-vue'
+import { House, Files, Search, Setting, Shop, List } from '@element-plus/icons-vue'
 
 const handleSelect = (key: string, keyPath: string) => {
   console.log(key, keyPath);

@@ -7,10 +7,12 @@
             <el-select
                 v-model="filterType"
                 placeholder="类型"
-                @change="fetchBooks"
+                @change="handleFilterTypeChange"
                 placement="bottom-start"
                 class="glass-select"
             >
+              <el-option label="全部（按时间倒序）" value="all"/>
+              <el-option label="书名" value="title"/>
               <el-option label="出版社" value="publisher"/>
               <el-option label="作者" value="author"/>
               <el-option label="ISBN" value="isbn"/>
@@ -20,13 +22,14 @@
         <el-col :span="18" :xs="24">
           <el-autocomplete
               v-model="keyword"
-              @input="fetchBooks"
+              @input="handleKeywordInput"
               :fetch-suggestions="querySearch"
               :trigger-on-focus="false"
               clearable
               class="glass-input w-full"
-              placeholder="搜索书名、作者、ISBN..."
+              :placeholder="getPlaceholder()"
               @select="handleSearchSelect"
+              :disabled="filterType === 'all'"
           >
             <template #prefix>
               <el-icon class="search-icon"><Search /></el-icon>
@@ -262,6 +265,7 @@
               <el-option label="10条/页" :value="10"/>
               <el-option label="20条/页" :value="20"/>
               <el-option label="50条/页" :value="50"/>
+              <el-option label="100条/页" :value="100"/>
             </el-select>
             <el-button-group class="glass-pagination">
               <el-button size="small" @click="prevPage" :disabled="offset === 0">
@@ -336,14 +340,14 @@ export default {
       loadingBooks: true,
       loadingPublishers: true,
       
-      filterType: 'publisher' as string,
-      keyword: '' as string,
-      books: [] as Book[],
-      multipleSelection: [] as Book[],
-      filter: [] as string[],
-      limit: 12 as number,
-      offset: 0 as number,
-      total: 0 as number,
+      filterType: 'all',
+      keyword: '',
+      books: [],
+      multipleSelection: [],
+      filter: [],
+      limit: 20,
+      offset: 0,
+      total: 0,
       metaUpdateDialogVisible: false,
       metaUpdate: {
         currentBook: {} as Book,
@@ -365,19 +369,12 @@ export default {
     this.fetchPublishers()
   },
   watch: {
-    keyword() {
-      this.updateQueryParams()
-      this.fetchBooks()
-    },
-    filterType() {
-      this.updateQueryParams()
-      this.fetchBooks()
-    },
     offset() {
       this.updateQueryParams()
       this.fetchBooks()
     },
     limit() {
+      this.offset = 0
       this.updateQueryParams()
       this.fetchBooks()
     }
@@ -393,22 +390,61 @@ export default {
     async fetchBooks() {
       this.loadingBooks = true
       try {
-        if (this.filterType === 'publisher') {
+        let searchQuery = "";
+        let sort = [];
+        this.filter = [];
+        
+        if (this.filterType === 'all') {
+          // 按时间倒序显示全部书籍，不需要任何过滤
+          searchQuery = "";
+          sort = ["last_modified:desc"];
+        } else if (this.filterType === 'title') {
+          // 按书名搜索
+          searchQuery = this.keyword;
+        } else if (this.filterType === 'publisher') {
           this.filter[0] = `publisher = "${this.keyword}"`;
-        }
-        if (this.filterType === 'author') {
+        } else if (this.filterType === 'author') {
           this.filter[0] = `authors = "${this.keyword}"`;
-        }
-        if (this.filterType === 'isbn') {
+        } else if (this.filterType === 'isbn') {
           this.filter[0] = `isbn = "${this.keyword}"`;
         }
-        const data = await fetchBooks("", this.filter, this.limit, this.offset);
+        
+        const data = await fetchBooks(searchQuery, this.filter, this.limit, this.offset, sort);
 
         this.books = data.records
         this.total = data.total
       } finally {
         this.loadingBooks = false
       }
+    },
+    
+    handleFilterTypeChange() {
+      // 切换类型时重置offset和keyword
+      this.offset = 0;
+      if (this.filterType === 'all') {
+        this.keyword = '';
+      }
+      this.updateQueryParams();
+      this.fetchBooks();
+    },
+    
+    handleKeywordInput() {
+      if (this.filterType !== 'all') {
+        this.offset = 0;
+        this.updateQueryParams();
+        this.fetchBooks();
+      }
+    },
+    
+    getPlaceholder() {
+      const placeholders = {
+        'all': '显示全部书籍（按时间倒序）',
+        'title': '输入书名搜索...',
+        'publisher': '输入出版社名称...',
+        'author': '输入作者名称...',
+        'isbn': '输入ISBN号码...'
+      };
+      return placeholders[this.filterType] || '搜索...';
     },
 
     async querySearch(queryString: string, cb: (arg0: string[]) => void) {

@@ -3,13 +3,14 @@ package content
 import (
 	"errors"
 	"fmt"
-	"github.com/jianyun8023/calibre-api/pkg/client"
-	"github.com/jianyun8023/calibre-api/pkg/log"
-	"github.com/spf13/cast"
 	"io"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/jianyun8023/calibre-api/pkg/client"
+	"github.com/jianyun8023/calibre-api/pkg/log"
+	"github.com/spf13/cast"
 )
 
 type Api struct {
@@ -92,7 +93,7 @@ func (a *Api) GetBook(id string, library string) (int64, io.ReadCloser, error) {
 
 }
 
-func (a *Api) GetAllBooksIds() ([]int64, error) {
+func (a *Api) GetAllBooksIds(query string) ([]int64, error) {
 	///ajax/search/library?num=10&offset=0&sort=id&sort_order=desc&query
 	var data map[string]interface{}
 	resp, err := a.R().SetResult(&data).
@@ -100,7 +101,7 @@ func (a *Api) GetAllBooksIds() ([]int64, error) {
 		SetQueryParam("offset", "0").
 		SetQueryParam("sort", "id").
 		SetQueryParam("sort_order", "asc").
-		SetQueryParam("query", "").
+		SetQueryParam("query", query).
 		Get("/ajax/search/library")
 	log.Infof(resp.Request.URL + " " + resp.Status())
 	if err != nil {
@@ -259,4 +260,13 @@ func convertInt64Map(input map[string]interface{}) (map[string]int64, error) {
 	}
 	return result, nil
 
+}
+
+// EnrichBooks adds Cover and FilePath fields to books for API usage
+func EnrichBooks(books []Book) []Book {
+	for i := range books {
+		books[i].Cover = "/api/get/cover/" + strconv.FormatInt(books[i].ID, 10) + ".jpg"
+		books[i].FilePath = "/api/download/book/" + strconv.FormatInt(books[i].ID, 10) + ".epub"
+	}
+	return books
 }

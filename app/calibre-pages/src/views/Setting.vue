@@ -39,22 +39,22 @@ export default {
     return {
       settings: [
         {
-          name: '更新索引',
-          description: '更新MeiliSearch索引',
+          name: '全量重建索引',
+          description: '后台重建MeiliSearch索引 (耗时较长)',
           loading: false,
-          func: this.updateIndex,
-          operator: '执行'
+          func: this.rebuildIndex,
+          operator: '启动任务'
         },
         {
           name: '切换主备索引',
-          description: '切换主备索引',
+          description: '切换搜索使用的索引集合',
           loading: false,
           func: this.switchIndex,
-          operator: '执行'
+          operator: '切换'
         },
         {
           name: '批量管理',
-          description: '批量管理书籍',
+          description: '批量管理书籍元数据',
           loading: false,
           func: this.redirectToManagerPage,
           operator: '前往'
@@ -102,39 +102,55 @@ export default {
         })
       }
     },
-    async updateIndex(config: { loading: boolean }) {
+    async rebuildIndex(config: { loading: boolean }) {
       config.loading = true
       try {
-        const response = await fetch('/api/index/update', {method: 'POST'})
+        const response = await fetch('/api/tasks/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'meilisearch_sync', mode: 'full' })
+        })
         config.loading = false
+        
         if (response.ok) {
-          const responseData = await response.json()
-
-          if (responseData.code === 200) {
+          const data = await response.json()
+          if (data.code === 200) {
             ElNotification({
-              title: 'Index update successfully.',
-              message: h('i', {style: 'color: teal'}, 'Index updated successfully.'),
-              type: 'success'
+              title: '任务已启动',
+              message: h('div', null, [
+                h('span', null, '全量重建任务已在后台启动。请前往 '),
+                h('a', { 
+                  href: '/tasks', 
+                  style: 'color: var(--el-color-primary); cursor: pointer; text-decoration: underline;',
+                  onClick: (e: Event) => { 
+                    e.preventDefault(); 
+                    this.$router.push('/tasks') 
+                  } 
+                }, '任务页面'),
+                h('span', null, ' 查看进度。')
+              ]),
+              type: 'success',
+              duration: 5000
             })
           } else {
             ElNotification({
-              title: 'Failed to update index.',
-              message: h('i', {style: 'color: red'}, 'Error: ' + responseData.error),
+              title: '启动失败',
+              message: data.message || '无法启动任务',
               type: 'error'
             })
           }
         } else {
           ElNotification({
-            title: 'Failed to update index.',
-            message: h('i', {style: 'color: red'}, 'Error: ' + response.statusText),
+            title: '请求失败',
+            message: response.statusText,
             type: 'error'
           })
         }
       } catch (error) {
         config.loading = false
         ElNotification({
-          title: 'Failed to update index.',
-          message: h('i', {style: 'color: red'}, 'Error: ' + (error as Error).message),
+          title: '错误',
+          message: (error as Error).message,
           type: 'error'
         })
       }

@@ -27,6 +27,11 @@
           <el-icon class="icon-date"><Calendar /></el-icon>
           {{ new Date(book.pubdate).toLocaleDateString() }}
         </div>
+        <div class="info-item score" v-if="book.score !== undefined">
+          <el-tag size="small" effect="plain" :type="book.score > 0.7 ? 'success' : 'info'">
+            相似度: {{ (book.score * 100).toFixed(1) }}%
+          </el-tag>
+        </div>
       </div>
     </div>
   </el-card>
@@ -155,6 +160,7 @@ const truncateText = (text: string, maxLength: number = 20) => {
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;  
   overflow: hidden;
   margin-bottom: 4px;
