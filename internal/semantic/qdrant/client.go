@@ -158,6 +158,50 @@ func (c *Client) UpsertPoints(ctx context.Context, points []Point) error {
 	return nil
 }
 
+// DeletePointsRequest represents a delete points request
+type DeletePointsRequest struct {
+	Points []uint64 `json:"points"`
+}
+
+// DeletePoints deletes points by ID
+func (c *Client) DeletePoints(ctx context.Context, ids []uint64) error {
+	url := fmt.Sprintf("%s/collections/%s/points/delete", c.baseURL, c.collection)
+
+	req := DeletePointsRequest{Points: ids}
+	body, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("delete failed: status=%d, body=%s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var upsertResp UpsertPointsResponse // Response format is same as upsert
+	if err := json.NewDecoder(resp.Body).Decode(&upsertResp); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+
+	if upsertResp.Status != "ok" {
+		return fmt.Errorf("delete status not ok: %s", upsertResp.Status)
+	}
+
+	return nil
+}
+
 // Search performs vector similarity search
 func (c *Client) Search(ctx context.Context, vector []float32, filter map[string]interface{}, limit int) ([]SearchResult, error) {
 	url := fmt.Sprintf("%s/collections/%s/points/search", c.baseURL, c.collection)

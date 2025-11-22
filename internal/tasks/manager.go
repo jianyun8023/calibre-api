@@ -34,10 +34,13 @@ func (m *Manager) StartTask(t TaskType, mode TaskMode, factory func(string) Task
 	defer m.mu.Unlock()
 
 	// Check if task of same type is running
-	for _, task := range m.tasks {
-		status := task.GetStatus()
-		if status.Type == t && status.State == "running" {
-			return "", fmt.Errorf("task of type %s is already running", t)
+	// Exception: DeleteBook and UpdateMetadata tasks can run concurrently
+	if t != TaskTypeDeleteBook && t != TaskTypeUpdateMetadata && t != TaskTypeCheckMissing {
+		for _, task := range m.tasks {
+			status := task.GetStatus()
+			if status.Type == t && status.State == "running" {
+				return "", fmt.Errorf("task of type %s is already running", t)
+			}
 		}
 	}
 

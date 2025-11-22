@@ -255,7 +255,7 @@ func (s *Searcher) calculateKeywordScore(book semantic.Book, keywords []string, 
 }
 
 // SearchByKeyword performs keyword search using Qdrant scroll with filters
-// This replaces Meilisearch keyword search functionality
+// This replaces legacy keyword search functionality
 func (s *Searcher) SearchByKeyword(keyword string, filterType string, limit, offset int) ([]semantic.Book, int64, error) {
 	ctx := context.Background()
 
@@ -263,7 +263,7 @@ func (s *Searcher) SearchByKeyword(keyword string, filterType string, limit, off
 	switch filterType {
 	case "title":
 		// For title search, we use a simple text match
-		// Note: Qdrant doesn't have full-text search like Meilisearch
+		// Note: Qdrant doesn't have full-text search like traditional search engines
 		// We'll use Scroll to get all books and filter in memory
 		// For production, consider using Qdrant's full-text index feature
 		return s.scrollAndFilterByTitle(keyword, limit, offset)
@@ -538,6 +538,12 @@ func (s *Searcher) UpdateBookMetadata(book semantic.Book, vector []float32) erro
 	}
 
 	return nil
+}
+
+// DeleteBook deletes a book from Qdrant
+func (s *Searcher) DeleteBook(bookID int64) error {
+	ctx := context.Background()
+	return s.client.DeletePoints(ctx, []uint64{uint64(bookID)})
 }
 
 // IndexBooks indexes a batch of books by generating embeddings and upserting to Qdrant

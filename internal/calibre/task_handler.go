@@ -112,6 +112,44 @@ func (c *Api) startTask(r *gin.Context) {
 		})
 		return
 
+	case tasks.TaskTypeCheckMissing:
+		if c.contentApi == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Content API is not initialized",
+			})
+			return
+		}
+
+		searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+		if !ok || searcher == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Qdrant searcher is not initialized",
+			})
+			return
+		}
+
+		manager := tasks.GetManager()
+		taskID, err := manager.StartTask(tasks.TaskTypeCheckMissing, tasks.TaskModeFull, func(id string) tasks.Task {
+			return tasks.NewCheckMissingTask(id, c.contentApi, searcher)
+		})
+
+		if err != nil {
+			r.JSON(http.StatusConflict, gin.H{
+				"code":    409,
+				"message": err.Error(),
+			})
+			return
+		}
+
+		r.JSON(http.StatusOK, gin.H{
+			"code":    200,
+			"message": "Check missing vectors task started",
+			"data":    gin.H{"id": taskID},
+		})
+		return
+
 	default:
 		r.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,

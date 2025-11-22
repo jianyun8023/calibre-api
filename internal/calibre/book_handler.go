@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
+	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 )
 
@@ -57,7 +58,19 @@ func (c *Api) deleteBook(r *gin.Context) {
 		return
 	}
 
-	// TODO: Also delete from Qdrant when delete API is implemented
+	// Dispatch delete task
+	if searcher, ok := c.semanticSearcher.(*qdrant.Searcher); ok && searcher != nil {
+		manager := tasks.GetManager()
+		bookID, _ := strconv.ParseInt(id, 10, 64)
+		_, err := manager.StartTask(tasks.TaskTypeDeleteBook, tasks.TaskModeFull, func(taskID string) tasks.Task {
+			return tasks.NewDeleteBookTask(taskID, bookID, searcher)
+		})
+		if err != nil {
+			log.Warnf("Failed to start delete task for book %d: %v", bookID, err)
+		} else {
+			log.Infof("Started delete task for book %d", bookID)
+		}
+	}
 
 	r.JSON(http.StatusOK, gin.H{
 		"data":    true,
@@ -99,8 +112,50 @@ func (c *Api) updateMetadata(r *gin.Context) {
 		return
 	}
 
-	// TODO: Update Qdrant metadata when UpdateBookMetadata is implemented
-	// For now, metadata will be updated on next sync
+	// Dispatch update task
+	if searcher, ok := c.semanticSearcher.(*qdrant.Searcher); ok && searcher != nil {
+		// Merge changes into oldBook
+		if book.Title != "" {
+			oldBook.Title = book.Title
+		}
+		if book.Authors != nil {
+			oldBook.Authors = book.Authors
+		}
+		if book.Publisher != "" {
+			oldBook.Publisher = book.Publisher
+		}
+		if book.Comments != "" {
+			oldBook.Comments = book.Comments
+		}
+		if book.Tags != nil {
+			oldBook.Tags = book.Tags
+		}
+		if book.Rating > 0 {
+			oldBook.Rating = book.Rating
+		}
+		if book.Isbn != "" {
+			oldBook.Isbn = book.Isbn
+			if oldBook.Identifiers == nil {
+				oldBook.Identifiers = make(map[string]string)
+			}
+			oldBook.Identifiers["isbn"] = book.Isbn
+		}
+		if !book.PubDate.IsZero() {
+			oldBook.PubDate = book.PubDate
+		}
+
+		semanticBook := convertBookToSemantic(oldBook)
+
+		manager := tasks.GetManager()
+		_, err := manager.StartTask(tasks.TaskTypeUpdateMetadata, tasks.TaskModeFull, func(taskID string) tasks.Task {
+			return tasks.NewUpdateMetadataTask(taskID, semanticBook, searcher)
+		})
+		if err != nil {
+			log.Warnf("Failed to start update task for book %d: %v", oldBook.ID, err)
+		} else {
+			log.Infof("Started update task for book %d", oldBook.ID)
+		}
+	}
 
 	r.JSON(http.StatusOK, gin.H{
 		"code":    200,
@@ -298,6 +353,28 @@ func convertSemanticToBooks(books []semantic.Book) []Book {
 		calibreBooks[i] = convertSemanticToBook(book)
 	}
 	return calibreBooks
+}
+
+// convertBookToSemantic converts calibre.Book to semantic.Book
+func convertBookToSemantic(book *Book) semantic.Book {
+	return semantic.Book{
+		ID:           book.ID,
+		Title:        book.Title,
+		Authors:      book.Authors,
+		Publisher:    book.Publisher,
+		PubDate:      book.PubDate,
+		Isbn:         book.Isbn,
+		Tags:         book.Tags,
+		Rating:       book.Rating,
+		SeriesIndex:  book.SeriesIndex,
+		Comments:     book.Comments,
+		Languages:    book.Languages,
+		LastModified: book.LastModified,
+		Cover:        book.Cover,
+		FilePath:     book.FilePath,
+		Identifiers:  book.Identifiers,
+		Size:         book.Size,
+	}
 }
 
 // parseParams 解析更新参数
