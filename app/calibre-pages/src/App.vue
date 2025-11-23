@@ -13,14 +13,14 @@
 
       <!-- 主要内容区域 -->
       <el-main class="content-container">
-        <div class="scrollable-content">
+        <div class="scrollable-content" :class="{ 'chat-mode': $route.path === '/chat' }">
           <router-view v-slot="{ Component }" :key="$route.fullPath">
             <transition name="fade" mode="out-in">
               <component :is="Component" :key="$route.fullPath" />
             </transition>
           </router-view>
           
-          <el-footer height="auto" class="site-footer">
+          <el-footer v-if="$route.path !== '/chat'" height="auto" class="site-footer">
             <SiteFooter />
           </el-footer>
         </div>
@@ -116,6 +116,13 @@ onMounted(() => {
     &:hover {
       background: rgba(156, 163, 175, 0.5);
     }
+  }
+
+  &.chat-mode {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 }
 

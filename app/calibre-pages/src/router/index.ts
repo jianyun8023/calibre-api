@@ -12,6 +12,7 @@ const BatchMeta = () => import('../views/BatchMeta.vue')
 const ReadBook = () => import('../views/ReadBook.vue')
 const Publisher = () => import('../views/Publisher.vue')
 const Tasks = () => import('../views/Tasks.vue')
+const Chat = () => import('../views/Chat.vue')
 
 
 const router = createRouter({
@@ -20,6 +21,7 @@ const router = createRouter({
         { path: '/', name: 'home', component: Home },
         { path: '/books', component: Books },
         { path: '/search', component: Search },
+        { path: '/chat', component: Chat },
         { path: '/setting', component: Setting },
         { path: '/metadata/manager', component: BatchMeta },
         { path: '/detail/:id', component: Detail, props: true },

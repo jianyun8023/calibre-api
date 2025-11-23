@@ -12,8 +12,11 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "@types/markdown-it": "^14.1.2",
     "@vueuse/core": "^10.11.1",
     "element-plus": "^2.7.8",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.0",
     "vue": "^3.4.29",
     "vue-reader": "^1.2.15",
     "vue-router": "^4.3.3"

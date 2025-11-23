@@ -2,12 +2,15 @@ package calibre
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/cache"
+	"github.com/jianyun8023/calibre-api/internal/chat"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/pkg/client"
@@ -24,6 +27,8 @@ type Api struct {
 	qdrantClient     *qdrant.Client
 	semanticSearcher interface{} // *qdrant.Searcher
 	cacheManager     *cache.Manager
+	chatDB           *chat.DB
+	chatAgent        *chat.Agent
 }
 
 // SetupRouter 设置路由
@@ -64,6 +69,17 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	// Enhanced Tools MCP 端点
 	base.GET("/mcp/tools/enhanced", c.getEnhancedTools)
 	base.POST("/mcp/tools/enhanced/:tool", c.executeEnhancedTool)
+
+	// Chat routes (智能问答)
+	if c.chatDB != nil && c.chatAgent != nil {
+		base.POST("/chat/conversations", c.CreateConversation)
+		base.GET("/chat/conversations", c.ListConversations)
+		base.GET("/chat/conversations/:id", c.GetConversation)
+		base.GET("/chat/conversations/:id/messages", c.GetConversationMessages)
+		base.DELETE("/chat/conversations/:id", c.DeleteConversation)
+		base.DELETE("/chat/messages/:id", c.DeleteMessage)
+		base.POST("/chat/conversations/:id/messages", c.SendMessage)
+	}
 }
 
 // NewClient 创建 Calibre API 客户端
@@ -127,6 +143,20 @@ func NewClient(config *Config) *Api {
 		}
 	}
 
+	// Initialize chat components
+	var chatDB *chat.DB
+	var chatAgent *chat.Agent
+
+	if config.Chat.DBPath != "" {
+		chatDB, err = chat.NewDB(config.Chat.DBPath)
+		if err != nil {
+			log.Warnf("Failed to initialize chat database: %v", err)
+		} else {
+			log.Infof("Chat database initialized: %s", config.Chat.DBPath)
+		}
+	}
+
+	// Create Api instance first (without chatAgent)
 	api := Api{
 		config:           config,
 		baseDir:          config.TmpDir,
@@ -135,6 +165,35 @@ func NewClient(config *Config) *Api {
 		qdrantClient:     qdrantClient,
 		semanticSearcher: qdrantSearcher,
 		cacheManager:     cacheManager,
+		chatDB:           chatDB,
+	}
+
+	// Initialize LLM and Agent if chat DB is available and Qdrant searcher exists
+	if chatDB != nil && qdrantSearcher != nil && config.LLM.Provider != "" {
+		llm, err := chat.NewLLM(config.LLM)
+		if err != nil {
+			log.Warnf("Failed to initialize LLM client: %v", err)
+		} else {
+			// Define TocFetcher using the api instance
+			tocFetcher := func(ctx context.Context, bookID int64) (string, error) {
+				tocData, err := api.GetBookTocData(strconv.FormatInt(bookID, 10))
+				if err != nil {
+					return "", err
+				}
+				// Convert tocData to string summary
+				// tocData is map[string]interface{} or similar structure
+				// We need to format it nicely for the LLM
+				bytes, err := json.MarshalIndent(tocData, "", "  ")
+				if err != nil {
+					return "", err
+				}
+				return string(bytes), nil
+			}
+
+			chatAgent = chat.NewAgent(llm, qdrantSearcher, tocFetcher)
+			api.chatAgent = chatAgent // Inject agent back to api
+			log.Infof("Chat agent initialized with provider: %s", config.LLM.Provider)
+		}
 	}
 
 	// 初始化 SSE MCP 服务器（在 HTTP 模式下默认启用）

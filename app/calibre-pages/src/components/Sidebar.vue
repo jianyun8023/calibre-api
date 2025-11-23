@@ -30,6 +30,12 @@
       <span>出版社</span>
     </el-menu-item>
 
+    <el-menu-item index="/chat" class="menu-item-enhanced">
+      <el-icon><ChatDotRound/></el-icon>
+      <span>智能问答</span>
+      <el-tag size="small" class="menu-badge" effect="plain">AI</el-tag>
+    </el-menu-item>
+
     <el-menu-item index="/tasks" class="menu-item-enhanced">
       <el-icon><List/></el-icon>
       <span>任务</span>
@@ -45,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { House, Files, Search, Setting, Shop, List } from '@element-plus/icons-vue'
+import { House, Files, Search, Setting, Shop, List, ChatDotRound } from '@element-plus/icons-vue'
 
 const handleSelect = (key: string, keyPath: string) => {
   console.log(key, keyPath);

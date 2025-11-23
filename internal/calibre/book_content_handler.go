@@ -72,7 +72,19 @@ func (c *Api) getBookFile(r *gin.Context) {
 // 优先从 Qdrant 获取 TOC，缺失时从 EPUB 文件提取并自动更新到 Qdrant
 func (c *Api) getBookToc(r *gin.Context) {
 	id := strings.TrimSuffix(r.Param("id"), ".epub")
+	toc, err := c.GetBookTocData(id)
+	if err != nil {
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": err.Error(),
+		})
+		return
+	}
+	r.JSON(http.StatusOK, toc)
+}
 
+// GetBookTocData 获取书籍目录数据
+func (c *Api) GetBookTocData(id string) (interface{}, error) {
 	// Try to get TOC from Qdrant first
 	if c.semanticSearcher != nil {
 		if searcher, ok := c.semanticSearcher.(*qdrant.Searcher); ok {
@@ -81,8 +93,7 @@ func (c *Api) getBookToc(r *gin.Context) {
 				toc, err := searcher.GetBookToc(bookID)
 				if err == nil && toc != nil {
 					// TOC found in Qdrant, return it
-					r.JSON(http.StatusOK, toc)
-					return
+					return toc, nil
 				}
 			}
 		}
@@ -91,11 +102,7 @@ func (c *Api) getBookToc(r *gin.Context) {
 	// TOC not found in Qdrant, extract from EPUB file
 	tocData, err := c.extractTocFromEpub(id)
 	if err != nil {
-		r.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": fmt.Sprintf("Failed to extract TOC: %v", err),
-		})
-		return
+		return nil, fmt.Errorf("failed to extract TOC: %v", err)
 	}
 
 	// Asynchronously update TOC to Qdrant (don't block response)
@@ -112,7 +119,7 @@ func (c *Api) getBookToc(r *gin.Context) {
 		}
 	}
 
-	r.JSON(http.StatusOK, tocData)
+	return tocData, nil
 }
 
 // extractTocFromEpub extracts TOC structure from EPUB file
