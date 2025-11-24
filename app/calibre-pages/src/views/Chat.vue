@@ -49,7 +49,7 @@
             
             <div class="message-wrapper">
               <!-- 消息内容 -->
-              <div class="message-content markdown-body" v-html="msg.renderedContent || renderMarkdown(msg.content)"></div>
+              <div :key="msg.content.length" class="message-content markdown-body" v-html="msg.renderedContent || renderMarkdown(msg.content)"></div>
               
               <!-- 消息操作栏 -->
               <div class="message-actions">
@@ -294,7 +294,7 @@ const sendMessage = async () => {
     role: 'assistant',
     content: '',
     created_at: new Date().toISOString(),
-    updateKey: 0
+    renderedContent: ''  // 初始化为空字符串，确保 Vue 响应式追踪
   }
   messages.value.push(aiMessage)
   // 获取响应式对象
