@@ -8,7 +8,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install
 COPY ./app/calibre-pages/ ./
 RUN pnpm build
 
-FROM golang:1.22 AS build
+FROM golang:1 AS build
 
 WORKDIR /app
 
