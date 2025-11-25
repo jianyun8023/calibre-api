@@ -71,15 +71,13 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.POST("/mcp/tools/enhanced/:tool", c.executeEnhancedTool)
 
 	// Chat routes (智能问答)
-	if c.chatDB != nil && c.chatAgent != nil {
-		base.POST("/chat/conversations", c.CreateConversation)
-		base.GET("/chat/conversations", c.ListConversations)
-		base.GET("/chat/conversations/:id", c.GetConversation)
-		base.GET("/chat/conversations/:id/messages", c.GetConversationMessages)
-		base.DELETE("/chat/conversations/:id", c.DeleteConversation)
-		base.DELETE("/chat/messages/:id", c.DeleteMessage)
-		base.POST("/chat/conversations/:id/messages", c.SendMessage)
-	}
+	base.POST("/chat/conversations", c.CreateConversation)
+	base.GET("/chat/conversations", c.ListConversations)
+	base.GET("/chat/conversations/:id", c.GetConversation)
+	base.GET("/chat/conversations/:id/messages", c.GetConversationMessages)
+	base.DELETE("/chat/conversations/:id", c.DeleteConversation)
+	base.DELETE("/chat/messages/:id", c.DeleteMessage)
+	base.POST("/chat/conversations/:id/messages", c.SendMessage)
 }
 
 // NewClient 创建 Calibre API 客户端

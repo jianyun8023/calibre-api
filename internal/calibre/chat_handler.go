@@ -13,6 +13,11 @@ import (
 
 // CreateConversation 创建新对话
 func (c *Api) CreateConversation(r *gin.Context) {
+	if c.chatDB == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{"error": "Chat database not initialized"})
+		return
+	}
+
 	var req struct {
 		Title string `json:"title" binding:"required"`
 	}
@@ -33,6 +38,11 @@ func (c *Api) CreateConversation(r *gin.Context) {
 
 // ListConversations 列出对话历史
 func (c *Api) ListConversations(r *gin.Context) {
+	if c.chatDB == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{"error": "Chat database not initialized"})
+		return
+	}
+
 	conversations, err := c.chatDB.ListConversations(50)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -44,6 +54,11 @@ func (c *Api) ListConversations(r *gin.Context) {
 
 // GetConversation 获取对话详情
 func (c *Api) GetConversation(r *gin.Context) {
+	if c.chatDB == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{"error": "Chat database not initialized"})
+		return
+	}
+
 	conversationID := r.Param("id")
 
 	conv, err := c.chatDB.GetConversation(conversationID)
@@ -57,6 +72,11 @@ func (c *Api) GetConversation(r *gin.Context) {
 
 // GetConversationMessages 获取对话消息
 func (c *Api) GetConversationMessages(r *gin.Context) {
+	if c.chatDB == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{"error": "Chat database not initialized"})
+		return
+	}
+
 	conversationID := r.Param("id")
 
 	messages, err := c.chatDB.GetConversationMessages(conversationID)
@@ -70,6 +90,11 @@ func (c *Api) GetConversationMessages(r *gin.Context) {
 
 // DeleteConversation 删除对话
 func (c *Api) DeleteConversation(r *gin.Context) {
+	if c.chatDB == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{"error": "Chat database not initialized"})
+		return
+	}
+
 	conversationID := r.Param("id")
 
 	if err := c.chatDB.DeleteConversation(conversationID); err != nil {
@@ -82,6 +107,11 @@ func (c *Api) DeleteConversation(r *gin.Context) {
 
 // DeleteMessage 删除消息
 func (c *Api) DeleteMessage(r *gin.Context) {
+	if c.chatDB == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{"error": "Chat database not initialized"})
+		return
+	}
+
 	messageID := r.Param("id")
 
 	if err := c.chatDB.DeleteMessage(messageID); err != nil {
@@ -94,6 +124,15 @@ func (c *Api) DeleteMessage(r *gin.Context) {
 
 // SendMessage 发送消息（流式响应）
 func (c *Api) SendMessage(r *gin.Context) {
+	if c.chatDB == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{"error": "Chat database not initialized"})
+		return
+	}
+	if c.chatAgent == nil {
+		r.JSON(http.StatusServiceUnavailable, gin.H{"error": "Chat agent not initialized"})
+		return
+	}
+
 	conversationID := r.Param("id")
 
 	var req struct {
