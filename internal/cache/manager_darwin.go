@@ -1,5 +1,5 @@
-//go:build !windows
-// +build !windows
+//go:build darwin
+// +build darwin
 
 package cache
 
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// getAccessTime extracts the access time from FileInfo (Unix systems)
+// getAccessTime extracts the access time from FileInfo (Darwin/macOS)
 func getAccessTime(info os.FileInfo) time.Time {
 	stat := info.Sys().(*syscall.Stat_t)
 	// On Darwin (macOS), use Atimespec
