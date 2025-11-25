@@ -8,7 +8,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install
 COPY ./app/calibre-pages/ ./
 RUN pnpm build
 
-FROM golang:1 AS build
+FROM golang:1.24.10-trixie AS build
 
 WORKDIR /app
 
