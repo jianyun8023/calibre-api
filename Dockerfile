@@ -23,6 +23,12 @@ RUN go build -o /calibre-api
 ## Deploy
 FROM debian:bookworm-slim
 
+# 安装 CA 证书和其他必要工具
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV CALIBRE_TEMPLATE_DIR=/app/templates
 ENV CALIBRE_STATIC_DIR=/app/static
 
