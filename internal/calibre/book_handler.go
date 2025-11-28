@@ -1,6 +1,7 @@
 package calibre
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -51,9 +52,10 @@ func (c *Api) deleteBook(r *gin.Context) {
 
 	err := c.contentApi.DeleteBooks([]string{id}, "")
 	if err != nil {
-		r.JSON(http.StatusOK, gin.H{
-			"message": "book not found" + err.Error(),
-			"code":    http.StatusNotFound,
+		log.Infof("Failed to delete book %s: %v", id, err)
+		r.JSON(http.StatusInternalServerError, gin.H{
+			"message": fmt.Sprintf("Failed to delete book: %v", err),
+			"code":    http.StatusInternalServerError,
 		})
 		return
 	}

@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 修改 `log.Infof()` 调用使用常量格式字符串
   - 影响文件：`pkg/content/api.go`, `internal/calibre/metadata_handler.go`
 
+### Improved
+- **代码质量全面优化**: 对 8610 行 Go 代码进行了全面的质量优化
+  - **错误处理**: 移除 panic 改为优雅退出，新增 9 个错误类型定义
+  - **代码规范**: 统一格式化，新增 12 个常量定义，添加 50+ 行文档注释
+  - **性能优化**: 确认并发安全，HTTP 客户端复用，添加性能基准测试
+  - **结构优化**: 修复接口重复定义，添加配置验证函数
+  - **测试覆盖**: 新增 16 个单元测试用例和 4 个性能基准测试
+  - 详见 [CODE_QUALITY_IMPROVEMENTS.md](./CODE_QUALITY_IMPROVEMENTS.md)
+
 ## [1.2.0] - 2024-11-28
 
 ### 🎉 重大更新：MCP 框架迁移

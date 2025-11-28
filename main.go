@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -15,7 +16,12 @@ import (
 )
 
 func main() {
-	conf := initConfig()
+	conf, err := initConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize configuration: %v\n", err)
+		os.Exit(1)
+	}
+
 	log.EnableDebug = conf.Debug
 	if conf.Debug {
 		gin.SetMode(gin.DebugMode)
@@ -85,28 +91,9 @@ func setPages(r *gin.Engine, conf *calibre.Config) {
 	r.NoRoute(func(c *gin.Context) {
 		c.File(conf.StaticDir + "/index.html")
 	})
-
-	//// Serve the settings page
-	//r.GET("/setting", func(c *gin.Context) {
-	//	c.File(conf.TemplateDir + "/setting.html")
-	//	//c.HTML(http.StatusOK, "setting.html", nil)
-	//})
-	//
-	//r.GET("/books", func(c *gin.Context) {
-	//	c.File(conf.TemplateDir + "/books.html")
-	//	//c.HTML(http.StatusOK, "setting.html", nil)
-	//})
-	//
-	//r.GET("/search", func(c *gin.Context) {
-	//	c.File(conf.TemplateDir + "/search.html")
-	//	//c.HTML(http.StatusOK, "search.html", nil)
-	//})
-	//r.GET("/detail/:id", func(c *gin.Context) {
-	//	c.File(conf.TemplateDir + "/detail.html")
-	//})
 }
 
-func initConfig() *calibre.Config {
+func initConfig() (*calibre.Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("/etc/calibre-api/")
@@ -128,16 +115,33 @@ func initConfig() *calibre.Config {
 	viper.SetEnvPrefix("CALIBRE")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(fmt.Errorf("fatal error config file: %w", err))
+
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	var conf calibre.Config
 	if err := viper.Unmarshal(&conf); err != nil {
-		panic(fmt.Errorf("bind config failed! %w", err))
+		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
+
+	// Validate configuration
+	if err := validateConfig(&conf); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
 	marshal, _ := json.Marshal(conf)
 	log.Infof("loaded config %s", marshal)
-	return &conf
+	return &conf, nil
+}
+
+// validateConfig validates the configuration
+func validateConfig(conf *calibre.Config) error {
+	if conf.Address == "" {
+		return fmt.Errorf("address is required")
+	}
+	if conf.StaticDir == "" {
+		return fmt.Errorf("staticDir is required")
+	}
+	return nil
 }

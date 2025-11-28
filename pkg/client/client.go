@@ -3,24 +3,27 @@ package client
 import (
 	"errors"
 	"fmt"
-    "github.com/jianyun8023/calibre-api/pkg/log"
-    "net/http/cookiejar"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/go-resty/resty/v2"
-
+	"github.com/jianyun8023/calibre-api/pkg/log"
 )
 
 var (
+	// ErrInvalidRequestURL 表示提供的 URL 格式无效
 	ErrInvalidRequestURL = errors.New("invalid request url, we only support https:// or http://")
 )
 
 const (
+	// DefaultUserAgent 默认的 User-Agent 字符串，模拟浏览器行为
 	DefaultUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)" +
 		" Chrome/107.0.0.0 Safari/537.36 Edg/107.0.1418.42"
+	// DefaultPermissions 默认的文件权限
+	DefaultPermissions = 0o755
 )
 
 // Client is the wrapper for resty.Client we may provide extra method on this wrapper.
@@ -102,7 +105,7 @@ func DefaultConfigRoot() (string, error) {
 }
 
 func mkdir(path string) (string, error) {
-	if err := os.MkdirAll(path, 0o755); err != nil {
+	if err := os.MkdirAll(path, DefaultPermissions); err != nil {
 		return "", err
 	}
 
@@ -113,7 +116,7 @@ func mkdir(path string) (string, error) {
 func NewConfig(rawURL, userAgent, proxy, configRoot string) (*Config, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, fmt.Errorf(rawURL, err)
+		return nil, fmt.Errorf("failed to parse URL %s: %w", rawURL, err)
 	}
 
 	if u.Scheme != "http" && u.Scheme != "https" {
@@ -126,7 +129,7 @@ func NewConfig(rawURL, userAgent, proxy, configRoot string) (*Config, error) {
 			return nil, err
 		}
 	} else {
-		if err := os.MkdirAll(configRoot, 0o755); err != nil {
+		if err := os.MkdirAll(configRoot, DefaultPermissions); err != nil {
 			return nil, err
 		}
 	}

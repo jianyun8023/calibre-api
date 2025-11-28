@@ -9,7 +9,12 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-// Agent 智能书库 Agent
+const (
+	// MaxConversationHistory 对话历史最大保留条数
+	MaxConversationHistory = 10
+)
+
+// Agent 智能书库 Agent，提供基于 LLM 的智能书籍问答功能
 type Agent struct {
 	llm          llms.Model
 	searcher     *qdrant.Searcher
@@ -80,10 +85,10 @@ func (a *Agent) buildPrompt(userMessage string, conversationHistory []*Message) 
 	prompt.WriteString(a.systemPrompt)
 	prompt.WriteString("\n\n")
 
-	// 对话历史（最近 10 条）
+	// 对话历史（最近 N 条）
 	historyStart := 0
-	if len(conversationHistory) > 10 {
-		historyStart = len(conversationHistory) - 10
+	if len(conversationHistory) > MaxConversationHistory {
+		historyStart = len(conversationHistory) - MaxConversationHistory
 	}
 
 	for i := historyStart; i < len(conversationHistory); i++ {
