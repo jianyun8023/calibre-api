@@ -270,8 +270,13 @@ const stopGeneration = () => {
 const sendMessage = async () => {
   if (!inputMessage.value.trim() || sending.value || !currentConversation.value) return
   
+  // 生成唯一的消息 ID (使用 timestamp + random)
+  const generateUniqueId = () => {
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  }
+  
   const userMessage: Message = {
-    id: Date.now().toString(),
+    id: generateUniqueId(),
     conversation_id: currentConversation.value.id,
     role: 'user',
     content: inputMessage.value,
@@ -289,7 +294,7 @@ const sendMessage = async () => {
   
   // AI 消息（流式更新）
   const aiMessage: Message = {
-    id: (Date.now() + 1).toString(),
+    id: generateUniqueId(),
     conversation_id: currentConversation.value.id,
     role: 'assistant',
     content: '',

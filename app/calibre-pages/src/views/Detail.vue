@@ -274,19 +274,10 @@ export default {
       console.log('isPhone: ' + this.isPhone)
     })
   },
-  // 监听路由变化，当路由参数改变时重新获取数据
-  watch: {
-    '$route'(to, from) {
-      // 当路由参数变化时，重新获取书籍数据
-      if (to.params.id && to.params.id !== from.params.id) {
-        this.fetchBook(to.params.id as string)
-      }
-    }
-  },
   // 路由守卫：在同一组件内路由参数变化时调用
   beforeRouteUpdate(to, from, next) {
     // 当路由参数变化时，重新获取书籍数据
-    if (to.params.id) {
+    if (to.params.id && to.params.id !== from.params.id) {
       this.fetchBook(to.params.id as string)
     }
     next()

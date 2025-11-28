@@ -108,6 +108,8 @@ const prevPage = () => {
     // Pop the last cursor from stack
     cursor.value = prevCursors.value.pop() || ''
     currentPage.value--
+    // Reset nextCursor to ensure correct forward navigation
+    nextCursor.value = ''
     window.scrollTo({ top: 0, behavior: 'smooth' })
     fetchBooks()
   }
