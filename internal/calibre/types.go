@@ -79,9 +79,12 @@ type Content struct {
 }
 
 type MCPConfig struct {
-	Enabled    bool   `mapstructure:"enabled"`
-	ServerName string `mapstructure:"server_name"`
-	Version    string `mapstructure:"version"`
-	BaseURL    string `mapstructure:"base_url"`
-	Timeout    int    `mapstructure:"timeout"`
+	Enabled         bool   `mapstructure:"enabled"`
+	ServerName      string `mapstructure:"server_name"`
+	Version         string `mapstructure:"version"`
+	Transport       string `mapstructure:"transport"`        // "sse" or "http"
+	SSEEndpoint     string `mapstructure:"sse_endpoint"`     // SSE endpoint path
+	MessageEndpoint string `mapstructure:"message_endpoint"` // Message endpoint path
+	BaseURL         string `mapstructure:"base_url"`
+	Timeout         int    `mapstructure:"timeout"`
 }

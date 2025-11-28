@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	ginmcp "github.com/ckanthony/gin-mcp"
-
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
 	"github.com/jianyun8023/calibre-api/pkg/log"
@@ -33,83 +31,21 @@ func main() {
 	client := calibre.NewClient(conf)
 	client.SetupRouter(r)
 
+	// 初始化并挂载 MCP 服务器
+	if conf.MCP.Enabled {
+		mcpServer := calibre.NewMCPServer(client, conf.MCP)
+		mcpServer.Mount(r)
+		log.Infof("MCP Server enabled: transport=%s", conf.MCP.Transport)
+	} else {
+		log.Info("MCP Server disabled")
+	}
+
 	for _, route := range r.Routes() {
 		log.Infof("route: %s %s", route.Method, route.Path)
 	}
 
-	// 3. Create and configure the MCP server
-	//    Provide essential details for the MCP client.
-	mcp := ginmcp.New(r, &ginmcp.Config{
-		Name:        conf.MCP.ServerName,
-		Description: "a Calibre API MCP Server",
-		// BaseURL is crucial! It tells MCP clients where to send requests.
-		BaseURL: conf.MCP.BaseURL,
-		ExcludeOperations: []string{
-			"/",
-			"/index",
-			"/favicon.ico",
-			"/assets/*",
-			"/api/book/:id/delete",
-		},
-	})
-
-	// 注册 API 参数模式，为 MCP 工具提供详细的参数说明
-	registerMCPSchemas(mcp)
-
-	// 4. Mount the MCP server endpoint
-	mcp.Mount("/mcp") // MCP clients will connect here
 	log.Infof("server listen on %s", conf.Address)
 	r.Run(conf.Address)
-}
-
-// registerMCPSchemas 为 gin-mcp 注册 API 参数模式
-func registerMCPSchemas(mcp *ginmcp.GinMCP) {
-	// 搜索相关接口
-	mcp.RegisterSchema("GET", "/api/search", calibre.SearchRequest{}, nil)
-	mcp.RegisterSchema("POST", "/api/search", nil, calibre.SearchRequest{})
-
-	// 书籍管理相关接口
-	mcp.RegisterSchema("POST", "/api/book/:id/update", nil, calibre.BookUpdateRequest{})
-
-	// 元数据相关接口
-	mcp.RegisterSchema("GET", "/api/metadata/search", calibre.MetadataSearchRequest{}, nil)
-
-	// 出版社列表接口
-	mcp.RegisterSchema("GET", "/api/publisher", calibre.PublisherListRequest{}, nil)
-
-	// 最近书籍接口
-	mcp.RegisterSchema("GET", "/api/recently", calibre.RecentlyBooksRequest{}, nil)
-
-	// 随机书籍接口
-	mcp.RegisterSchema("GET", "/api/random", calibre.RandomBooksRequest{}, nil)
-
-	// 读取书籍目录接口
-	mcp.RegisterSchema("GET", "/api/read/:id/toc", calibre.BookTocRequest{}, nil)
-
-	// // 读取书籍内容接口
-	// mcp.RegisterSchema("GET", "/api/read/:id/file/*path", calibre.BookContentRequest{}, nil)
-
-	// 读取书籍内容接口
-	mcp.RegisterSchema("GET", "/api/book/content", calibre.BookContentByQueryRequest{}, nil)
-
-	// 获取封面接口
-	mcp.RegisterSchema("GET", "/api/get/cover/:id", calibre.GetCoverRequest{}, nil)
-
-	// 代理封面接口
-	mcp.RegisterSchema("GET", "/api/proxy/cover/*path", calibre.ProxyCoverRequest{}, nil)
-
-	// 获取书籍文件接口
-	mcp.RegisterSchema("GET", "/api/download/book/:id", calibre.GetBookFileRequest{}, nil)
-
-	// 获取书籍信息接口
-	mcp.RegisterSchema("GET", "/api/book/:id", calibre.GetBookRequest{}, nil)
-
-	// 获取ISBN信息接口
-	mcp.RegisterSchema("GET", "/api/metadata/isbn/:isbn", calibre.GetISBNRequest{}, nil)
-
-	// Enhanced Tools 接口
-	mcp.RegisterSchema("GET", "/api/mcp/tools/enhanced", nil, nil)
-	mcp.RegisterSchema("POST", "/api/mcp/tools/enhanced/:tool", nil, calibre.EnhancedToolRequest{})
 }
 
 func setPages(r *gin.Engine, conf *calibre.Config) {
@@ -167,9 +103,12 @@ func initConfig() *calibre.Config {
 	viper.SetDefault("tmpDir", "/tmp")
 
 	// MCP defaults
-	viper.SetDefault("mcp.enabled", false)
+	viper.SetDefault("mcp.enabled", true)
 	viper.SetDefault("mcp.server_name", "calibre-mcp-server")
-	viper.SetDefault("mcp.version", "1.0.0")
+	viper.SetDefault("mcp.version", "1.2.0")
+	viper.SetDefault("mcp.transport", "sse")
+	viper.SetDefault("mcp.sse_endpoint", "/mcp/sse")
+	viper.SetDefault("mcp.message_endpoint", "/mcp/message")
 	viper.SetDefault("mcp.timeout", 30)
 
 	viper.SetEnvPrefix("CALIBRE")

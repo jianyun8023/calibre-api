@@ -10,21 +10,24 @@ metadata:
 
 # MCP 服务器配置
 mcp:
-  enabled: false                        # 是否默认启用传统 MCP 模式（设为 false 启用 HTTP + SSE MCP）
+  enabled: true                         # 启用 MCP 模式
   server_name: "calibre-mcp-server"     # MCP 服务器名称
-  version: "1.1.0"                      # MCP 服务器版本
+  version: "1.2.0"                      # MCP 服务器版本
+  transport: "sse"                      # 传输模式: "sse" 或 "http"
+  sse_endpoint: "/mcp/sse"              # SSE 端点路径
+  message_endpoint: "/mcp/message"      # 消息端点路径
   base_url: "http://localhost:8080"     # API 基础 URL（用于 MCP 工具调用）
   timeout: 30                           # API 请求超时时间（秒）
 
 embedding:
-  provider: "ollama"  # 或 "siliconflow"
+  provider: "siliconflow"  # 或 "siliconflow"
   ollama:
     api_url: "http://localhost:11434/api/embeddings"
     model: "qwen3-embedding:8b"
   siliconflow:
     api_url: "https://api.siliconflow.cn/v1/embeddings"
     model: "Qwen/Qwen3-Embedding-8B"
-    api_token: ""  # 建议使用环境变量 SILICONFLOW_API_TOKEN
+    api_token: "sk-byzendxdxkezkcnwtcjttvumaqwvsohvcvffvxrogxcjmvxm"  # 建议使用环境变量 SILICONFLOW_API_TOKEN
 
 qdrant:
   url: "http://192.168.2.236:6333"
@@ -35,3 +38,18 @@ cache:
   dir: ".cache/epub"
   max_size_gb: 30
   cleanup_threshold: 0.9
+
+# LLM 配置（用于智能问答）
+llm:
+  provider: "openai"  # 或 "openai"
+  ollama:
+    server_url: "http://localhost:11434"
+    model: "qwen2.5:14b"  # 或 "deepseek-r1:7b" 支持思考模式
+  openai:
+    api_key: "sk-byzendxdxkezkcnwtcjttvumaqwvsohvcvffvxrogxcjmvxm"  # 建议使用环境变量 OPENAI_API_KEY
+    model: "deepseek-ai/DeepSeek-V3.1-Terminus"
+    base_url: "https://api.siliconflow.cn/v1"
+
+# 聊天数据库
+chat:
+  db_path: ".cache/chat.db"
