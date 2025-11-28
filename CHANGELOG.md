@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **MCP 搜索优化**: `search_books` 工具改用纯语义搜索
+  - 从关键词搜索 (`SearchByKeyword`) 切换到语义搜索 (`Search`)
+  - 移除 `filter` 和 `offset` 参数，保留 `limit` 参数
+  - 更智能的搜索体验，支持自然语言查询
+  - 更新工具描述：明确说明使用向量相似度匹配
+- **MCP 书籍信息增强**: `get_book` 工具新增目录（TOC）信息
+  - 返回完整的书籍元数据 + 目录结构
+  - 目录数据优先从 Qdrant 获取，缺失时从 EPUB 提取
+  - 目录获取失败不影响基本元数据返回
+  - 帮助 AI 更好地理解书籍结构并进行总结推荐
+
 ### Security
 - **依赖升级**: 升级 Go 依赖包解决安全漏洞
   - 更新所有依赖至最新稳定版本

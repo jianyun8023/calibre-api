@@ -26,33 +26,22 @@ func (m *MCPServer) registerTools() {
 // ============================================================================
 
 func (m *MCPServer) registerSearchTools() {
-	// search_books - 混合搜索（关键词 + 语义）
+	// search_books - 语义搜索
 	m.mcpServer.AddTool(
 		mcp.Tool{
 			Name:        "search_books",
-			Description: "搜索书籍，支持关键词搜索和语义搜索。可以按标题、作者、出版社、ISBN、标签等搜索。",
+			Description: "使用语义搜索查找书籍，可以理解自然语言查询。例如：'关于机器学习的书'、'Python 编程入门'等。使用向量相似度匹配，比关键词搜索更智能。",
 			InputSchema: mcp.ToolInputSchema{
 				Type: "object",
 				Properties: map[string]interface{}{
 					"query": map[string]interface{}{
 						"type":        "string",
-						"description": "搜索关键词或问题",
-					},
-					"filter": map[string]interface{}{
-						"type":        "string",
-						"description": "搜索过滤器类型：title（标题）、author（作者）、publisher（出版社）、isbn、tags（标签）",
-						"enum":        []string{"title", "author", "publisher", "isbn", "tags"},
-						"default":     "title",
+						"description": "搜索问题或描述，支持自然语言",
 					},
 					"limit": map[string]interface{}{
 						"type":        "integer",
 						"description": "返回结果数量（默认20）",
 						"default":     20,
-					},
-					"offset": map[string]interface{}{
-						"type":        "integer",
-						"description": "分页偏移量（默认0）",
-						"default":     0,
 					},
 				},
 				Required: []string{"query"},
@@ -74,62 +63,51 @@ func (m *MCPServer) handleSearchBooks(ctx context.Context, request mcp.CallToolR
 		return mcp.NewToolResultError("query parameter is required"), nil
 	}
 
-	filterType := "title"
-	if f, ok := args["filter"].(string); ok {
-		filterType = f
-	}
-
 	limit := 20
 	if l, ok := args["limit"].(float64); ok {
 		limit = int(l)
 	}
 
-	offset := 0
-	if o, ok := args["offset"].(float64); ok {
-		offset = int(o)
-	}
+	log.Debugf("MCP Tool search_books (semantic): query=%s, limit=%d", query, limit)
 
-	log.Debugf("MCP Tool search_books: query=%s, filter=%s, limit=%d, offset=%d", query, filterType, limit, offset)
-
-	// 执行搜索（调用现有逻辑）
-	books, total, err := m.performSearch(query, filterType, limit, offset)
+	// 执行语义搜索
+	books, err := m.performSemanticSearch(query, limit)
 	if err != nil {
-		log.Warnf("Search failed: %v", err)
+		log.Warnf("Semantic search failed: %v", err)
 		return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
 	}
 
 	// 格式化结果
 	result := map[string]interface{}{
-		"books":  books,
-		"total":  total,
-		"query":  query,
-		"limit":  limit,
-		"offset": offset,
+		"books": books,
+		"count": len(books),
+		"query": query,
+		"limit": limit,
 	}
 
 	return mcp.NewToolResultText(formatToolResult(result)), nil
 }
 
-// performSearch 执行搜索（复用现有逻辑）
-func (m *MCPServer) performSearch(query, filterType string, limit, offset int) ([]Book, int64, error) {
+// performSemanticSearch 执行语义搜索
+func (m *MCPServer) performSemanticSearch(query string, limit int) ([]Book, error) {
 	searcher, ok := m.api.semanticSearcher.(*qdrant.Searcher)
 	if !ok || searcher == nil {
-		return nil, 0, fmt.Errorf("search service not available")
+		return nil, fmt.Errorf("search service not available")
 	}
 
-	// 使用关键词搜索
-	semanticBooks, total, err := searcher.SearchByKeyword(query, filterType, limit, offset)
+	// 使用语义搜索
+	results, err := searcher.Search(query, limit)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	// 转换结果
-	books := make([]Book, 0, len(semanticBooks))
-	for _, sb := range semanticBooks {
-		books = append(books, convertSemanticToBook(sb))
+	books := make([]Book, 0, len(results))
+	for _, result := range results {
+		books = append(books, convertSemanticToBook(result.Book))
 	}
 
-	return books, total, nil
+	return books, nil
 }
 
 // ============================================================================
@@ -141,7 +119,7 @@ func (m *MCPServer) registerBookTools() {
 	m.mcpServer.AddTool(
 		mcp.Tool{
 			Name:        "get_book",
-			Description: "根据书籍 ID 获取详细信息，包括标题、作者、出版社、ISBN、摘要等元数据。此操作为只读操作，不会修改任何数据。",
+			Description: "根据书籍 ID 获取详细信息，包括标题、作者、出版社、ISBN、摘要、目录结构等完整元数据。目录信息有助于了解书籍的章节结构和内容组织。此操作为只读操作，不会修改任何数据。",
 			InputSchema: mcp.ToolInputSchema{
 				Type: "object",
 				Properties: map[string]interface{}{
@@ -185,7 +163,40 @@ func (m *MCPServer) handleGetBook(ctx context.Context, request mcp.CallToolReque
 	}
 
 	book := convertSemanticToBook(books[0])
-	return mcp.NewToolResultText(formatToolResult(book)), nil
+
+	// 获取目录信息（如果可用）
+	toc, tocErr := m.api.GetBookTocData(id)
+	if tocErr != nil {
+		log.Debugf("Failed to get TOC for book %s: %v", id, tocErr)
+		// TOC 获取失败不影响基本信息返回，仅记录日志
+	}
+
+	// 构建完整响应，包含书籍元数据和目录
+	result := map[string]interface{}{
+		"id":            book.ID,
+		"title":         book.Title,
+		"authors":       book.Authors,
+		"publisher":     book.Publisher,
+		"pubdate":       book.PubDate,
+		"isbn":          book.Isbn,
+		"tags":          book.Tags,
+		"rating":        book.Rating,
+		"series_index":  book.SeriesIndex,
+		"comments":      book.Comments,
+		"languages":     book.Languages,
+		"last_modified": book.LastModified,
+		"cover":         book.Cover,
+		"file_path":     book.FilePath,
+		"identifiers":   book.Identifiers,
+		"size":          book.Size,
+	}
+
+	// 如果成功获取目录，添加到结果中
+	if tocErr == nil && toc != nil {
+		result["toc"] = toc
+	}
+
+	return mcp.NewToolResultText(formatToolResult(result)), nil
 }
 
 // handleUpdateBookMetadata 和 handleDeleteBook 已移除
