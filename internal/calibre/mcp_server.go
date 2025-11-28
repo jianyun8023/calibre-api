@@ -1,13 +1,11 @@
 package calibre
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/pkg/log"
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -50,8 +48,8 @@ func NewMCPServer(api *Api, config MCPConfig) *MCPServer {
 		m.sseServer = server.NewSSEServer(s)
 	}
 
-	// 注册所有功能（后续阶段逐步实现）
-	// m.registerTools()     // 阶段二实现
+	// 注册所有功能
+	m.registerTools() // 阶段二：工具注册
 	// m.registerResources() // 阶段三实现
 	// m.registerPrompts()   // 阶段三实现
 
@@ -87,16 +85,7 @@ func (m *MCPServer) Mount(r *gin.Engine) {
 	}
 }
 
-// registerTools 注册所有 MCP 工具（阶段二实现）
-func (m *MCPServer) registerTools() {
-	log.Info("Registering MCP tools...")
-	// 工具注册将在阶段二实现
-	// m.registerSearchTools()
-	// m.registerBookTools()
-	// m.registerRecommendationTools()
-	// m.registerMetadataTools()
-	log.Info("MCP tools registered successfully")
-}
+// registerTools 声明（实现在 mcp_tools.go）
 
 // registerResources 注册 MCP 资源（阶段三实现）
 func (m *MCPServer) registerResources() {
@@ -108,38 +97,6 @@ func (m *MCPServer) registerResources() {
 func (m *MCPServer) registerPrompts() {
 	log.Info("Registering MCP prompts...")
 	// 将在阶段三实现
-}
-
-// handleToolCall 工具调用的通用错误处理包装（阶段二使用）
-func (m *MCPServer) handleToolCall(ctx context.Context, toolName string,
-	handler func(map[string]interface{}) (interface{}, error),
-	request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-
-	log.Debugf("MCP Tool called: %s, args: %+v", toolName, request.Params.Arguments)
-
-	// 转换参数为 map
-	args, ok := request.Params.Arguments.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid arguments type")
-	}
-
-	result, err := handler(args)
-	if err != nil {
-		log.Warnf("Tool %s failed: %v", toolName, err)
-		return nil, fmt.Errorf("tool execution failed: %w", err)
-	}
-
-	log.Infof("Tool %s completed successfully", toolName)
-
-	// 构造 MCP 工具响应
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			mcp.TextContent{
-				Type: "text",
-				Text: formatToolResult(result),
-			},
-		},
-	}, nil
 }
 
 // formatToolResult 格式化工具执行结果为文本

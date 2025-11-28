@@ -18,11 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **新 MCP 端点**:
   - `GET /mcp/sse` - SSE 连接端点
   - `POST /mcp/message` - 消息处理端点
+- **6 个 MCP 工具**（阶段二）:
+  - `search_books` - 搜索书籍（关键词 + 语义搜索）
+  - `get_book` - 获取书籍详情
+  - `random_books` - 随机推荐
+  - `recent_books` - 最近更新
+  - `get_isbn_metadata` - ISBN 元数据查询（豆瓣）
+  - `search_metadata` - 在线元数据搜索（豆瓣）
+  - **所有工具均为只读操作，保证安全**
 - **配置增强**:
   - `mcp.transport`: 传输模式选择 (`sse` 或 `http`)
   - `mcp.sse_endpoint`: SSE 端点路径配置
   - `mcp.message_endpoint`: 消息端点路径配置
   - `mcp.version`: 更新为 `1.2.0`
+- **CORS 支持**: 添加跨域支持，兼容 MCP Inspector 等浏览器客户端
 
 #### Changed
 - **依赖替换**: 移除 `gin-mcp`，使用官方 `mcp-go` 库
@@ -35,17 +44,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 删除 `internal/calibre/mcp_handler.go`
 - 删除 `internal/calibre/mcp_enhanced_tools.go`
 - 移除旧的 `/mcp` 单一端点
+- **出于安全考虑移除危险工具**:
+  - `update_book_metadata` - 更新元数据（风险高，应通过 Web UI 操作）
+  - `delete_book` - 删除书籍（不可逆，应通过 Web UI 确认后操作）
 
 #### Fixed
 - MCP 协议标准化，遵循官方规范
 - 更好的传输层抽象和扩展性
 
 #### Technical Details
-- 创建 `internal/calibre/mcp_server.go` 核心模块
+- 创建 `internal/calibre/mcp_server.go` 核心模块（120 行）
+- 创建 `internal/calibre/mcp_tools.go` 工具实现（533 行）
 - 实现 `MCPServer` 结构体封装 mcp-go 服务器
 - 支持 SSE 和 StreamableHTTP 两种传输实现
-- 预留工具、资源、提示注册接口框架
+- 工具注册框架和 6 个安全工具完整实现
 - 保持所有现有 HTTP API 端点向后兼容
+- 添加 `github.com/gin-contrib/cors` 中间件
 
 #### Breaking Changes
 ⚠️ **重要**: MCP 客户端需要更新连接配置
