@@ -39,11 +39,10 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
-	setPages(r, conf)
 	client := calibre.NewClient(conf)
 	client.SetupRouter(r)
 
-	// 初始化并挂载 MCP 服务器
+	// 初始化并挂载 MCP 服务器（必须在 setPages/NoRoute 之前）
 	if conf.MCP.Enabled {
 		mcpServer := calibre.NewMCPServer(client, conf.MCP)
 		mcpServer.Mount(r)
@@ -51,6 +50,9 @@ func main() {
 	} else {
 		log.Info("MCP Server disabled")
 	}
+
+	// 最后设置静态文件和 NoRoute（会捕获所有未匹配的路由）
+	setPages(r, conf)
 
 	for _, route := range r.Routes() {
 		log.Infof("route: %s %s", route.Method, route.Path)
