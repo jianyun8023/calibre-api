@@ -10,6 +10,7 @@ export interface Book {
     tags: string[]
     comments: string
     cover: string
+    score?: number
 }
 
 export interface MetaBook {
@@ -62,7 +63,7 @@ export function mapMetaBookToBook(metaBook: MetaBook): Book {
     };
 }
 
-export function updateBook(source: Book, target: Book){
+export function updateBook(source: Book, target: Book) {
     target.title = source.title
     target.authors = source.authors
     target.isbn = source.isbn

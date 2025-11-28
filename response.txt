@@ -1,0 +1,75 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    45    0     0  100    45      0     37  0:00:01  0:00:01 --:--:--    37data: 
+
+data: Hello
+
+100    66    0    21  100    45     15     33  0:00:01  0:00:01 --:--:--    49data: !
+
+data:  I'm
+
+data:  your Cal
+
+data: ibre library
+
+data:  assistant.
+
+100   143    0    98  100    45     43     20  0:00:02  0:00:02 --:--:--    63data:  😊
+
+data:  
+
+data: 很高兴见到
+
+data: 你！
+
+
+
+data: 我可以帮你
+
+data: ：
+-
+
+data:  📚 
+
+data: 推荐符合
+
+data: 你兴趣
+
+data: 的书籍
+
+data: 
+-
+
+100   318    0   273  100    45     79     13  0:00:03  0:00:03 --:--:--    93data:  🔍 
+
+data: 搜索书
+
+data: 库中的
+
+data: 特定书籍
+
+data: 
+-
+
+data:  ❓ 
+
+data: 回答关于
+
+100   429    0   384  100    45     89     10  0:00:04  0:00:04 --:--:--    99data: 书库
+
+data: 的问题
+
+
+
+data: 你想
+
+data: 找
+
+data: 什么类型的
+
+data: 书呢
+
+data: ？或者
+
+data: 有什么我可以
+

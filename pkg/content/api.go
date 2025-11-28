@@ -3,13 +3,14 @@ package content
 import (
 	"errors"
 	"fmt"
-	"github.com/jianyun8023/calibre-api/pkg/client"
-	"github.com/jianyun8023/calibre-api/pkg/log"
-	"github.com/spf13/cast"
 	"io"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/jianyun8023/calibre-api/pkg/client"
+	"github.com/jianyun8023/calibre-api/pkg/log"
+	"github.com/spf13/cast"
 )
 
 type Api struct {
@@ -42,7 +43,7 @@ func (a *Api) DeleteBooks(bookIds []string, library string) error {
 	///cdb/delete-books/264728/library
 	ids := strings.Join(bookIds, ",")
 	resp, err := a.R().SetPathParam("ids", ids).SetPathParam("library", library).Post("/cdb/delete-books/{ids}/{library}")
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	return err
 }
 
@@ -57,7 +58,7 @@ func (a *Api) UpdateMetaData(id string, metadata map[string]interface{}, library
 
 	var data map[string]Content
 	resp, err := a.R().SetResult(&data).SetPathParam("id", id).SetPathParam("library", library).SetBody(body).Post("/cdb/set-fields/{id}/{library}")
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	return data, err
 }
 
@@ -72,7 +73,7 @@ func (a *Api) GetCover(id string, library string) (int64, io.ReadCloser, error) 
 		return 0, nil, err
 	}
 	response := resp.RawResponse
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	return response.ContentLength, response.Body, err
 }
 
@@ -87,12 +88,12 @@ func (a *Api) GetBook(id string, library string) (int64, io.ReadCloser, error) {
 		return 0, nil, err
 	}
 	response := resp.RawResponse
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	return response.ContentLength, response.Body, err
 
 }
 
-func (a *Api) GetAllBooksIds() ([]int64, error) {
+func (a *Api) GetAllBooksIds(query string) ([]int64, error) {
 	///ajax/search/library?num=10&offset=0&sort=id&sort_order=desc&query
 	var data map[string]interface{}
 	resp, err := a.R().SetResult(&data).
@@ -100,9 +101,9 @@ func (a *Api) GetAllBooksIds() ([]int64, error) {
 		SetQueryParam("offset", "0").
 		SetQueryParam("sort", "id").
 		SetQueryParam("sort_order", "asc").
-		SetQueryParam("query", "").
+		SetQueryParam("query", query).
 		Get("/ajax/search/library")
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +121,7 @@ func (a *Api) GetAllPublisher() ([]string, error) {
 	resp, err := a.R().SetResult(&publishers).
 		SetQueryParam("library_id", "library").
 		Get("/interface-data/field-names/publisher")
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	return publishers, err
 }
 
@@ -152,7 +153,7 @@ func (a *Api) GetBookMetaDatas(ids []int64, library string) ([]Book, error) {
 
 	var data map[string]interface{}
 	resp, err := a.R().SetResult(&data).SetBody(body).Post("/cdb/cmd/list/0")
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	if err != nil {
 		return nil, err
 	}
@@ -259,4 +260,28 @@ func convertInt64Map(input map[string]interface{}) (map[string]int64, error) {
 	}
 	return result, nil
 
+}
+
+// GetBookDetail gets a single book's metadata by ID
+func (a *Api) GetBookDetail(id int64) (Book, error) {
+	books, err := a.GetBookMetaDatas([]int64{id}, "library")
+	if err != nil {
+		return Book{}, err
+	}
+	if len(books) == 0 {
+		return Book{}, fmt.Errorf("book not found: %d", id)
+	}
+
+	// Enrich with cover and file path
+	enrichedBooks := EnrichBooks(books)
+	return enrichedBooks[0], nil
+}
+
+// EnrichBooks adds Cover and FilePath fields to books for API usage
+func EnrichBooks(books []Book) []Book {
+	for i := range books {
+		books[i].Cover = "/api/get/cover/" + strconv.FormatInt(books[i].ID, 10) + ".jpg"
+		books[i].FilePath = "/api/download/book/" + strconv.FormatInt(books[i].ID, 10) + ".epub"
+	}
+	return books
 }

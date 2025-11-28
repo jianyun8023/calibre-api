@@ -43,6 +43,8 @@ type Book struct {
 	Rating       float64           `json:"rating"`
 	Title        string            `json:"title"`
 	Identifiers  map[string]string `json:"identifiers"`
+	Cover        string            `json:"cover"`
+	FilePath     string            `json:"file_path"`
 }
 
 type FormatSizes struct {

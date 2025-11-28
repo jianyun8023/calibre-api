@@ -1,15 +1,13 @@
 <template>
-  <el-row>
-    <SearchBar/>
-  </el-row>
-  <el-container class="mt-8 w-full md:w-2/3">
-    <section>
+  <!-- 移除 SearchBar，统一使用 Header 搜索 -->
+  <el-container class="publisher-wrapper">
+    <section class="glass-container">
       <el-row>
         <el-col :span="24" class="col-bottom">
-          <h2>出版社</h2>
+          <h2 class="section-title">出版社</h2>
         </el-col>
         <el-col v-for="publisher in publishers" :key="publisher" :span="6" :lg="6" :sm="12" :xs="24">
-          <el-tag @click="searchByPublisher(publisher)" effect="dark">
+          <el-tag class="glass-tag" @click="searchByPublisher(publisher)" effect="dark">
             {{ publisher }}
           </el-tag>
         </el-col>
@@ -22,7 +20,7 @@
                          :total="allPublishers.length"
                          :page-size="pageSize"
                          v-model:current-page="currentPage"
-                         class="mt-4"
+                         class="pagination-wrapper"
                          @change="handleCurrentChange"
           />
         </el-col>
@@ -33,14 +31,14 @@
 
 <script lang="ts">
 import {ElButton, ElCard, ElCol, ElContainer, ElInput, ElRow} from 'element-plus'
-import SearchBar from '@/components/SearchBar.vue'
+// SearchBar 已移除，统一使用 Header 搜索
 import BookCard from '@/components/BookCard.vue'
 
 export default {
   name: 'Publishers',
   components: {
     BookCard,
-    SearchBar,
+    // SearchBar 已移除
     ElContainer,
     ElRow,
     ElCol,
@@ -58,6 +56,12 @@ export default {
   },
   computed: {},
   created() {
+    this.initializeFromQueryParams()
+    this.fetchPublishers()
+  },
+  // 当组件被激活时重新获取数据
+  activated() {
+    console.log('Publisher page activated, refreshing data...')
     this.initializeFromQueryParams()
     this.fetchPublishers()
   },
@@ -105,4 +109,21 @@ export default {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.publisher-wrapper {
+  margin-top: var(--spacing-lg);
+  width: 100%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* .section-title, .glass-tag, .pagination-wrapper 样式已移至 index.scss */
+.col-bottom {
+  margin-bottom: var(--spacing-lg);
+}
+
+.col-top {
+  margin-top: var(--spacing-xl);
+}
+</style>

@@ -248,16 +248,6 @@ func (rm *ResourceManager) readFileResource(book *Book, bookID string) (*Resourc
 	}, nil
 }
 
-// 辅助方法 - 获取书籍信息
-func (api *Api) getBookByID(id string) (*Book, error) {
-	var book Book
-	err := api.currentIndex().GetDocument(id, nil, &book)
-	if err != nil {
-		return nil, err
-	}
-	return &book, nil
-}
-
 // 辅助方法 - 获取封面数据
 func (api *Api) getCoverData(bookID string) ([]byte, error) {
 	resp, err := http.Get(fmt.Sprintf("%s/api/get/cover/%s", api.config.MCP.BaseURL, bookID))

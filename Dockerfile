@@ -8,7 +8,7 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install
 COPY ./app/calibre-pages/ ./
 RUN pnpm build
 
-FROM golang:1.22 AS build
+FROM golang:1.24.10-trixie AS build
 
 WORKDIR /app
 
@@ -22,6 +22,12 @@ RUN go build -o /calibre-api
 
 ## Deploy
 FROM debian:bookworm-slim
+
+# 安装 CA 证书和其他必要工具
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV CALIBRE_TEMPLATE_DIR=/app/templates
 ENV CALIBRE_STATIC_DIR=/app/static

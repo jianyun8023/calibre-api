@@ -1,7 +1,4 @@
 <template>
-  <el-row class="detail-header">
-    <SearchBar/>
-  </el-row>
   <article class="detail-content">
     <el-row class="detail-row">
       <el-col :span="8" class="cover-container" :xs="24">
@@ -110,7 +107,13 @@
                   Tags
                 </div>
               </template>
-              <el-tag v-for="item in book.tags" :key="item" effect="dark" round>
+              <el-tag 
+                v-for="item in book.tags" 
+                :key="item" 
+                effect="dark" 
+                round
+                @click="searchByTag(item)"
+              >
                 {{ item }}
               </el-tag>
             </el-descriptions-item>
@@ -177,7 +180,6 @@
 <script lang="ts">
 import {h} from 'vue'
 import {ElButton, ElCol, ElInput, ElMessage, ElNotification, ElRow} from 'element-plus'
-import SearchBar from '@/components/SearchBar.vue'
 import MetadataSearch from '@/components/MetadataSearch.vue'
 import MetadataEdit from '@/components/MetadataEdit.vue'
 import MetadataUpdate from '@/components/MetadataUpdate.vue'
@@ -217,7 +219,6 @@ export default {
     MetadataEdit,
     MetadataSearch,
     ElCol,
-    SearchBar,
     ElRow,
     ElButton,
     ElInput,
@@ -273,6 +274,14 @@ export default {
       console.log('isPhone: ' + this.isPhone)
     })
   },
+  // 路由守卫：在同一组件内路由参数变化时调用
+  beforeRouteUpdate(to, from, next) {
+    // 当路由参数变化时，重新获取书籍数据
+    if (to.params.id && to.params.id !== from.params.id) {
+      this.fetchBook(to.params.id as string)
+    }
+    next()
+  },
 
   methods: {
     async fetchBook(id: string) {
@@ -297,6 +306,14 @@ export default {
         path: '/search',
         query: {
           author: author
+        }
+      })
+    },
+    searchByTag(tag: string) {
+      this.$router.push({
+        path: '/search',
+        query: {
+          tag: tag
         }
       })
     },
@@ -332,119 +349,234 @@ export default {
 }
 </script>
 
-<style scoped>
-.detail-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-  margin-top: 10px;
-}
-
-.book-title {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #333;
-  margin-right: 20px;
-  margin-left: 10px;
-}
-
-.book-id {
-  display: flex;
-  align-items: center;
-  margin-left: 10px;
-}
-
+<style scoped lang="scss">
 .detail-content {
-  padding: 20px;
+  padding: var(--spacing-lg);
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .detail-row {
-  margin-bottom: 10px;
-  margin-top: 10px;
+  margin-bottom: var(--spacing-xl);
 }
 
 .cover-container {
-  height: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding-top: 80px;
+  padding: var(--spacing-lg);
 }
 
 .book-cover {
-  width: 60%; /* 固定宽度 */
-  height: auto; /* 固定高度 */
-}
-
-@media (max-width: 768px) {
-  .book-cover {
-    width: 60%; /* 手机上宽度60% */
-  }
-
-  .detail-content {
-    padding: 20px 0;
-  }
-
-  .book-info {
-    padding-top: 30px;
-    padding-left: 30px;
-  }
-
-  .cover-container {
-    padding-top: 10px;
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
   }
 }
 
 .book-info {
-  padding-left: 20px;
+  padding: 0 var(--spacing-lg);
 }
 
-.info-item {
-  margin-bottom: 10px;
-}
-
-.tag-spacing {
-  margin-right: 10px;
-}
-
-.delete-button {
-  color: #ff4d4f;
-}
-
-.book-comments {
-  margin-top: 20px;
-}
-
-.book-buttons {
-  margin-top: 40px;
-}
-
-.comments-title {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-
-.comments-text {
-  font-size: 1.125rem;
-  color: #4a4a4a;
-  text-indent: 2em;
-}
-
-.el-descriptions {
-  margin-top: 20px;
-}
+/* Glassmorphism Table Styles - 使用全局样式 */
+/* .el-descriptions 样式已移至 index.scss */
 
 .cell-item {
   display: flex;
   align-items: center;
+  gap: 6px;
+  
+  .el-icon {
+    font-size: 16px;
+    opacity: 0.7;
+  }
 }
 
-.el-icon {
-  padding-right: 5px;
+/* Tags Styling */
+:deep(.el-tag) {
+  background: var(--glass-bg-medium);
+  border: 1px solid var(--glass-border);
+  color: var(--el-text-color-primary);
+  margin-right: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: var(--glass-bg-strong);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
 }
 
-.margin-top {
-  margin-top: 20px;
+/* Button Groups - 使用更轻量的样式 */
+.book-buttons {
+  margin-top: var(--spacing-lg);
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  
+  .el-button {
+    flex: 1;
+    min-width: 140px;
+    background: var(--glass-bg-medium);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border);
+    color: var(--el-text-color-primary);
+    font-weight: 500;
+    transition: all 0.3s ease;
+    
+    &:hover:not(:disabled) {
+      background: var(--el-color-primary);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      border-color: var(--el-color-primary);
+    }
+    
+    &.delete-button {
+      background: rgba(245, 108, 108, 0.1);
+      border-color: rgba(245, 108, 108, 0.3);
+      color: #f56c6c;
+      
+      &:hover {
+        background: #f56c6c;
+        color: white;
+        border-color: #f56c6c;
+        box-shadow: 0 4px 12px rgba(245, 108, 108, 0.3);
+      }
+    }
+    
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+}
+
+/* Comments Section */
+.book-comments {
+  background: var(--glass-bg-light);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  margin-top: var(--spacing-xl);
+  color: var(--el-text-color-primary);
+}
+
+.comments-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-md);
+  color: var(--el-text-color-primary);
+  position: relative;
+  padding-bottom: var(--spacing-sm);
+  
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 60px;
+    height: 3px;
+    background: var(--primary-gradient);
+    border-radius: 2px;
+  }
+}
+
+.comments-text {
+  font-size: 1rem;
+  color: var(--el-text-color-regular);
+  line-height: 1.8;
+  text-indent: 2em;
+  
+  :deep(p) {
+    margin-bottom: var(--spacing-md);
+  }
+}
+
+/* Rating Component */
+:deep(.el-rate) {
+  .el-rate__icon {
+    font-size: 20px;
+    margin-right: 4px;
+  }
+  
+  .el-rate__text {
+    color: var(--el-text-color-regular);
+    font-weight: 600;
+  }
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .detail-content {
+    padding: var(--spacing-md);
+  }
+  
+  .cover-container {
+    padding: var(--spacing-md) 0;
+  }
+  
+  .book-cover {
+    max-width: 200px;
+  }
+  
+  .book-info {
+    padding: var(--spacing-md) 0;
+  }
+  
+  :deep(.el-descriptions) {
+    .el-descriptions__header {
+      padding: var(--spacing-md);
+      
+      .el-descriptions__title {
+        font-size: 1.25rem;
+      }
+      
+      .el-descriptions__extra {
+        flex-direction: column;
+        width: 100%;
+        
+        .el-button {
+          width: 100%;
+        }
+      }
+    }
+    
+    .el-descriptions__table .el-descriptions__label {
+      width: 100px;
+      font-size: 0.75rem;
+    }
+  }
+  
+  .book-buttons {
+    flex-direction: column;
+    
+    .el-button {
+      width: 100%;
+      min-width: unset;
+    }
+  }
+  
+  .comments-title {
+    font-size: 1.25rem;
+  }
+  
+  .comments-text {
+    font-size: 0.9375rem;
+    text-indent: 0;
+  }
 }
 </style>

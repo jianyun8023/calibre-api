@@ -3,6 +3,10 @@ package calibre
 import (
 	"database/sql"
 	"time"
+
+	"github.com/jianyun8023/calibre-api/internal/cache"
+	"github.com/jianyun8023/calibre-api/internal/chat"
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 )
 
 type Book struct {
@@ -50,30 +54,37 @@ type Metadata struct {
 }
 
 type Config struct {
-	Address   string    `mapstructure:"address"`
-	Debug     bool      `mapstructure:"debug"`
-	StaticDir string    `mapstructure:"staticDir"`
-	TmpDir    string    `mapstructure:"tmpdir"`
-	Content   Content   `mapstructure:"content"`
-	Search    Search    `mapstructure:"search"`
-	Metadata  Metadata  `mapstructure:"metadata"`
-	MCP       MCPConfig `mapstructure:"mcp"`
+	Address   string             `mapstructure:"address"`
+	Debug     bool               `mapstructure:"debug"`
+	StaticDir string             `mapstructure:"staticDir"`
+	TmpDir    string             `mapstructure:"tmpdir"`
+	Content   Content            `mapstructure:"content"`
+	Metadata  Metadata           `mapstructure:"metadata"`
+	MCP       MCPConfig          `mapstructure:"mcp"`
+	Embedding semantic.Embedding `mapstructure:"embedding"`
+	Qdrant    QdrantConfig       `mapstructure:"qdrant"`
+	Cache     cache.Config       `mapstructure:"cache"`
+	LLM       chat.LLMConfig     `mapstructure:"llm"`
+	Chat      chat.ChatConfig    `mapstructure:"chat"`
+}
+
+type QdrantConfig struct {
+	URL        string `mapstructure:"url"`
+	Collection string `mapstructure:"collection"`
+	Timeout    int    `mapstructure:"timeout"`
 }
 
 type Content struct {
 	Server string `mapstructure:"server"`
 }
 
-type Search struct {
-	Host   string `mapstructure:"host"`
-	APIKey string `mapstructure:"apikey"`
-	Index  string `mapstructure:"index"`
-}
-
 type MCPConfig struct {
-	Enabled    bool   `mapstructure:"enabled"`
-	ServerName string `mapstructure:"server_name"`
-	Version    string `mapstructure:"version"`
-	BaseURL    string `mapstructure:"base_url"`
-	Timeout    int    `mapstructure:"timeout"`
+	Enabled         bool   `mapstructure:"enabled"`
+	ServerName      string `mapstructure:"server_name"`
+	Version         string `mapstructure:"version"`
+	Transport       string `mapstructure:"transport"`        // "sse" or "http"
+	SSEEndpoint     string `mapstructure:"sse_endpoint"`     // SSE endpoint path
+	MessageEndpoint string `mapstructure:"message_endpoint"` // Message endpoint path
+	BaseURL         string `mapstructure:"base_url"`
+	Timeout         int    `mapstructure:"timeout"`
 }

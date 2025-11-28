@@ -1,22 +1,6 @@
-@forward 'element-plus/theme-chalk/src/common/var.scss' with (
-  $colors: (
-    'primary': (
-      'base': #35D0BA
-    ),
-    'success': (
-      'base': #F8C43A
-    ),
-    'warning': (
-      'base': #C93D1B
-    ),
-    'danger': (
-      'base': #043210
-    ),
-    'error': (
-      'base': #04322E
-    ),
-    'info': (
-      'base': #0D7C66
-    )
-  )
-);
+@forward 'element-plus/theme-chalk/src/common/var.scss' with ($colors: ('primary': ('base': #3B82F6),
+    'success': ('base': #F8C43A),
+    'warning': ('base': #C93D1B),
+    'danger': ('base': #043210),
+    'error': ('base': #04322E),
+    'info': ('base': #0D7C66)));

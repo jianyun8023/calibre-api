@@ -1,5 +1,5 @@
 // src/api/api.ts
-import {handleApiResponse} from "@/api/apiUtils";
+import { handleApiResponse } from "@/api/apiUtils";
 
 export async function fetchPublishers() {
     const response = await fetch('/api/publisher');
@@ -20,13 +20,24 @@ export async function fetchRandomBooks() {
 export async function fetchRecentBooks(limit: number, offset: number) {
     const response = await fetch(`/api/recently?limit=${limit}&offset=${offset}`)
     if (!response.ok) {
-        throw new Error('Failed to random');
+        throw new Error('Failed to fetch recent books');
     }
     return handleApiResponse(response);
 }
 
-export async function fetchBooks(keyword: string, filter: string[], limit: number, offset: number) {
-    const response = await fetch('/api/search?q=' + keyword, {
+export async function fetchAllBooks(limit: number, cursor: string = '') {
+    const url = cursor 
+        ? `/api/books/all?limit=${limit}&cursor=${encodeURIComponent(cursor)}`
+        : `/api/books/all?limit=${limit}`
+    const response = await fetch(url)
+    if (!response.ok) {
+        throw new Error('Failed to fetch all books');
+    }
+    return handleApiResponse(response);
+}
+
+export async function fetchBooks(keyword: string, filter: string[], limit: number, offset: number, sort?: string[], mode?: string) {
+    const response = await fetch('/api/search?q=' + keyword + '&mode=' + (mode || 'hybrid'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -35,10 +46,19 @@ export async function fetchBooks(keyword: string, filter: string[], limit: numbe
             Filter: filter,
             Limit: limit,
             Offset: offset,
+            Sort: sort || [],
         }),
     });
     if (!response.ok) {
         throw new Error('Failed to fetch books');
+    }
+    return handleApiResponse(response);
+}
+
+export async function searchSemantic(query: string, limit: number = 12) {
+    const response = await fetch(`/api/search/semantic?q=${encodeURIComponent(query)}&limit=${limit}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch semantic search results');
     }
     return handleApiResponse(response);
 }
