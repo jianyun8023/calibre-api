@@ -12,7 +12,7 @@ func (c *Api) getIsbn(c2 *gin.Context) {
 	isbn := c2.Param("isbn")
 	var jsonData map[string]interface{}
 	resp, err := c.http.R().SetResult(&jsonData).Get(c.config.Metadata.DoubanUrl + "/v2/book/isbn/" + isbn)
-	log.Infof(resp.Request.URL)
+	log.Infof("%s", resp.Request.URL)
 	if err != nil {
 		c2.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -25,7 +25,7 @@ func (c *Api) queryMetadata(c2 *gin.Context) {
 	query := c2.Query("query")
 	var jsonData map[string]interface{}
 	resp, err := c.http.R().SetResult(&jsonData).SetQueryParam("q", query).Get(c.config.Metadata.DoubanUrl + "/v2/book/search")
-	log.Infof(resp.Request.URL)
+	log.Infof("%s", resp.Request.URL)
 	if err != nil {
 		c2.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+- **依赖升级**: 升级 Go 依赖包解决安全漏洞
+  - 更新所有依赖至最新稳定版本
+  - 修复 27 个安全漏洞（4 个高危，18 个中危，5 个低危）
+  - 主要依赖版本：
+    - `golang.org/x/crypto` v0.45.0
+    - `golang.org/x/net` v0.47.0
+    - `golang.org/x/sys` v0.38.0
+    - `golang.org/x/term` v0.37.0
+    - `golang.org/x/text` v0.31.0
+    - `google.golang.org/protobuf` v1.36.10
+
+### Fixed
+- **日志格式**: 修复 Go 1.25 严格格式检查导致的编译错误
+  - 修改 `log.Infof()` 调用使用常量格式字符串
+  - 影响文件：`pkg/content/api.go`, `internal/calibre/metadata_handler.go`
+
 ## [1.2.0] - 2024-11-28
 
 ### 🎉 重大更新：MCP 框架迁移

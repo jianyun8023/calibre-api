@@ -43,7 +43,7 @@ func (a *Api) DeleteBooks(bookIds []string, library string) error {
 	///cdb/delete-books/264728/library
 	ids := strings.Join(bookIds, ",")
 	resp, err := a.R().SetPathParam("ids", ids).SetPathParam("library", library).Post("/cdb/delete-books/{ids}/{library}")
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	return err
 }
 
@@ -58,7 +58,7 @@ func (a *Api) UpdateMetaData(id string, metadata map[string]interface{}, library
 
 	var data map[string]Content
 	resp, err := a.R().SetResult(&data).SetPathParam("id", id).SetPathParam("library", library).SetBody(body).Post("/cdb/set-fields/{id}/{library}")
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	return data, err
 }
 
@@ -73,7 +73,7 @@ func (a *Api) GetCover(id string, library string) (int64, io.ReadCloser, error) 
 		return 0, nil, err
 	}
 	response := resp.RawResponse
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	return response.ContentLength, response.Body, err
 }
 
@@ -88,7 +88,7 @@ func (a *Api) GetBook(id string, library string) (int64, io.ReadCloser, error) {
 		return 0, nil, err
 	}
 	response := resp.RawResponse
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	return response.ContentLength, response.Body, err
 
 }
@@ -103,7 +103,7 @@ func (a *Api) GetAllBooksIds(query string) ([]int64, error) {
 		SetQueryParam("sort_order", "asc").
 		SetQueryParam("query", query).
 		Get("/ajax/search/library")
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (a *Api) GetAllPublisher() ([]string, error) {
 	resp, err := a.R().SetResult(&publishers).
 		SetQueryParam("library_id", "library").
 		Get("/interface-data/field-names/publisher")
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	return publishers, err
 }
 
@@ -153,7 +153,7 @@ func (a *Api) GetBookMetaDatas(ids []int64, library string) ([]Book, error) {
 
 	var data map[string]interface{}
 	resp, err := a.R().SetResult(&data).SetBody(body).Post("/cdb/cmd/list/0")
-	log.Infof(resp.Request.URL + " " + resp.Status())
+	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	if err != nil {
 		return nil, err
 	}
