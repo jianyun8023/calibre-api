@@ -215,7 +215,7 @@ if err := mcpManager.InitAndStart(r); err != nil {
 
 ## 🚧 阶段四：优化和发布（进行中）
 
-### 4.1 CORS 配置 🚧
+### 4.1 CORS 配置 ✅
 
 **问题**: MCP Inspector 连接报错 `strict-origin-when-cross-origin`
 
@@ -223,7 +223,21 @@ if err := mcpManager.InitAndStart(r); err != nil {
 
 **解决方案**: 添加 CORS 中间件
 
-**状态**: 🔄 实施中
+**状态**: ✅ 已完成
+
+**实现**:
+```go
+import "github.com/gin-contrib/cors"
+
+r.Use(cors.New(cors.Config{
+    AllowOrigins:     []string{"*"},
+    AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+    AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+    ExposeHeaders:    []string{"Content-Length", "Content-Type"},
+    AllowCredentials: true,
+    MaxAge:           12 * time.Hour,
+}))
+```
 
 ### 4.2 HTTP 模式支持 ✅
 
@@ -280,23 +294,38 @@ mcp:
 
 ## 🐛 已知问题
 
-### 1. CORS 跨域问题 🔴
+### 1. CORS 跨域问题 ✅ 已解决
 
 **问题描述**:
 - MCP Inspector 无法连接到 `/mcp/sse` 端点
 - 浏览器报错: `strict-origin-when-cross-origin`
 - SSE 连接被 CORS 策略阻止
 
-**影响范围**:
-- MCP Inspector 测试工具无法使用
-- 浏览器环境下的 MCP 客户端无法连接
+**解决方案**:
+- ✅ 添加 `github.com/gin-contrib/cors` 中间件
+- ✅ 配置允许所有来源（`*`）和凭据
+- ✅ 设置正确的 CORS 头和方法
+
+**状态**: ✅ 已修复（v1.2.0-rc1）
+
+### 2. MCP 路由 404 问题 ✅ 已解决
+
+**问题描述**:
+- MCP 端点返回 404 Not Found
+- `/mcp/sse` 和 `/mcp/message` 无法访问
+- NoRoute 捕获了 MCP 路由
+
+**原因**:
+- MCP 路由在 `setPages()` 之后注册
+- `setPages()` 中的 `NoRoute` 会捕获所有未匹配的路由
+- 导致 MCP 路由失效
 
 **解决方案**:
-- 添加 Gin CORS 中间件
-- 配置 MCP 端点允许跨域访问
-- 设置正确的 CORS 头
+- ✅ 调整路由注册顺序
+- ✅ MCP 路由在 NoRoute 之前注册
+- ✅ 注册顺序: API routes → MCP routes → Static files/NoRoute
 
-**优先级**: 🔴 高（阻塞 MCP Inspector 测试）
+**状态**: ✅ 已修复（v1.2.0-rc1）
 
 ---
 
