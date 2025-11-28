@@ -770,11 +770,18 @@ git checkout -b feature/new-search-algorithm
 go test ./...
 make test
 
-# 4. 提交代码
+# 4. 更新 CHANGELOG.md（重要！）
+# 在 [Unreleased] 部分记录本次变更
+# - Added: 新功能
+# - Changed: 功能变更
+# - Fixed: Bug 修复
+# - Removed: 移除的功能
+
+# 5. 提交代码
 git add .
 git commit -m "feat: implement new search algorithm"
 
-# 5. 推送并创建 PR
+# 6. 推送并创建 PR
 git push origin feature/new-search-algorithm
 ```
 
@@ -876,21 +883,111 @@ sudo systemctl status calibre-api
 2. 在 `SetupRouter()` 中注册路由
 3. 在 `schemas.go` 中定义参数结构（如需要）
 4. 更新 API 文档
+5. 在 `CHANGELOG.md` 记录变更
 
 ### 添加新的 MCP Tool
 1. 在 `mcp_enhanced_tools.go` 的 `GetEnhancedTools()` 中添加工具定义
 2. 在 `ExecuteEnhancedTool()` 中实现工具逻辑
 3. 测试工具调用
+4. 在 `CHANGELOG.md` 记录变更
 
 ### 添加新的搜索策略
 1. 在 `search_handler.go` 中实现搜索逻辑
 2. 更新 `search()` 函数支持新策略
 3. 测试搜索结果质量
+4. 在 `CHANGELOG.md` 记录变更
 
 ### 添加新的任务类型
 1. 在 `internal/tasks/` 中实现任务逻辑
 2. 在 `TaskManager` 中注册任务类型
 3. 在 `task_handler.go` 中添加启动入口
+4. 在 `CHANGELOG.md` 记录变更
+
+### 维护 CHANGELOG.md
+
+#### 📋 变更日志规范
+
+所有代码变更必须在 `CHANGELOG.md` 中记录，遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 规范。
+
+#### 变更类型分类
+```markdown
+### Added - 新增功能
+- 新的 API 端点
+- 新的 MCP Tool
+- 新的配置选项
+- 新的依赖包
+
+### Changed - 功能变更
+- API 行为调整
+- 配置结构变更
+- 依赖版本升级
+- 性能优化
+
+### Fixed - Bug 修复
+- 修复的问题描述
+- 相关 Issue 编号
+
+### Removed - 移除功能
+- 废弃的 API
+- 移除的依赖
+- 删除的配置项
+
+### Security - 安全修复
+- 安全漏洞修复
+- 权限控制改进
+
+### Breaking Changes - 不兼容变更
+⚠️ 标记会破坏向后兼容性的变更
+```
+
+#### 编写示例
+```markdown
+## [Unreleased]
+
+### Added
+- **语义搜索增强**: 新增混合搜索策略，结合关键词和语义搜索
+- **MCP Tool**: 新增 `get_book_toc` 工具获取书籍目录
+- **配置项**: 新增 `search.hybrid_mode` 配置启用混合搜索
+
+### Changed
+- **搜索 API**: `/api/search` 默认使用混合搜索策略
+- **缓存策略**: LRU 缓存大小从 100MB 增加到 500MB
+
+### Fixed
+- 修复语义搜索结果重复的问题 (#123)
+- 修复 EPUB 文件解析中文目录乱码 (#124)
+
+### Breaking Changes
+⚠️ **搜索 API 参数变更**: `strategy` 参数从 `keyword|semantic` 改为 `keyword|semantic|hybrid`
+```
+
+#### 发布时更新
+发布新版本时：
+1. 将 `[Unreleased]` 改为版本号和日期
+```markdown
+## [1.3.0] - 2024-12-01
+```
+2. 在顶部添加新的 `[Unreleased]` 部分
+3. 在底部添加版本比较链接
+```markdown
+[1.3.0]: https://github.com/jianyun8023/calibre-api/compare/v1.2.0...v1.3.0
+```
+
+#### 最佳实践
+1. ✅ **及时更新**: 每次代码变更时立即更新 CHANGELOG
+2. ✅ **用户视角**: 从用户角度描述变更影响，而非技术实现
+3. ✅ **具体明确**: 提供具体的 API、配置名称，避免模糊描述
+4. ✅ **关联 Issue**: 引用相关的 Issue 或 PR 编号
+5. ❌ **避免技术细节**: 不要记录代码重构、内部重命名等不影响用户的变更
+6. ❌ **避免 Git 日志**: CHANGELOG 是面向用户的，不是 Git Commit 日志的复制
+
+#### 检查清单
+提交 PR 前确认：
+- [ ] 变更已记录在 `CHANGELOG.md` 的 `[Unreleased]` 部分
+- [ ] 变更分类正确（Added/Changed/Fixed/Removed）
+- [ ] 描述清晰，用户可理解
+- [ ] 不兼容变更已标记 `⚠️ Breaking Changes`
+- [ ] 相关 Issue 已引用
 
 ## 🐛 调试技巧
 
@@ -978,6 +1075,7 @@ chore: 构建/工具相关
 4. **缓存清理**: CacheManager 会自动清理，但注意磁盘空间
 5. **MCP 路由**: MCP 路由必须在 NoRoute 之前注册
 6. **并发安全**: 共享状态必须加锁或使用 channel
+7. **变更日志**: 任何代码变更必须同步更新 `CHANGELOG.md`，保持版本历史可追溯
 
 ### 性能考虑
 1. 使用 `context.Context` 控制超时
