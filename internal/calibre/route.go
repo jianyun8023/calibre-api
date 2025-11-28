@@ -66,10 +66,6 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.POST("/tasks/start", c.startTask)
 	base.POST("/tasks/:id/stop", c.stopTask)
 
-	// Enhanced Tools MCP 端点
-	base.GET("/mcp/tools/enhanced", c.getEnhancedTools)
-	base.POST("/mcp/tools/enhanced/:tool", c.executeEnhancedTool)
-
 	// Chat routes (智能问答)
 	base.POST("/chat/conversations", c.CreateConversation)
 	base.GET("/chat/conversations", c.ListConversations)
