@@ -50,8 +50,9 @@ func NewMCPServer(api *Api, config MCPConfig) *MCPServer {
 
 	// 注册所有功能
 	m.registerTools() // 阶段二：工具注册
-	// m.registerResources() // 阶段三实现
-	// m.registerPrompts()   // 阶段三实现
+	// 阶段三暂时跳过：资源和提示功能较复杂，工具已足够使用
+	// m.registerResources()
+	// m.registerPrompts()
 
 	return m
 }
@@ -87,17 +88,9 @@ func (m *MCPServer) Mount(r *gin.Engine) {
 
 // registerTools 声明（实现在 mcp_tools.go）
 
-// registerResources 注册 MCP 资源（阶段三实现）
-func (m *MCPServer) registerResources() {
-	log.Info("Registering MCP resources...")
-	// 将在阶段三实现
-}
+// registerResources 声明（实现在 mcp_resources_adapter.go）
 
-// registerPrompts 注册 MCP 提示（阶段三实现）
-func (m *MCPServer) registerPrompts() {
-	log.Info("Registering MCP prompts...")
-	// 将在阶段三实现
-}
+// registerPrompts 声明（实现在 mcp_prompts_adapter.go）
 
 // formatToolResult 格式化工具执行结果为文本
 func formatToolResult(result interface{}) string {
