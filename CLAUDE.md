@@ -2,25 +2,39 @@
 
 > 本文档为 AI 助手提供项目架构、代码规范和开发指南
 
+## 🎯 快速导航
+
+**我需要理解项目结构** → 阅读 [架构设计](#🏗️-架构设计) 和 [模块职责](#模块职责)  
+**我需要编写代码** → 参考 [代码规范](#📐-代码规范) 和 [常见开发任务](#🔍-常见开发任务)  
+**我需要添加功能** → 查看 [开发工作流](#🚀-开发工作流) 和 [Specs 文档](specs/)  
+**我遇到问题** → 查看 [调试技巧](#🐛-调试技巧) 和 [注意事项](#📝-注意事项)  
+**我需要了解变更** → 查看 [CHANGELOG.md](CHANGELOG.md)
+
 ## 📋 项目概述
 
-**Calibre API** 是一个基于 Go 语言开发的 Calibre 书籍管理系统，集成了语义搜索、智能问答和 MCP (Model Context Protocol) 支持，提供强大的书籍管理和 AI 交互能力。
+**Calibre API** 是一个将 Calibre 从传统电子书管理工具升级为 AI 原生智能书库系统的项目。基于 Go 语言开发，集成了语义搜索、智能问答和 MCP (Model Context Protocol) 支持。
 
-### 核心特性
-- 📚 **书籍管理**: 完整的 CRUD 操作、元数据管理、文件处理
-- 🔍 **智能搜索**: 关键词搜索、语义搜索、混合搜索策略
-- 🤖 **AI 集成**: MCP 协议支持、LLM 智能问答、上下文感知对话
-- 🚀 **高性能**: Qdrant 向量数据库、缓存管理、并发处理
-- 📦 **多平台**: Docker 部署、跨平台二进制、CI/CD 自动化
+### 核心价值
+- 📚 **现代化 API**: RESTful + MCP 双协议支持
+- 🔍 **智能搜索**: 关键词 + 语义混合搜索（先召回后精排策略）
+- 🤖 **AI 问答**: 基于书库内容的智能推荐和对话
+- 🚀 **开箱即用**: Docker 一键部署，跨平台支持
 
 ### 技术栈
 - **后端**: Go 1.24.4, Gin Web Framework
 - **前端**: Vue.js 3 (详见 [前端开发指南](app/AGENTS.md))
-- **数据库**: SQLite (Calibre), SQLite (Chat History)
+- **数据库**: SQLite (Calibre DB, Chat DB)
 - **向量数据库**: Qdrant (语义搜索)
 - **AI/LLM**: OpenAI API, Ollama (本地部署)
-- **协议**: MCP (Model Context Protocol) with SSE
+- **协议**: MCP v1.2.0 (SSE 传输)
 - **构建工具**: Make, Docker, GitHub Actions
+
+### 项目规模
+- **代码量**: ~13K 行 (Go 8K + Vue 5K)
+- **性能**: 100+ 并发，P95 < 500ms
+- **功能模块**: 7 个核心 Specs (~9.9K tokens)
+- **API 端点**: 20+ RESTful + 6 MCP Tools
+- **测试覆盖**: 60%+ 单元测试
 
 ## 🏗️ 架构设计
 
@@ -128,12 +142,17 @@
 - semanticSearch()  // 纯语义搜索端点
 ```
 
-**混合搜索策略**:
-1. 并发执行关键词搜索和语义搜索
-2. 使用 `map[int64]*Book` 按 `book_id` 去重
-3. 语义搜索结果优先（更智能）
-4. 关键词搜索补充缺失结果
-5. 按相关性排序返回
+**混合搜索优化策略** (v1.2+):
+1. **召回阶段**: 语义搜索获取 top 100 候选（保证召回率）
+2. **精排阶段**: 关键词匹配计算得分（提高准确率）
+3. **综合评分**: `finalScore = semanticScore * 0.4 + keywordScore * 0.6`
+4. **返回结果**: 按综合得分排序返回 top N
+
+**优势**: 
+- 语义搜索保证不遗漏相关内容
+- 关键词匹配优先推荐精确匹配
+- 计算效率高（只在候选集中匹配）
+- 符合人类搜索心理模型
 
 ##### `chat_handler.go` - 智能问答
 ```go
@@ -180,18 +199,22 @@ type MCPServer struct {
 }
 ```
 
-##### 注册的 MCP Tools
-- `search_books`: 搜索书籍（支持混合策略）
-- `get_book`: 获取书籍详情
+##### 注册的 MCP Tools (v1.2.0+)
+**只读安全工具** (6 个):
+- `search_books`: 语义搜索书籍（使用向量相似度）
+- `get_book`: 获取书籍详情（包含 TOC 目录结构）
 - `random_books`: 随机推荐
-- `update_book_metadata`: 更新元数据
-- `delete_book`: 删除书籍
-- `get_isbn_metadata`: ISBN 元数据查询
-- `search_metadata`: 在线元数据搜索
+- `recent_books`: 最近更新书籍
+- `get_isbn_metadata`: ISBN 元数据查询（豆瓣）
+- `search_metadata`: 在线元数据搜索（豆瓣）
+
+**已移除的危险工具** (出于安全考虑):
+- ~~`update_book_metadata`~~: 更新元数据（应通过 Web UI 操作）
+- ~~`delete_book`~~: 删除书籍（不可逆操作，应通过 Web UI 确认）
 
 ##### 注册的 MCP Resources
-- `book://{id}`: 单本书籍资源
-- `search_results://{query}`: 搜索结果资源
+- `book://{id}`: 单本书籍资源（JSON 格式，含元数据、TOC、文件列表）
+- `search_results://{query}`: 搜索结果缓存
 
 ##### 注册的 MCP Prompts
 - `book_search`: 书籍搜索提示模板
@@ -239,11 +262,16 @@ type Agent struct {
 
 ##### TaskManager (`internal/tasks/manager.go`)
 - 异步任务调度
-- 进度跟踪
+- 进度跟踪和状态管理
 - 支持的任务类型:
-  - `qdrant_sync`: 同步书籍到 Qdrant
-  - `toc_extract`: 提取书籍目录
-  - `check_missing`: 检查缺失书籍
+  - `qdrant_sync`: 同步书籍到 Qdrant (~10min/1000本)
+  - `toc_extract`: 提取书籍目录 (~2-3min/1000本，优化后提升 5-7x)
+  - `check_missing`: 检查缺失书籍 (~30s)
+
+**TOC 提取性能优化** (v1.1.0):
+- 缓存管理器锁优化：无锁快速路径（缓存命中时 10-20x 提升）
+- 批量 Qdrant 更新：20 本/批次（网络延迟减少 95%）
+- Worker 并发数提升：10 个 worker（处理速度提升 80-100%）
 
 ## 📐 代码规范
 
@@ -698,9 +726,12 @@ services:
       - CALIBRE_CONTENT_SERVER=https://your-calibre-server.com
       - CALIBRE_QDRANT_URL=http://qdrant:6333
       - CALIBRE_MCP_ENABLED=true
+      - CALIBRE_MCP_TRANSPORT=sse
+      - OPENAI_API_KEY=${OPENAI_API_KEY}  # 可选，用于 Chat Agent
     volumes:
       - ./config.yaml:/app/config.yaml
       - ./cache:/app/.cache
+      - chat_db:/app/chat.db  # Chat 历史持久化
     depends_on:
       - qdrant
   
@@ -713,6 +744,7 @@ services:
 
 volumes:
   qdrant_data:
+  chat_db:
 ```
 
 ### 二进制部署
@@ -767,10 +799,13 @@ sudo systemctl status calibre-api
 5. 在 `CHANGELOG.md` 记录变更
 
 ### 添加新的 MCP Tool
-1. 在 `mcp_enhanced_tools.go` 的 `GetEnhancedTools()` 中添加工具定义
-2. 在 `ExecuteEnhancedTool()` 中实现工具逻辑
-3. 测试工具调用
-4. 在 `CHANGELOG.md` 记录变更
+1. 在 `mcp_tools.go` 中添加工具定义和描述
+2. 在工具处理函数中实现业务逻辑（调用现有 Handler）
+3. 使用 MCP Inspector 测试工具调用
+4. 更新 `docs/MCP_README.md` 工具列表
+5. 在 `CHANGELOG.md` 记录变更
+
+**注意**：只添加只读操作工具，写操作（更新、删除）应通过 Web UI 进行
 
 ### 添加新的搜索策略
 1. 在 `search_handler.go` 中实现搜索逻辑
@@ -920,13 +955,30 @@ go tool pprof http://localhost:6060/debug/pprof/heap
 
 ## 📚 相关文档
 
-- [API 文档](docs/API_DOCUMENTATION.md)
-- [代码结构](docs/CODE_STRUCTURE.md)
-- [MCP 集成指南](docs/MCP_README.md)
-- [混合搜索策略](docs/HYBRID_SEARCH_STRATEGY.md)
-- [快速开始](docs/QUICK_START.md)
-- [性能优化](docs/PERFORMANCE_OPTIMIZATION.md)
-- [变更日志](CHANGELOG.md)
+### 开发指南
+- [AGENTS.md](AGENTS.md) - AI 助手快速参考（LeanSpec 工作流）
+- [CLAUDE.md](CLAUDE.md) - 本文档（完整开发指南）
+- [CHANGELOG.md](CHANGELOG.md) - 版本变更历史
+
+### 功能规格 (specs/)
+- [项目概览](specs/007-000-project-overview/) - 系统架构和技术栈
+- [书籍管理](specs/001-book-management/) - CRUD 操作和文件处理
+- [搜索功能](specs/002-search-functionality/) - 混合搜索策略（语义 + 关键词）
+- [MCP 集成](specs/003-mcp-integration/) - AI 助手协议支持
+- [智能问答](specs/004-chat-agent/) - LLM 对话和工具调用
+- [向量搜索](specs/005-qdrant-vector-search/) - Qdrant 语义搜索
+- [任务管理](specs/006-task-management/) - 异步任务和性能优化
+
+### 用户文档 (docs/)
+- [快速开始](docs/QUICK_START.md) - 部署和配置指南
+- [API 文档](docs/API_DOCUMENTATION.md) - RESTful API 参考
+- [代码结构](docs/CODE_STRUCTURE.md) - 项目目录说明
+- [MCP 指南](docs/MCP_README.md) - MCP 协议集成和使用
+- [MCP Inspector](docs/features/MCP_INSPECTOR_GUIDE.md) - MCP 工具测试指南
+- [Qdrant 配置](docs/QDRANT_COLLECTION_SETUP.md) - 向量数据库设置
+
+### 前端开发
+- [前端指南](app/AGENTS.md) - Vue.js 3 开发规范
 
 ## 🤝 贡献指南
 
@@ -952,11 +1004,12 @@ chore: 构建/工具相关
 ### 重要约定
 1. **配置管理**: 敏感信息使用环境变量，不要提交到代码库
 2. **数据库迁移**: Chat DB 使用 SQL 迁移文件，不要直接修改表结构
-3. **向量维度**: 确保 Embedding 提供商返回的维度与 Qdrant 集合配置一致（4096）
-4. **缓存清理**: CacheManager 会自动清理，但注意磁盘空间
-5. **MCP 路由**: MCP 路由必须在 NoRoute 之前注册
+3. **向量维度**: Embedding 维度必须与 Qdrant 集合一致（默认 4096）
+4. **缓存清理**: CacheManager 自动清理，注意磁盘空间配额
+5. **MCP 端点**: 使用 SSE 传输（`/mcp/sse`），MCP v1.2.0+ 标准
 6. **并发安全**: 共享状态必须加锁或使用 channel
 7. **变更日志**: 任何代码变更必须同步更新 `CHANGELOG.md`，保持版本历史可追溯
+8. **MCP 安全**: 只暴露只读工具，写操作通过 Web UI 执行
 
 ### 性能考虑
 1. 使用 `context.Context` 控制超时
@@ -972,9 +1025,42 @@ chore: 构建/工具相关
 4. 日志中不要记录敏感信息
 5. API 密钥使用环境变量
 
+## 📖 版本历史
+
+### v1.2.0 (2024-11-28) - MCP 框架重构
+- 迁移到官方 `mcp-go` 框架
+- 支持 SSE 和 StreamableHTTP 传输
+- 移除危险工具（update, delete），保留 6 个只读工具
+- 优化 `search_books` 使用纯语义搜索
+- `get_book` 新增 TOC 目录信息返回
+
+### v1.1.0 (2024-11-27) - AI 智能增强
+- 添加 Chat Agent 智能问答
+- 集成 LLM (OpenAI, Ollama)
+- Qdrant 向量数据库支持
+- TOC 提取性能优化（5-7x 提升）
+
+### v1.0.0 (2024-11-01) - 初始版本
+- 基础书籍管理功能
+- Calibre Content Server 集成
+- 搜索和元数据管理
+- Vue.js Web 界面
+
+## 🔄 最近更新 (Unreleased)
+
+### 安全性
+- 升级所有 Go 依赖，修复 27 个安全漏洞
+- 更新 `golang.org/x/*` 和 `google.golang.org/protobuf`
+
+### 代码质量
+- 全面代码质量优化（8610 行 Go 代码）
+- 新增 9 个错误类型，50+ 行文档注释
+- 新增 16 个单元测试和 4 个性能基准测试
+
 ---
 
-**版本**: 1.1.0  
-**最后更新**: 2024-11-28  
-**维护者**: jianyun8023
+**当前版本**: 1.2.1 (开发中)  
+**最后更新**: 2024-12-08  
+**维护者**: jianyun8023  
+**项目地址**: https://github.com/jianyun8023/calibre-api
 
