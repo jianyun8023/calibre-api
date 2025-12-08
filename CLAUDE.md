@@ -15,7 +15,7 @@
 
 ### 技术栈
 - **后端**: Go 1.24.4, Gin Web Framework
-- **前端**: Vue.js 3, Element Plus, TypeScript
+- **前端**: Vue.js 3 (详见 [前端开发指南](app/AGENTS.md))
 - **数据库**: SQLite (Calibre), SQLite (Chat History)
 - **向量数据库**: Qdrant (语义搜索)
 - **AI/LLM**: OpenAI API, Ollama (本地部署)
@@ -492,6 +492,10 @@ POST   /api/tasks/start             // 启动任务
 503 Unavailable     // 服务不可用
 ```
 
+### 前端开发规范
+
+前端代码规范和开发指南请参考：[前端开发指南](app/AGENTS.md)
+
 ### 数据库规范
 
 #### 1. Calibre SQLite 查询
@@ -544,129 +548,6 @@ filter := &qdrant.Filter{
     },
 }
 results, err := client.Search(ctx, query, filter)
-```
-
-### 前端代码规范
-
-#### 1. Vue 组件规范
-```vue
-<script setup lang="ts">
-// ✅ 推荐: 使用 setup 语法糖
-import { ref, computed, onMounted } from 'vue'
-import type { Book } from '@/types'
-
-// Props 定义
-interface Props {
-  bookId: number
-  readonly?: boolean
-}
-const props = withDefaults(defineProps<Props>(), {
-  readonly: false
-})
-
-// Emits 定义
-interface Emits {
-  (e: 'update', book: Book): void
-  (e: 'delete', id: number): void
-}
-const emit = defineEmits<Emits>()
-
-// 响应式状态
-const book = ref<Book | null>(null)
-const loading = ref(false)
-
-// 计算属性
-const displayTitle = computed(() => 
-  book.value?.title || 'Unknown'
-)
-
-// 方法
-async function fetchBook() {
-  loading.value = true
-  try {
-    const response = await fetch(`/api/books/${props.bookId}`)
-    book.value = await response.json()
-  } catch (error) {
-    console.error('Failed to fetch book:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-// 生命周期
-onMounted(() => {
-  fetchBook()
-})
-</script>
-
-<template>
-  <!-- ✅ 推荐: 使用 v-if/v-show 控制渲染 -->
-  <div v-if="loading">Loading...</div>
-  <div v-else-if="book" class="book-card">
-    <h2>{{ displayTitle }}</h2>
-    <p>{{ book.authors.join(', ') }}</p>
-  </div>
-  <div v-else>Book not found</div>
-</template>
-
-<style scoped>
-/* ✅ 推荐: 使用 scoped 样式 */
-.book-card {
-  padding: 16px;
-  border-radius: 8px;
-  background: var(--bg-color);
-}
-</style>
-```
-
-#### 2. API 调用规范
-```typescript
-// ✅ 推荐: 封装 API 调用
-// src/api/books.ts
-import { apiRequest } from './utils'
-import type { Book, SearchOptions } from '@/types'
-
-export const booksApi = {
-  async getBook(id: number): Promise<Book> {
-    return apiRequest(`/api/books/${id}`)
-  },
-  
-  async search(options: SearchOptions): Promise<Book[]> {
-    return apiRequest('/api/search', {
-      method: 'POST',
-      body: JSON.stringify(options)
-    })
-  },
-  
-  async updateBook(id: number, data: Partial<Book>): Promise<Book> {
-    return apiRequest(`/api/books/${id}/update`, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    })
-  }
-}
-
-// ✅ 推荐: 统一错误处理
-async function apiRequest<T>(url: string, options?: RequestInit): Promise<T> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers
-      },
-      ...options
-    })
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-    
-    return response.json()
-  } catch (error) {
-    console.error('API request failed:', error)
-    throw error
-  }
-}
 ```
 
 ## 🧪 测试规范
