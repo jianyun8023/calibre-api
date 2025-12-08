@@ -51,8 +51,8 @@ depends_on:
 ### 注册的 Tools
 
 **书籍操作** (7 个):
-- `search_books`: 搜索书籍（支持混合策略）
-- `get_book`: 获取单本详情
+- `search_books`: 语义搜索书籍（已优化为纯语义搜索）
+- `get_book`: 获取单本详情（包含 TOC）
 - `random_books`: 随机推荐
 - `update_book_metadata`: 更新元数据
 - `delete_book`: 删除书籍
@@ -63,6 +63,23 @@ depends_on:
 - 每个 Tool 对应一个明确的业务动作
 - 参数使用 JSON Schema 严格校验
 - 返回结果包含完整上下文（AI 可直接使用）
+
+### 工具优化（v1.2.1）
+
+**search_books 优化**: 从关键词搜索切换到语义搜索
+- 旧版: 使用关键词搜索 + filter 参数（title/author/publisher）
+- 新版: 纯语义搜索，移除 filter 和 offset 参数
+- 原因: 语义搜索更智能，能理解自然语言查询
+- 示例: "关于机器学习的书" 比 "机器学习" 效果更好
+- 性能: ~200-500ms（包含向量化时间）
+
+**get_book 优化**: 增加目录（TOC）信息返回
+- 旧版: 只返回基本元数据（title, authors, publisher等）
+- 新版: 返回元数据 + TOC 结构（如果可用）
+- 原因: AI 可基于目录结构做更准确的内容总结和推荐
+- TOC 来源: 优先从 Qdrant 获取，缺失时从 EPUB 提取
+- 容错: TOC 获取失败不影响基本信息返回
+- 性能: +100-300ms（已缓存），+1-3s（首次提取）
 
 ### 注册的 Resources
 

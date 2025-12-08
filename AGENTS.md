@@ -2,6 +2,24 @@
 
 ## Project: calibre-api
 
+Calibre API 是一个基于 Go 的书籍管理系统，集成了语义搜索、智能问答和 MCP 协议支持。
+
+## 📚 项目文档导航
+
+**核心指南**:
+- `CLAUDE.md` - 完整的 AI 助手开发指南（架构、代码规范、开发流程）
+- `specs/` - 功能规格文档（使用 LeanSpec 管理）
+- `app/AGENTS.md` - 前端开发指南（Vue.js 3）
+
+**规格文档**:
+- `specs/007-000-project-overview/` - 项目概览和架构
+- `specs/001-book-management/` - 书籍管理功能
+- `specs/002-search-functionality/` - 搜索功能（混合搜索策略）
+- `specs/003-mcp-integration/` - MCP 协议集成
+- `specs/004-chat-agent/` - 智能问答
+- `specs/005-qdrant-vector-search/` - 向量搜索
+- `specs/006-task-management/` - 异步任务管理
+
 ## 🚨 CRITICAL: Before ANY Task
 
 **STOP and check these first:**
