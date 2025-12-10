@@ -13,8 +13,17 @@
         
         <!-- Loading State -->
         <el-row v-if="loading" :gutter="20" class="book-grid">
-          <el-col v-for="n in 12" :key="n" :span="6" :lg="6" :md="12" :sm="24" :xs="24">
-            <el-skeleton :rows="4" animated />
+          <el-col 
+            v-for="n in 12" 
+            :key="n" 
+            :span="6" 
+            :lg="6" 
+            :md="12" 
+            :sm="24" 
+            :xs="24"
+            class="book-col-spacing"
+          >
+            <BookCardSkeleton />
           </el-col>
         </el-row>
         
@@ -69,6 +78,7 @@ import { ref, computed, watch, onActivated, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeftBold, ArrowRightBold } from '@element-plus/icons-vue'
 import BookCard from '@/components/BookCard.vue'
+import BookCardSkeleton from '@/components/BookCardSkeleton.vue'
 import { Book } from '@/types/book'
 import { fetchAllBooks } from "@/api/api"
 

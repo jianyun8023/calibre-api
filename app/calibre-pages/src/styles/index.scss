@@ -18,11 +18,16 @@ a {
 // ====================================
 
 :root {
-  // 主色调
-  --accent-color: var(--el-color-primary);
+  // 主色调 (HSL)
+  --primary: 217, 91%, 60%; // Blue
+  --accent: 262, 83%, 58%;  // Purple
+  
+  --el-color-primary: hsl(var(--primary));
+  --accent-color: hsl(var(--accent));
+  
   --primary-gradient: linear-gradient(135deg,
-      var(--el-color-primary) 0%,
-      var(--el-color-primary-light-3) 100%);
+      hsl(var(--primary)) 0%,
+      hsl(var(--accent)) 100%);
 
   // Text 层级
   --text1: var(--el-text-color-primary);
@@ -34,18 +39,18 @@ a {
   --surface3: var(--el-fill-color-light);
   --surface4: var(--el-fill-color);
 
-  // 背景渐变 - 使用 Element Plus 颜色生成
+  // 背景渐变 - 使用 HSL
   --bg-gradient: linear-gradient(-45deg,
-      var(--el-color-primary-light-9) 0%,
+      hsl(var(--primary) / 0.1) 0%,
       var(--el-bg-color) 100%);
 
   // Glass 效果变量
-  --glass-bg: var(--el-bg-color-overlay); // 使用 overlay 背景
-  --glass-bg-medium: var(--el-fill-color-light);
-  --glass-bg-strong: var(--el-fill-color);
-  --glass-border: var(--el-border-color-light);
-  --glass-shadow: var(--el-box-shadow-light);
-  --glass-shadow-hover: var(--el-box-shadow);
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-bg-medium: rgba(255, 255, 255, 0.05);
+  --glass-bg-strong: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.15);
 
   // 间距系统
   --spacing-xs: 0.25rem;
@@ -63,50 +68,76 @@ a {
 
   // Typography
   --font-family-base: var(--el-font-family);
-  --font-size-base: var(--el-font-size-base);
-  --font-size-lg: var(--el-font-size-large);
-  --font-size-sm: var(--el-font-size-small);
-  --font-size-xl: var(--el-font-size-extra-large);
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-sm: 12px;
+  --font-size-xl: 20px;
   --line-height-base: 1.5;
 
   // 过渡
-  --transition-fast: var(--el-transition-duration-fast) cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: var(--el-transition-duration) cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-// 深色模式 - Element Plus 会自动处理大部分变量，这里只需处理特殊自定义的
+// 深色模式
 html.dark {
+  --primary: 217, 91%, 50%; // Slightly darker blue
+  --accent: 262, 83%, 65%;  // Increased brightness for WCAG AA contrast (≥3:1)
+  
   // 背景渐变（深色）
   --bg-gradient: linear-gradient(-45deg,
-      var(--el-bg-color-page) 0%,
-      var(--el-bg-color) 100%);
+      hsl(var(--primary) / 0.05) 0%,
+      #121212 100%); // Dark background
+      
+  --glass-bg: rgba(0, 0, 0, 0.2);
+  --glass-bg-medium: rgba(255, 255, 255, 0.03);
+  --glass-bg-strong: rgba(30, 30, 30, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 // ====================================
 // Glassmorphism 优化版本（性能优先）
 // ====================================
 
-// Tier 1 - 真 Glass (仅用于 Dialog)
+// Tier 1 - 真 Glass (主要组件，带降级策略)
 .glass-real {
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--glass-bg-strong); // Fallback for unsupported browsers
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: var(--border-radius-md);
   contain: layout style paint;
+  
+  // 支持 backdrop-filter 的设备使用真 Glass
+  @supports (backdrop-filter: blur(12px)) {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  
+  // 低性能设备降级（通过 prefers-reduced-motion）
+  @media (prefers-reduced-motion: reduce) {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--glass-bg-strong);
+  }
 }
 
-// Tier 2 - 伪 Glass (推荐，性能优化)
+// Tier 2 - 伪 Glass (降级/性能优化)
 .glass-fake {
-  background: var(--glass-bg);
-  /* 性能优化：不使用 backdrop-filter */
+  background: var(--glass-bg-strong); // Use strong/solid bg fallback
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: var(--border-radius-md);
   contain: layout style paint;
-  transform: translate3d(0, 0, 0);
+  
+  // 可选：为支持设备添加轻微模糊
+  @supports (backdrop-filter: blur(4px)) {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
 }
 
 // Tier 3 - 轻 Glass (用于背景层)
@@ -149,16 +180,13 @@ html.dark {
 }
 
 // ====================================
-// 动画定义
+// 动画定义（支持 prefers-reduced-motion）
 // ====================================
 
 @keyframes gradient-shift {
-
-  0%,
-  100% {
+  0%, 100% {
     background-position: 0% 50%;
   }
-
   50% {
     background-position: 100% 50%;
   }
@@ -169,7 +197,6 @@ html.dark {
     opacity: 0;
     transform: translateY(10px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
@@ -181,10 +208,33 @@ html.dark {
     transform: translateX(-100%);
     opacity: 0;
   }
-
   to {
     transform: translateX(0);
     opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+// 尊重用户的动画偏好设置
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .gradient-shift {
+    animation: none !important;
   }
 }
 

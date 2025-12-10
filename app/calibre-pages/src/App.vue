@@ -58,6 +58,13 @@ onMounted(() => {
   background: var(--bg-gradient);
   background-size: 400% 400%;
   transition: background 0.3s ease;
+  animation: gradient-shift 15s ease infinite;
+  
+  // 尊重用户的动画偏好设置
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    background-size: 100% 100%;
+  }
 }
 
 .site-header {
