@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { MemoizedMarkdown } from '@/components/markdown'
+import dynamic from 'next/dynamic'
 import { Send, StopCircle, User, Bot, Plus, Trash2, RefreshCw } from 'lucide-react'
 import { BookCard } from '@/components/book-card'
 import type { Book } from '@/types/book'
@@ -13,6 +13,14 @@ import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+
+// 懒加载 Markdown 组件 (大约 100KB)
+const MemoizedMarkdown = dynamic(
+  () => import('@/components/markdown').then((mod) => mod.MemoizedMarkdown),
+  {
+    loading: () => <div className="text-muted-foreground">Loading...</div>,
+  }
+)
 
 interface Conversation {
     id: string
@@ -382,9 +390,10 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] gap-4">
+    <div className="container max-w-7xl mx-auto py-6">
+      <div className="flex h-[calc(100vh-12rem)] gap-4">
       {/* Sidebar: Conversations (fixed width, scrollable) */}
-      <div className="w-64 flex-col gap-2 border-r pr-4 hidden md:flex">
+      <div className="w-64 flex flex-col gap-2 border-r pr-4 hidden md:flex">
         <Button 
           className="w-full justify-start gap-2" 
           variant="secondary"
@@ -485,16 +494,14 @@ export default function ChatPage() {
                       {/* Book cards */}
                       {msg.books && msg.books.length > 0 && (
                         <div className="space-y-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             {getVisibleBooks(msg.books, msg.id).map((book) => (
-                              <div key={book.id} className="relative group space-y-2">
-                                <div className="h-[280px]">
-                                  <BookCard book={book} proxyImage={true} />
-                                </div>
+                              <div key={book.id} className="flex flex-col gap-2">
+                                <BookCard book={book} proxyImage={true} />
                                 <Button
                                   variant="secondary"
                                   size="sm"
-                                  className="w-full"
+                                  className="w-full text-xs"
                                   onClick={() => summarizeBook(book)}
                                 >
                                   总结此书
@@ -566,6 +573,8 @@ export default function ChatPage() {
         </div>
           </>
         )}
+      </div>
+      
       </div>
       
       {/* Delete confirmation dialog */}

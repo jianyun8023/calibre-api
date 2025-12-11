@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
 import { fetchBook, deleteBook } from "@/lib/api/books"
 import type { Book } from "@/types/book"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -39,11 +40,25 @@ import {
 import { formatFileSize, copyToClipboard } from "@/lib/utils"
 import { toast } from "sonner"
 import Image from "next/image"
-import { MetadataEditDialog } from "@/components/metadata-edit-dialog"
-import { MetadataSearchDialog } from "@/components/metadata-search-dialog"
-import { MetadataCompareDialog } from "@/components/metadata-compare-dialog"
-import { BookTocDialog } from "@/components/book-toc-dialog"
 import type { DoubanBook } from "@/lib/api/metadata"
+
+// 懒加载对话框组件（非关键路径）
+const MetadataEditDialog = dynamic(() => import("@/components/metadata-edit-dialog").then(mod => ({ default: mod.MetadataEditDialog })), {
+  loading: () => <div>Loading...</div>,
+})
+
+const MetadataSearchDialog = dynamic(() => import("@/components/metadata-search-dialog").then(mod => ({ default: mod.MetadataSearchDialog })), {
+  loading: () => <div>Loading...</div>,
+})
+
+const MetadataCompareDialog = dynamic(() => import("@/components/metadata-compare-dialog").then(mod => ({ default: mod.MetadataCompareDialog })), {
+  loading: () => <div>Loading...</div>,
+})
+
+const BookTocDialog = dynamic(() => import("@/components/book-toc-dialog").then(mod => ({ default: mod.BookTocDialog })), {
+  loading: () => <div>Loading...</div>,
+  ssr: false,
+})
 
 export default function BookDetailPage() {
   const params = useParams()

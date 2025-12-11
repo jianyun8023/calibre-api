@@ -68,14 +68,13 @@ export function BookCard({ book, moreInfo = false, proxyImage = false }: BookCar
           {/* Cover Image */}
           <div className="shrink-0 w-20 relative rounded-sm overflow-hidden bg-muted aspect-[2/3]">
             {imageUrl ? (
-               // 使用原生 img 标签以避免 Next.js Image 在静态导出时的复杂配置，或者配置 unoptimized
-               // 这里使用 unoptimized Image
                <Image
                  src={imageUrl}
                  alt={book.title}
                  fill
                  className="object-cover transition-transform duration-500 hover:scale-110"
                  sizes="80px"
+                 loading="lazy"
                  unoptimized
                />
             ) : (

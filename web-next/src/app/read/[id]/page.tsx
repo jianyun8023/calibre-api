@@ -2,12 +2,36 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useSearchParams } from "next/navigation"
-import { ReactReader } from "react-reader"
+import dynamic from "next/dynamic"
 import { useTheme } from "next-themes"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-import { EpubChapterViewer } from "@/components/epub-chapter-viewer"
 import { fetchBook } from "@/lib/api/books"
+
+// 懒加载 ReactReader (大约 200KB)
+const ReactReader = dynamic(
+  () => import("react-reader").then((mod) => mod.ReactReader),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Skeleton className="h-8 w-48 mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading reader...</p>
+        </div>
+      </div>
+    ),
+    ssr: false,
+  }
+)
+
+// 懒加载章节查看器
+const EpubChapterViewer = dynamic(
+  () => import("@/components/epub-chapter-viewer").then((mod) => mod.EpubChapterViewer),
+  {
+    loading: () => <Skeleton className="h-screen" />,
+    ssr: false,
+  }
+)
 
 export default function ReadBookPage() {
   const params = useParams()
