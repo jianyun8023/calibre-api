@@ -18,11 +18,24 @@
 - **双模式部署** - 支持集成模式和独立模式
 - **详细参数说明** - 为所有 API 接口提供完整的参数文档
 
+### 🎨 现代化前端
+- **两套前端实现**:
+  - **Next.js 15 + Shadcn/UI** (推荐，现代化设计)
+    - React 19 + TypeScript 5
+    - Tailwind CSS 4 + Glassmorphism
+    - Vercel AI SDK 流式对话
+    - react-reader EPUB 阅读器
+    - 10 个完整页面（首页、书籍列表、详情、阅读器、搜索、对话、设置、任务、出版社、元数据管理）
+  - **Vue.js 3 + Element Plus** (旧版，稳定维护)
+- **响应式设计** - 支持桌面端和移动端
+- **暗黑模式** - 自动适配系统主题
+
 ### 🔧 开发特性
 - RESTful API 接口
 - Docker 容器化部署
 - 多平台二进制发布
 - 完整的 CI/CD 流程
+- 静态文件托管（支持 Vue/Next.js）
 
 
 ## 📚 文档导航
@@ -50,7 +63,8 @@
 - [Qdrant 配置](./docs/QDRANT_COLLECTION_SETUP.md) - 向量数据库设置
 
 **前端开发**:
-- [前端指南](./app/AGENTS.md) - Vue.js 3 开发规范
+- [Vue.js 前端](./app/AGENTS.md) - Vue 3 + Element Plus (旧版)
+- [Next.js 前端](./web-next/README.md) - Next.js 15 + Shadcn/UI (新版, 推荐)
 
 ## 🚀 快速开始
 

@@ -74,6 +74,7 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.DELETE("/chat/conversations/:id", c.DeleteConversation)
 	base.DELETE("/chat/messages/:id", c.DeleteMessage)
 	base.POST("/chat/conversations/:id/messages", c.SendMessage)
+	base.POST("/chat/stream", c.ChatStream) // AI SDK stream endpoint
 }
 
 // NewClient 创建 Calibre API 客户端
