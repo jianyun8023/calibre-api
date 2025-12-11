@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { apiRequest } from "@/lib/api-client"
-import { useEffect, useState } from "react"
-import { Play, Square, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react"
-import { toast } from "sonner"
+import { useState } from "react"
+import { Play, Square, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Wifi, WifiOff } from "lucide-react"
+import { useTaskStream } from "@/hooks/use-task-stream"
 
 interface TaskStatus {
   id: string
@@ -34,53 +33,40 @@ const TASK_MODES = [
 ]
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<TaskStatus[]>([])
-  const [loading, setLoading] = useState(true)
   const [selectedType, setSelectedType] = useState("qdrant_sync")
   const [selectedMode, setSelectedMode] = useState("incremental")
 
-  const fetchTasks = async () => {
+  // Use the new task stream hook
+  const { 
+    tasks, 
+    loading, 
+    connected, 
+    useFallback, 
+    refresh, 
+    startTask: startTaskStream, 
+    stopTask: stopTaskStream 
+  } = useTaskStream({
+    onTaskComplete: (task) => {
+      console.log('Task completed:', task.type)
+    },
+    onError: (error) => {
+      console.error('Task stream error:', error)
+    }
+  })
+
+  const handleStartTask = async () => {
     try {
-      const data = await apiRequest<TaskStatus[]>("/api/tasks")
-      setTasks(data)
+      await startTaskStream(selectedType, selectedMode)
     } catch (error) {
-      console.error("Failed to fetch tasks:", error)
-    } finally {
-      setLoading(false)
+      // Error handling is done in the hook
     }
   }
 
-  useEffect(() => {
-    fetchTasks()
-    // Poll every 2 seconds when there are running tasks
-    const interval = setInterval(() => {
-      if (tasks.some(t => t.state === "running")) {
-        fetchTasks()
-      }
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [tasks])
-
-  const startTask = async () => {
+  const handleStopTask = async (id: string) => {
     try {
-      await apiRequest("/api/tasks/start", {
-        method: "POST",
-        body: JSON.stringify({ type: selectedType, mode: selectedMode }),
-      })
-      toast.success("Task started successfully")
-      fetchTasks()
-    } catch (error: any) {
-      toast.error(error.message || "Failed to start task")
-    }
-  }
-
-  const stopTask = async (id: string) => {
-    try {
-      await apiRequest(`/api/tasks/${id}/stop`, { method: "POST" })
-      toast.success("Task stopped")
-      fetchTasks()
-    } catch (error: any) {
-      toast.error(error.message || "Failed to stop task")
+      await stopTaskStream(id)
+    } catch (error) {
+      // Error handling is done in the hook
     }
   }
 
@@ -127,8 +113,28 @@ export default function TasksPage() {
   return (
     <div className="container max-w-6xl py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Task Management</h1>
-        <Button onClick={fetchTasks} variant="outline" size="icon">
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold">Task Management</h1>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {useFallback ? (
+              <>
+                <WifiOff className="w-4 h-4" />
+                <span>Polling Mode</span>
+              </>
+            ) : connected ? (
+              <>
+                <Wifi className="w-4 h-4 text-green-500" />
+                <span>Live Updates</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-4 h-4 text-yellow-500" />
+                <span>Connecting...</span>
+              </>
+            )}
+          </div>
+        </div>
+        <Button onClick={refresh} variant="outline" size="icon">
           <RefreshCw className="w-4 h-4" />
         </Button>
       </div>
@@ -182,7 +188,7 @@ export default function TasksPage() {
             </div>
 
             <div className="flex items-end">
-              <Button onClick={startTask} className="w-full sm:w-auto">
+              <Button onClick={handleStartTask} className="w-full sm:w-auto">
                 <Play className="w-4 h-4 mr-2" />
                 Start Task
               </Button>
@@ -201,7 +207,7 @@ export default function TasksPage() {
               Loading tasks...
             </CardContent>
           </Card>
-        ) : tasks.length === 0 ? (
+        ) : !tasks || tasks.length === 0 ? (
           <Card className="glass">
             <CardContent className="py-8 text-center text-muted-foreground">
               No tasks found. Start a new task above.
@@ -231,7 +237,7 @@ export default function TasksPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => stopTask(task.id)}
+                        onClick={() => handleStopTask(task.id)}
                       >
                         <Square className="w-3 h-3 mr-1" />
                         Stop

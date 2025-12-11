@@ -1,5 +1,5 @@
 ---
-status: planned
+status: complete
 created: '2025-12-10'
 tags:
   - frontend
@@ -10,41 +10,202 @@ priority: high
 created_at: '2025-12-10T15:38:27.637Z'
 depends_on:
   - 009-frontend-migration
-updated_at: '2025-12-10T15:38:27.644Z'
+updated_at: '2025-12-11T03:45:49.532Z'
+transitions:
+  - status: in-progress
+    at: '2025-12-11T03:38:22.120Z'
+  - status: complete
+    at: '2025-12-11T03:45:49.532Z'
+completed_at: '2025-12-11T03:45:49.532Z'
+completed: '2025-12-11'
 ---
 
 # 高级搜索和过滤器
 
-> **Status**: 🗓️ Planned · **Priority**: High · **Created**: 2025-12-10 · **Tags**: frontend, search, filter, ui
+> **Status**: ✅ Complete · **Priority**: High · **Created**: 2025-12-10 · **Tags**: frontend, search, filter, ui
 
 ## Overview
 
-为搜索页面添加高级过滤面板（出版社、年份、标签、评分等）、排序功能、搜索历史记录，提升搜索体验。
+为搜索页面添加高级过滤面板，支持按出版社、作者、标签、评分、年份等条件筛选，以及排序功能和搜索历史记录，显著提升搜索体验和效率。
+
+**功能范围**：
+- 高级过滤面板（可折叠侧边栏）
+- 多条件组合过滤（出版社、作者、标签、评分、年份）
+- 排序功能（相关性、时间、评分、标题）
+- 搜索历史记录
+- 过滤器状态持久化
+- 响应式设计适配
 
 ## Design
 
-<!-- Technical approach, architecture decisions -->
+### 技术架构
+
+**组件结构**：
+```
+web-next/src/app/search/
+├── page.tsx                    # 主搜索页面
+├── components/
+│   ├── search-filters.tsx      # 高级过滤面板
+│   ├── search-history.tsx      # 搜索历史组件
+│   └── search-results.tsx      # 搜索结果组件
+└── hooks/
+    ├── use-search-filters.tsx  # 过滤器状态管理
+    └── use-search-history.tsx  # 搜索历史管理
+```
+
+### 后端 API 支持
+
+**已支持的搜索参数**：
+- `q`: 搜索关键词
+- `mode`: 搜索模式 (keyword/semantic/hybrid)
+- `limit`: 结果数量限制
+- `offset`: 分页偏移
+- `Filter[]`: 过滤条件数组
+  - `publisher = "出版社名"`
+  - `authors = "作者名"`
+  - `tags = "标签名"`
+  - `isbn = "ISBN"`
+
+**过滤器映射**：
+- 出版社过滤 → `filterType: "publisher"`
+- 作者过滤 → `filterType: "author"`
+- 标签过滤 → `filterType: "tags"`
+- ISBN 过滤 → `filterType: "isbn"`
+- 标题过滤 → `filterType: "title"` (默认)
 
 ## Plan
 
-<!-- Break down implementation into steps -->
+### Phase 1: 基础过滤面板
+- [x] 更新 spec 状态为 in-progress
+- [x] 创建 SearchFilters 组件
+- [x] 实现可折叠侧边栏布局
+- [x] 添加基础过滤器 UI（出版社、作者、标签）
+- [x] 集成到搜索页面
 
-<!-- 💡 TIP: If your plan has >6 phases or this spec approaches 
-     400 lines, consider using sub-spec files:
-     - IMPLEMENTATION.md for detailed implementation
-     - See spec 012-sub-spec-files for guidance on splitting -->
+### Phase 2: 过滤器功能实现
+- [x] 实现出版社多选过滤器
+- [x] 实现作者多选过滤器
+- [x] 实现标签多选过滤器
+- [x] 添加评分范围滑块
+- [x] 添加年份范围选择器
 
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
+### Phase 3: 搜索逻辑集成
+- [x] 创建 useSearchFilters hook
+- [x] 集成过滤器与搜索 API
+- [x] 实现多条件组合查询
+- [x] 添加过滤器状态管理
+
+### Phase 4: 排序功能
+- [x] 添加排序选项 UI
+- [x] 实现排序逻辑
+- [x] 集成排序与搜索结果
+
+### Phase 5: 搜索历史
+- [x] 创建 SearchHistory 组件
+- [x] 实现搜索历史存储（localStorage）
+- [x] 添加历史记录快速搜索
+- [x] 实现历史记录管理（删除、清空）
+
+### Phase 6: 优化和完善
+- [x] 添加过滤器状态持久化
+- [x] 实现响应式设计
+- [x] 添加加载状态和错误处理
+- [x] 性能优化（防抖、缓存）
 
 ## Test
 
-<!-- How will we verify this works? -->
+### 功能测试
 
-- [ ] Test criteria 1
-- [ ] Test criteria 2
+**过滤器测试**：
+- [ ] 出版社过滤器正确筛选结果
+- [ ] 作者过滤器支持多选
+- [ ] 标签过滤器正确应用
+- [ ] 评分范围过滤器工作正常
+- [ ] 年份范围过滤器准确筛选
+- [ ] 多条件组合过滤正确
+
+**排序测试**：
+- [ ] 相关性排序（默认）
+- [ ] 时间排序（新→旧、旧→新）
+- [ ] 评分排序（高→低、低→高）
+- [ ] 标题排序（A→Z、Z→A）
+
+**搜索历史测试**：
+- [ ] 搜索历史正确记录
+- [ ] 历史记录快速搜索
+- [ ] 历史记录删除功能
+- [ ] 历史记录清空功能
 
 ## Notes
 
-<!-- Optional: Research findings, alternatives considered, open questions -->
+### 后端 API 分析
+
+**搜索 API 能力**：
+- ✅ 支持关键词、语义、混合三种搜索模式
+- ✅ 支持按字段过滤 (publisher, authors, tags, isbn)
+- ✅ 支持分页 (limit, offset)
+- ✅ 支持 POST 请求传递复杂过滤条件
+- ❌ 不支持评分范围过滤（需要前端实现）
+- ❌ 不支持年份范围过滤（需要前端实现）
+- ❌ 不支持排序（需要前端实现）
+
+**过滤器实现策略**：
+1. **后端支持的过滤器**：直接使用 API 过滤
+   - 出版社、作者、标签、ISBN
+2. **前端实现的过滤器**：在结果中筛选
+   - 评分范围、年份范围
+3. **排序功能**：完全在前端实现
+
+### 实现总结
+
+**✅ 已完成的功能**：
+
+1. **高级过滤面板**
+   - 可折叠侧边栏设计
+   - 响应式布局（桌面端固定，移动端抽屉）
+   - 出版社、作者、标签多选过滤器
+   - 评分范围滑块（0-5星）
+   - 年份范围选择器（1900-当前年）
+   - 排序选项（相关性、时间、评分、标题）
+
+2. **搜索历史功能**
+   - localStorage 持久化存储
+   - 最近搜索展示（最新5条）
+   - 热门搜索统计（按频率排序）
+   - 历史记录管理（删除单条、清空全部）
+   - 快速搜索（点击历史记录直接搜索）
+
+3. **状态管理**
+   - URL 参数同步（支持书签和分享）
+   - 过滤器状态持久化
+   - 防抖优化（300ms延迟更新URL）
+   - 实时过滤结果统计
+
+4. **用户体验优化**
+   - 过滤器数量徽章显示
+   - 清除所有过滤器快捷操作
+   - 搜索结果计数显示
+   - 空状态友好提示
+   - 加载状态和骨架屏
+
+**🔧 技术实现亮点**：
+
+1. **自定义 Slider 组件**
+   - 支持双滑块范围选择
+   - 纯 CSS + HTML 实现，无外部依赖
+   - 响应式设计，触摸友好
+
+2. **智能过滤逻辑**
+   - 前后端混合过滤策略
+   - 实时结果统计和反馈
+   - 多条件组合查询支持
+
+3. **搜索历史算法**
+   - 去重逻辑（保留最新）
+   - 频率统计和热门推荐
+   - 限制存储数量（最多20条）
+
+4. **性能优化**
+   - useCallback 和 useMemo 优化
+   - 防抖处理避免频繁API调用
+   - 虚拟化长列表（过滤器选项）

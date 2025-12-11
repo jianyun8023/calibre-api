@@ -42,6 +42,7 @@ import Image from "next/image"
 import { MetadataEditDialog } from "@/components/metadata-edit-dialog"
 import { MetadataSearchDialog } from "@/components/metadata-search-dialog"
 import { MetadataCompareDialog } from "@/components/metadata-compare-dialog"
+import { BookTocDialog } from "@/components/book-toc-dialog"
 import type { DoubanBook } from "@/lib/api/metadata"
 
 export default function BookDetailPage() {
@@ -54,6 +55,7 @@ export default function BookDetailPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [compareDialogOpen, setCompareDialogOpen] = useState(false)
+  const [tocDialogOpen, setTocDialogOpen] = useState(false)
   const [doubanMetadata, setDoubanMetadata] = useState<DoubanBook | null>(null)
 
   const loadBook = useCallback(async () => {
@@ -92,6 +94,10 @@ export default function BookDetailPage() {
 
   const handleSearch = () => {
     setSearchDialogOpen(true)
+  }
+
+  const handleToc = () => {
+    setTocDialogOpen(true)
   }
 
   const handleMetadataSelect = (metadata: DoubanBook) => {
@@ -230,7 +236,7 @@ export default function BookDetailPage() {
               <Button className="flex-1" onClick={() => router.push(`/read/${book.id}`)}>
                 <BookOpen className="mr-2 h-4 w-4" /> Read
               </Button>
-              <Button variant="secondary" className="flex-1">
+              <Button variant="secondary" className="flex-1" onClick={handleToc}>
                 <List className="mr-2 h-4 w-4" /> TOC
               </Button>
               {book.file_path && (
@@ -295,6 +301,12 @@ export default function BookDetailPage() {
             onOpenChange={setSearchDialogOpen}
             book={book}
             onSelect={handleMetadataSelect}
+          />
+          <BookTocDialog
+            open={tocDialogOpen}
+            onOpenChange={setTocDialogOpen}
+            bookId={id}
+            bookTitle={book.title}
           />
           {doubanMetadata && (
             <MetadataCompareDialog

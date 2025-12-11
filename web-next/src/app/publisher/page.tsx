@@ -49,7 +49,7 @@ export default function PublishersPage() {
     }
   }
 
-  const totalBooks = publishers.reduce((sum, p) => sum + p.count, 0)
+  const totalBooks = publishers.reduce((sum, p) => sum + (p.count || 0), 0)
   const topPublishers = filteredPublishers.slice(0, 5)
 
   return (
@@ -82,7 +82,7 @@ export default function PublishersPage() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalBooks}</div>
+            <div className="text-2xl font-bold">{totalBooks || 0}</div>
             <p className="text-xs text-muted-foreground">
               Books across all publishers
             </p>
@@ -122,7 +122,7 @@ export default function PublishersPage() {
               {topPublishers.map((publisher, index) => {
                 const percentage = (publisher.count / totalBooks) * 100
                 return (
-                  <div key={publisher.name} className="space-y-2">
+                  <div key={`top-${index}-${publisher.name || 'unknown'}`} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Badge variant="outline" className="w-8 justify-center">
@@ -187,9 +187,9 @@ export default function PublishersPage() {
             </div>
           ) : (
             <div className="grid gap-2">
-              {filteredPublishers.map((publisher) => (
+              {filteredPublishers.map((publisher, index) => (
                 <Link
-                  key={publisher.name}
+                  key={`publisher-${index}-${publisher.name || 'unknown'}`}
                   href={`/search?publisher=${encodeURIComponent(publisher.name)}`}
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-accent transition-colors"
                 >

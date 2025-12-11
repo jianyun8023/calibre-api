@@ -62,3 +62,26 @@ export async function updateBook(id: string | number, body: any) {
     });
 }
 
+export async function fetchBookToc(id: string) {
+    // TOC API returns data directly, not wrapped in standard response format
+    const response = await fetch(`/api/read/${id}/toc`);
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch TOC: ${response.status} ${response.statusText}`);
+    }
+    
+    return response.json();
+}
+
+export async function fetchChapterContent(bookId: string, filePath: string) {
+    // Remove the /read/{id}/file/ prefix if present
+    const cleanPath = filePath.replace(`/read/${bookId}/file/`, '');
+    const response = await fetch(`/api/read/${bookId}/file/${cleanPath}`);
+    
+    if (!response.ok) {
+        throw new Error(`Failed to fetch chapter content: ${response.status} ${response.statusText}`);
+    }
+    
+    return response.text();
+}
+

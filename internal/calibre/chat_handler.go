@@ -49,7 +49,10 @@ func (c *Api) ListConversations(r *gin.Context) {
 		return
 	}
 
-	r.JSON(http.StatusOK, conversations)
+	r.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"data": conversations,
+	})
 }
 
 // GetConversation 获取对话详情
@@ -85,7 +88,10 @@ func (c *Api) GetConversationMessages(r *gin.Context) {
 		return
 	}
 
-	r.JSON(http.StatusOK, messages)
+	r.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"data": messages,
+	})
 }
 
 // DeleteConversation 删除对话

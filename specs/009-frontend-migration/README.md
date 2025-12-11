@@ -179,6 +179,7 @@ completed: '2025-12-10'
 - [x] Home (首页) - 随机推荐 + 最近添加
 - [x] Books (书籍列表) - 基于游标的分页
 - [x] Detail (详情页) - 完整元数据展示和操作
+  - [x] TOC (目录) 功能 - 书籍目录对话框和章节导航
 - [x] Read (阅读器) - react-reader 集成，阅读进度保存
 - [x] Search (搜索) - 关键词/语义/混合三种模式
 - [x] Chat (对话) - Vercel AI SDK 流式响应 + Markdown
@@ -255,6 +256,12 @@ completed: '2025-12-10'
    - 移动端：Sheet 抽屉式菜单
    - 自适应 Header 布局
 
+5. **TOC (目录) 功能**
+   - 智能数据格式处理（EPUB NavPoint、数组、对象）
+   - 章节树形结构展示（可展开/折叠）
+   - 直接导航到阅读器章节
+   - 空状态友好提示
+
 ### 项目结构
 
 ```
@@ -276,6 +283,7 @@ web-next/
 │   │   ├── app-header.tsx     # 全局头部
 │   │   ├── app-sidebar.tsx    # 侧边导航
 │   │   ├── book-card.tsx      # 书籍卡片（3D 效果）
+│   │   ├── book-toc-dialog.tsx # 书籍目录对话框
 │   │   ├── markdown.tsx       # Markdown 渲染器
 │   │   └── theme-provider.tsx # 主题提供者
 │   ├── lib/
@@ -347,6 +355,14 @@ web-next/
 - 编辑按钮：添加 onClick 处理（预留功能入口）
 - 刷新按钮：实现重新加载书籍数据
 - 下载功能：自动提取文件扩展名（`.epub`）
+
+**6. TOC (目录) 功能实现**
+- 新增 `BookTocDialog` 组件：书籍目录对话框
+- 集成后端 TOC API：`/api/read/{id}/toc`
+- 支持多种 TOC 数据格式：EPUB NavPoint、数组、对象
+- 章节导航：点击章节直接跳转到阅读器对应位置
+- 响应式设计：桌面端对话框，移动端适配
+- 空状态处理：无目录时显示友好提示
 
 **6. 代码质量提升**
 - 修复所有 linter 错误（7+ 项）
