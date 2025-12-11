@@ -157,11 +157,6 @@ export default function ReadBookPage() {
         url={url}
         location={location}
         locationChanged={handleLocationChange}
-        epubInitOptions={{
-          openAs: 'epub',
-          requestMethod: 'GET',
-          requestCredentials: 'same-origin',
-        }}
         epubOptions={{
           flow: 'paginated',
           manager: 'default',
