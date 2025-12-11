@@ -1,25 +1,26 @@
 ---
-status: planned
+status: archived
 created: '2025-12-10'
 tags:
   - frontend
-  - tasks
-  - history
-  - ui
-priority: medium
-created_at: '2025-12-10T15:38:31.497Z'
-depends_on:
-  - 009-frontend-migration
-updated_at: '2025-12-10T15:38:31.502Z'
+  - feature
+  - statistics
+  - analytics
+priority: low
+created_at: '2025-12-10T15:38:37.081Z'
+updated_at: '2025-12-11T12:45:20.255Z'
+transitions:
+  - status: archived
+    at: '2025-12-11T12:45:20.255Z'
 ---
 
-# 任务历史记录管理
+# 阅读数据统计和分析
 
-> **Status**: 🗓️ Planned · **Priority**: Medium · **Created**: 2025-12-10 · **Tags**: frontend, tasks, history, ui
+> **Status**: 📦 Archived · **Priority**: Low · **Created**: 2025-12-10 · **Tags**: frontend, feature, statistics, analytics
 
 ## Overview
 
-在任务管理页面添加历史任务查看、筛选、搜索功能，支持查看任务执行日志和统计信息。
+实现阅读时长、阅读进度、阅读习惯的统计和可视化，提供个人阅读报告和数据分析。
 
 ## Design
 
