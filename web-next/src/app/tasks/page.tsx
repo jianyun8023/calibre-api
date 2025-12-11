@@ -111,7 +111,7 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="container max-w-6xl py-8">
+    <div className="container max-w-6xl">
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold">Task Management</h1>

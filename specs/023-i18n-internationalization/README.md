@@ -1,29 +1,26 @@
 ---
-status: in-progress
+status: planned
 created: '2025-12-11'
 tags:
-  - backend
-  - sse
-  - streaming
-  - tasks
-  - real-time
+  - frontend
+  - i18n
+  - localization
+  - nextjs
+  - chinese
 priority: medium
-created_at: '2025-12-11T05:25:03.887Z'
+created_at: '2025-12-11T11:36:40.819Z'
 depends_on:
-  - 006-task-management
-updated_at: '2025-12-11T10:57:06.503Z'
-transitions:
-  - status: in-progress
-    at: '2025-12-11T10:57:06.503Z'
+  - 009-frontend-migration
+updated_at: '2025-12-11T11:44:29.317Z'
 ---
 
-# Task SSE Streaming for Real-time Updates
+# Frontend Internationalization (i18n) Support
 
-> **Status**: ⏳ In progress · **Priority**: Medium · **Created**: 2025-12-11 · **Tags**: backend, sse, streaming, tasks, real-time
+> **Status**: 🗓️ Planned · **Priority**: Medium · **Created**: 2025-12-11 · **Tags**: frontend, i18n, localization, nextjs, chinese
 
 ## Overview
 
-Implement Server-Sent Events (SSE) endpoint for real-time task status updates to replace polling mechanism
+为 Next.js 前端添加国际化（i18n）支持，使用 next-intl 库，默认语言为中文（zh-CN），支持中英文切换。
 
 ## Design
 

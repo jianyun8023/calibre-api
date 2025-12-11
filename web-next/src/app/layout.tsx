@@ -31,13 +31,13 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <div className="flex min-h-screen flex-col md:flex-row">
+            <div className="flex h-screen flex-col md:flex-row overflow-hidden">
               {/* Desktop Sidebar */}
-              <AppSidebar className="hidden md:block h-screen sticky top-0" />
+              <AppSidebar className="hidden md:block h-full sticky top-0 shrink-0" />
               
-              <div className="flex-1 flex flex-col min-w-0">
-                <AppHeader />
-                <main className="flex-1 p-4 md:p-6 lg:p-8">
+              <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                <AppHeader className="shrink-0" />
+                <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
                   {children}
                 </main>
               </div>

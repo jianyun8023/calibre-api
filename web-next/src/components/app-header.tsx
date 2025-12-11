@@ -7,11 +7,15 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { AppSidebar } from "@/components/app-sidebar"
 import { useState } from "react"
 
-export function AppHeader() {
+interface AppHeaderProps {
+  className?: string
+}
+
+export function AppHeader({ className = '' }: AppHeaderProps = {}) {
   const [open, setOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className={`sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 ${className}`}>
       <div className="container flex h-14 items-center">
         <div className="mr-4 hidden md:flex">
           {/* Desktop Logo or Breadcrumbs could go here */}

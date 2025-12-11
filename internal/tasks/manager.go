@@ -23,9 +23,10 @@ const (
 
 // Manager 任务管理器，负责任务的创建、执行和状态跟踪
 type Manager struct {
-	tasks   map[string]Task
-	history []TaskStatus
-	mu      sync.RWMutex
+	tasks      map[string]Task
+	history    []TaskStatus
+	mu         sync.RWMutex
+	sseManager *SSEManager // SSE 管理器，用于实时推送任务更新
 }
 
 var (
@@ -37,11 +38,38 @@ var (
 func GetManager() *Manager {
 	once.Do(func() {
 		instance = &Manager{
-			tasks:   make(map[string]Task),
-			history: make([]TaskStatus, 0),
+			tasks:      make(map[string]Task),
+			history:    make([]TaskStatus, 0),
+			sseManager: nil, // 将在 SetSSEManager 中设置
 		}
 	})
 	return instance
+}
+
+// SetSSEManager 设置 SSE 管理器
+func (m *Manager) SetSSEManager(sseManager *SSEManager) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sseManager = sseManager
+}
+
+// broadcastTaskUpdate 广播任务更新（内部方法）
+func (m *Manager) broadcastTaskUpdate(status TaskStatus) {
+	if m.sseManager != nil {
+		m.sseManager.BroadcastTaskUpdate(status)
+	}
+}
+
+// BroadcastTaskProgress 广播任务进度更新（供任务实现调用）
+func (m *Manager) BroadcastTaskProgress(taskID string) {
+	m.mu.RLock()
+	task, exists := m.tasks[taskID]
+	m.mu.RUnlock()
+
+	if exists {
+		status := task.GetStatus()
+		m.broadcastTaskUpdate(status)
+	}
 }
 
 // StartTask 启动一个新任务
@@ -68,6 +96,10 @@ func (m *Manager) StartTask(t TaskType, mode TaskMode, factory func(string) Task
 	task := factory(id)
 	m.tasks[id] = task
 
+	// 广播任务启动
+	initialStatus := task.GetStatus()
+	m.broadcastTaskUpdate(initialStatus)
+
 	go func() {
 		err := task.Run()
 		m.mu.Lock()
@@ -82,6 +114,9 @@ func (m *Manager) StartTask(t TaskType, mode TaskMode, factory func(string) Task
 			status.State = TaskStateCompleted
 			status.Progress = ProgressComplete
 		}
+
+		// 广播任务完成/失败状态
+		m.broadcastTaskUpdate(status)
 
 		// Move to history
 		m.history = append([]TaskStatus{status}, m.history...)

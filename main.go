@@ -57,8 +57,13 @@ func main() {
 		log.Info("MCP Server disabled")
 	}
 
-	// 最后设置静态文件和 NoRoute（会捕获所有未匹配的路由）
-	setPages(r, conf)
+	// 设置 NoRoute 处理器返回 JSON 404
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "route not found",
+			"path":  c.Request.URL.Path,
+		})
+	})
 
 	for _, route := range r.Routes() {
 		log.Infof("route: %s %s", route.Method, route.Path)
@@ -68,30 +73,7 @@ func main() {
 	r.Run(conf.Address)
 }
 
-func setPages(r *gin.Engine, conf *calibre.Config) {
-	// 配置静态文件目录
-	r.Static("/assets", conf.StaticDir+"/assets")
 
-	// 配置模板目录
-	//r.LoadHTMLGlob(conf.TemplateDir + "/*")
-	r.GET("/", func(c *gin.Context) {
-		//c.HTML(http.StatusOK, "index.html", nil)
-		c.File(conf.StaticDir + "/index.html")
-	})
-	r.GET("/index", func(c *gin.Context) {
-		//c.HTML(http.StatusOK, "index.html", nil)
-		c.File(conf.StaticDir + "/index.html")
-	})
-	r.GET("/favico.ico", func(c *gin.Context) {
-		//c.HTML(http.StatusOK, "index.html", nil)
-		c.File(conf.StaticDir + "/favico.ico")
-	})
-
-	// Serve the index.html file for all other routes
-	r.NoRoute(func(c *gin.Context) {
-		c.File(conf.StaticDir + "/index.html")
-	})
-}
 
 func initConfig() (*calibre.Config, error) {
 	viper.SetConfigName("config")
@@ -100,7 +82,6 @@ func initConfig() (*calibre.Config, error) {
 	viper.AddConfigPath("$HOME/.calibre-api")
 	viper.AddConfigPath(".")
 	viper.SetDefault("address", ":8080")
-	viper.SetDefault("staticDir", "./static")
 	viper.SetDefault("tmpDir", "/tmp")
 
 	// MCP defaults
@@ -139,9 +120,6 @@ func initConfig() (*calibre.Config, error) {
 func validateConfig(conf *calibre.Config) error {
 	if conf.Address == "" {
 		return fmt.Errorf("address is required")
-	}
-	if conf.StaticDir == "" {
-		return fmt.Errorf("staticDir is required")
 	}
 	return nil
 }

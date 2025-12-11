@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import dynamic from 'next/dynamic'
 import { Send, StopCircle, User, Bot, Plus, Trash2, RefreshCw } from 'lucide-react'
-import { BookCard } from '@/components/book-card'
+import { BookGrid } from '@/components/book-grid'
 import type { Book } from '@/types/book'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { cn } from '@/lib/utils'
@@ -390,20 +390,19 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="container max-w-7xl mx-auto py-6">
-      <div className="flex h-[calc(100vh-12rem)] gap-4">
+    <div className="h-full flex gap-4 overflow-hidden max-w-7xl mx-auto w-full">
       {/* Sidebar: Conversations (fixed width, scrollable) */}
-      <div className="w-64 flex flex-col gap-2 border-r pr-4 hidden md:flex">
+      <div className="w-64 flex flex-col gap-2 border-r pr-4 hidden md:flex overflow-hidden">
         <Button 
-          className="w-full justify-start gap-2" 
+          className="w-full justify-start gap-2 shrink-0" 
           variant="secondary"
           onClick={createNewConversation}
         >
             <Plus className="h-4 w-4" /> 新建对话
         </Button>
         
-        <ScrollArea className="flex-1">
-          <div className="space-y-2">
+        <ScrollArea className="flex-1 overflow-auto">
+          <div className="space-y-2 pr-4">
             {conversations.map((conv) => (
               <div
                 key={conv.id}
@@ -437,7 +436,7 @@ export default function ChatPage() {
       </div>
       
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-background/50 rounded-lg border shadow-sm h-full">
+      <div className="flex-1 flex flex-col min-w-0 bg-background/50 rounded-lg border shadow-sm overflow-hidden">
         {!currentConversation && chatMessages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
             <Bot className="h-16 w-16 mb-4" />
@@ -445,8 +444,8 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          <div className="space-y-6 max-w-3xl mx-auto">
+        <ScrollArea className="flex-1 overflow-auto p-4" ref={scrollRef}>
+          <div className="space-y-6 max-w-3xl mx-auto pb-4">
                 {chatMessages.map((msg) => (
                   <div key={msg.id} className={cn("flex gap-3", msg.role === 'user' && "flex-row-reverse")}>
                 <div className={cn(
@@ -494,19 +493,24 @@ export default function ChatPage() {
                       {/* Book cards */}
                       {msg.books && msg.books.length > 0 && (
                         <div className="space-y-4">
+                          <BookGrid
+                            books={getVisibleBooks(msg.books, msg.id)}
+                            proxyImage
+                            columns={{ base: 2, sm: 3, md: 3, lg: 4, xl: 4 }}
+                          />
+                          
+                          {/* Summarize buttons for visible books */}
                           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             {getVisibleBooks(msg.books, msg.id).map((book) => (
-                              <div key={book.id} className="flex flex-col gap-2">
-                                <BookCard book={book} proxyImage={true} />
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  className="w-full text-xs"
-                                  onClick={() => summarizeBook(book)}
-                                >
-                                  总结此书
-                                </Button>
-                              </div>
+                              <Button
+                                key={book.id}
+                                variant="secondary"
+                                size="sm"
+                                className="w-full text-xs"
+                                onClick={() => summarizeBook(book)}
+                              >
+                                总结此书
+                              </Button>
                             ))}
                           </div>
                           
@@ -522,7 +526,7 @@ export default function ChatPage() {
                               </Button>
                             </div>
                           )}
-                                </div>
+                        </div>
                       )}
                 </div>
               </div>
@@ -547,7 +551,7 @@ export default function ChatPage() {
         </ScrollArea>
         
             {/* Input area */}
-            <div className="border-t p-4 bg-background">
+            <div className="border-t p-4 bg-background shrink-0">
               <div className="flex gap-2 max-w-3xl mx-auto">
                 <Input 
                     value={input}
@@ -558,11 +562,11 @@ export default function ChatPage() {
                     className="flex-1"
                 />
                 {isLoading ? (
-                  <Button onClick={stopGeneration} variant="destructive">
+                  <Button onClick={stopGeneration} variant="destructive" className="shrink-0">
                     <StopCircle className="h-4 w-4 mr-2" /> 停止
                     </Button>
                 ) : (
-                  <Button onClick={handleSend}>
+                  <Button onClick={handleSend} className="shrink-0">
                     <Send className="h-4 w-4 mr-2" /> 发送
                     </Button>
                 )}
@@ -573,8 +577,6 @@ export default function ChatPage() {
         </div>
           </>
         )}
-      </div>
-      
       </div>
       
       {/* Delete confirmation dialog */}

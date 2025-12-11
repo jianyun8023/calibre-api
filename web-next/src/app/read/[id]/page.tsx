@@ -106,11 +106,11 @@ export default function ReadBookPage() {
     }
   }
 
-  if (loading) return <Skeleton className="h-screen w-full" />
+  if (loading) return <Skeleton className="h-full w-full" />
 
   if (error) {
     return (
-      <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
+      <div className="h-full flex items-center justify-center">
         <div className="text-center max-w-md">
           <h2 className="text-xl font-semibold mb-2">Reader Error</h2>
           <p className="text-muted-foreground mb-4">{error}</p>
@@ -145,14 +145,14 @@ export default function ReadBookPage() {
   // Use alternative viewer if requested or if react-reader fails
   if (useAlternativeViewer) {
     return (
-      <div className="h-[calc(100vh-4rem)] -m-4 md:-m-6 lg:-m-8">
+      <div className="h-full -m-4 md:-m-6 lg:-m-8">
         <EpubChapterViewer bookId={id} bookTitle={bookTitle} />
       </div>
     )
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] -m-4 md:-m-6 lg:-m-8 relative">
+    <div className="h-full -m-4 md:-m-6 lg:-m-8 relative">
       <ReactReader
         url={url}
         location={location}

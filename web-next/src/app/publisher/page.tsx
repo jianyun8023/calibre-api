@@ -1,24 +1,21 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { Pagination } from "@/components/pagination"
 import { apiRequest } from "@/lib/api-client"
-import { useEffect, useState } from "react"
-import { Search, Building2, BookOpen, TrendingUp, BarChart } from "lucide-react"
+import { useEffect, useState, useMemo } from "react"
+import { Search, Building2 } from "lucide-react"
 import Link from "next/link"
 
-interface Publisher {
-  name: string
-  count: number
-}
+const ITEMS_PER_PAGE = 50
 
 export default function PublishersPage() {
-  const [publishers, setPublishers] = useState<Publisher[]>([])
-  const [filteredPublishers, setFilteredPublishers] = useState<Publisher[]>([])
+  const [publishers, setPublishers] = useState<string[]>([])
+  const [filteredPublishers, setFilteredPublishers] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     fetchPublishers()
@@ -30,16 +27,43 @@ export default function PublishersPage() {
     } else {
       const query = searchQuery.toLowerCase()
       setFilteredPublishers(
-        publishers.filter((p) => p.name.toLowerCase().includes(query))
+        publishers.filter((p) => p.toLowerCase().includes(query))
       )
     }
+    // Reset to first page when search changes
+    setCurrentPage(1)
   }, [searchQuery, publishers])
+
+  // Calculate pagination
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredPublishers.length / ITEMS_PER_PAGE)
+  }, [filteredPublishers.length])
+
+  const paginatedPublishers = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    const endIndex = startIndex + ITEMS_PER_PAGE
+    return filteredPublishers.slice(startIndex, endIndex)
+  }, [filteredPublishers, currentPage])
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
 
   const fetchPublishers = async () => {
     try {
-      const data = await apiRequest<Publisher[]>("/api/publisher")
-      // Sort by book count (descending)
-      const sorted = data.sort((a, b) => b.count - a.count)
+      const data = await apiRequest<string[]>("/api/publisher")
+      // Sort alphabetically
+      const sorted = data.sort((a, b) => a.localeCompare(b))
       setPublishers(sorted)
       setFilteredPublishers(sorted)
     } catch (error) {
@@ -49,11 +73,8 @@ export default function PublishersPage() {
     }
   }
 
-  const totalBooks = publishers.reduce((sum, p) => sum + (p.count || 0), 0)
-  const topPublishers = filteredPublishers.slice(0, 5)
-
   return (
-    <div className="container max-w-6xl py-8">
+    <div className="container max-w-6xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Publishers</h1>
         <p className="text-muted-foreground">
@@ -61,8 +82,8 @@ export default function PublishersPage() {
         </p>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
+      {/* Statistics Card */}
+      <div className="grid gap-4 md:grid-cols-1 mb-8">
         <Card className="glass">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Publishers</CardTitle>
@@ -75,88 +96,7 @@ export default function PublishersPage() {
             </p>
           </CardContent>
         </Card>
-
-        <Card className="glass">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Books</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalBooks || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Books across all publishers
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="glass">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Books/Publisher</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {publishers.length > 0 ? Math.round(totalBooks / publishers.length) : 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Average books per publisher
-            </p>
-          </CardContent>
-        </Card>
       </div>
-
-      {/* Top Publishers */}
-      {topPublishers.length > 0 && (
-        <Card className="glass mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart className="w-5 h-5" />
-              Top 5 Publishers
-            </CardTitle>
-            <CardDescription>
-              Publishers with the most books in your library
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topPublishers.map((publisher, index) => {
-                const percentage = (publisher.count / totalBooks) * 100
-                return (
-                  <div key={`top-${index}-${publisher.name || 'unknown'}`} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="w-8 justify-center">
-                          {index + 1}
-                        </Badge>
-                        <Link
-                          href={`/search?publisher=${encodeURIComponent(publisher.name)}`}
-                          className="font-medium hover:underline"
-                        >
-                          {publisher.name || "Unknown"}
-                        </Link>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {publisher.count} books
-                        </span>
-                        <span className="text-sm font-medium">
-                          {percentage.toFixed(1)}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary transition-all"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Search and List */}
       <Card className="glass">
@@ -186,31 +126,46 @@ export default function PublishersPage() {
               {searchQuery ? "No publishers found matching your search" : "No publishers found"}
             </div>
           ) : (
-            <div className="grid gap-2">
-              {filteredPublishers.map((publisher, index) => (
-                <Link
-                  key={`publisher-${index}-${publisher.name || 'unknown'}`}
-                  href={`/search?publisher=${encodeURIComponent(publisher.name)}`}
-                  className="flex items-center justify-between p-3 rounded-lg hover:bg-accent transition-colors"
-                >
-                  <div className="flex items-center gap-3">
+            <>
+              <div className="grid gap-2">
+                {paginatedPublishers.map((publisher, index) => (
+                  <Link
+                    key={`publisher-${index}-${publisher || 'unknown'}`}
+                    href={`/search?publisher=${encodeURIComponent(publisher)}`}
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
+                  >
                     <Building2 className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-medium">{publisher.name || "Unknown"}</span>
-                  </div>
-                  <Badge variant="secondary">
-                    {publisher.count} {publisher.count === 1 ? "book" : "books"}
-                  </Badge>
-                </Link>
-              ))}
-            </div>
+                    <span className="font-medium">{publisher || "Unknown"}</span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  hasNext={currentPage < totalPages}
+                  hasPrev={currentPage > 1}
+                  onNext={handleNextPage}
+                  onPrev={handlePrevPage}
+                />
+              )}
+            </>
           )}
         </CardContent>
       </Card>
 
       {/* Show count */}
-      {filteredPublishers.length > 0 && searchQuery && (
+      {filteredPublishers.length > 0 && (
         <div className="mt-4 text-center text-sm text-muted-foreground">
-          Showing {filteredPublishers.length} of {publishers.length} publishers
+          {searchQuery ? (
+            <>Showing {filteredPublishers.length} of {publishers.length} publishers</>
+          ) : (
+            <>
+              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredPublishers.length)} of {filteredPublishers.length} publishers
+            </>
+          )}
         </div>
       )}
     </div>

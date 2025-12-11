@@ -2,12 +2,11 @@
 
 import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { BookCard } from "@/components/book-card"
+import { BookGrid } from "@/components/book-grid"
+import { Pagination } from "@/components/pagination"
 import { fetchAllBooks } from "@/lib/api/books"
 import type { Book } from "@/types/book"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, ArrowRight } from "lucide-react"
 
 // 分离组件以使用 useSearchParams (需要 Suspense)
 function BookList() {
@@ -80,42 +79,28 @@ function BookList() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 min-h-[500px]">
-        {loading
-          ? Array.from({ length: limit }, (_, i) => `skeleton-books-${i}`).map((id) => (
-              <Skeleton key={id} className="h-48 w-full rounded-xl" />
-            ))
-          : books.map((book) => (
-              <BookCard key={book.id} book={book} moreInfo />
-            ))}
+      <div className="min-h-[500px]">
+        <BookGrid
+          books={books}
+          loading={loading}
+          skeletonCount={limit}
+          moreInfo
+          emptyMessage="No books found."
+        />
       </div>
-
-      {!loading && books.length === 0 && (
-        <div className="text-center py-20 text-muted-foreground">
-          No books found.
-        </div>
-      )}
 
       {/* Pagination */}
-      <div className="flex items-center justify-center gap-4 py-8">
-        <Button 
-          variant="outline" 
-          onClick={handlePrev} 
-          disabled={page <= 1 || loading}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Previous
-        </Button>
-        <span className="text-sm font-medium">Page {page}</span>
-        <Button 
-          variant="outline" 
-          onClick={handleNext} 
-          disabled={!nextCursor || loading}
-        >
-          Next
-          <ArrowRight className="h-4 w-4 ml-2" />
-        </Button>
-      </div>
+      {!loading && books.length > 0 && (
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(total / limit)}
+          hasNext={!!nextCursor}
+          hasPrev={page > 1}
+          onNext={handleNext}
+          onPrev={handlePrev}
+          loading={loading}
+        />
+      )}
     </div>
   )
 }

@@ -1,29 +1,32 @@
 ---
-status: in-progress
+status: complete
 created: '2025-12-11'
 tags:
   - backend
-  - sse
-  - streaming
-  - tasks
-  - real-time
+  - refactor
+  - cleanup
+  - gin
 priority: medium
-created_at: '2025-12-11T05:25:03.887Z'
+created_at: '2025-12-11T11:02:26.333Z'
 depends_on:
-  - 006-task-management
-updated_at: '2025-12-11T10:57:06.503Z'
+  - 009-frontend-migration
+updated_at: '2025-12-11T11:51:24.360Z'
 transitions:
   - status: in-progress
-    at: '2025-12-11T10:57:06.503Z'
+    at: '2025-12-11T11:47:18.597Z'
+  - status: complete
+    at: '2025-12-11T11:51:24.360Z'
+completed_at: '2025-12-11T11:51:24.360Z'
+completed: '2025-12-11'
 ---
 
-# Task SSE Streaming for Real-time Updates
+# Remove Gin Static Resource Mapping Support
 
-> **Status**: ⏳ In progress · **Priority**: Medium · **Created**: 2025-12-11 · **Tags**: backend, sse, streaming, tasks, real-time
+> **Status**: ✅ Complete · **Priority**: Medium · **Created**: 2025-12-11 · **Tags**: backend, refactor, cleanup, gin
 
 ## Overview
 
-Implement Server-Sent Events (SSE) endpoint for real-time task status updates to replace polling mechanism
+Remove static file serving functionality from Gin backend since the frontend has been migrated to Next.js (web-next). This includes removing the Static() mapping, static file routes, and related configuration.
 
 ## Design
 

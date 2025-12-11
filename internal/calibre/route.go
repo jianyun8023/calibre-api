@@ -13,6 +13,7 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/chat"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
+	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/client"
 	"github.com/jianyun8023/calibre-api/pkg/content"
 	"github.com/jianyun8023/calibre-api/pkg/log"
@@ -29,6 +30,7 @@ type Api struct {
 	cacheManager     *cache.Manager
 	chatDB           *chat.DB
 	chatAgent        *chat.Agent
+	sseManager       *tasks.SSEManager
 }
 
 // SetupRouter 设置路由
@@ -65,6 +67,7 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.GET("/tasks", c.listTasks)
 	base.POST("/tasks/start", c.startTask)
 	base.POST("/tasks/:id/stop", c.stopTask)
+	base.GET("/tasks/stream", c.streamTasks) // SSE 任务流
 
 	// Chat routes (智能问答)
 	base.POST("/chat/conversations", c.CreateConversation)
@@ -198,6 +201,12 @@ func NewClient(config *Config) *Api {
 		baseURL = "http://localhost:8080"
 	}
 	log.Infof("SSE MCP Server initialized with base URL: %s", baseURL)
+
+	// 初始化 SSE 管理器并连接到任务管理器
+	taskManager := tasks.GetManager()
+	api.sseManager = tasks.NewSSEManager(taskManager, 100) // 最大 100 个并发连接
+	taskManager.SetSSEManager(api.sseManager)              // 双向连接
+	log.Info("SSE Manager initialized and connected to Task Manager for real-time updates")
 
 	return &api
 }

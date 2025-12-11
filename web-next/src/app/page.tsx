@@ -1,10 +1,9 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { BookCard } from "@/components/book-card"
+import { BookGrid } from "@/components/book-grid"
 import { fetchRandomBooks, fetchRecentBooks } from "@/lib/api/books"
 import type { Book } from "@/types/book"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, RefreshCcw } from "lucide-react"
 import Link from "next/link"
@@ -75,16 +74,15 @@ export default function Home() {
         </div>
         
         <div 
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 transition-opacity duration-300"
+          className="transition-opacity duration-300"
           style={{ opacity: loadingRandom || fadeIn ? 1 : 0 }}
         >
-          {loadingRandom
-            ? Array.from({ length: RANDOM_BOOKS_COUNT }, (_, i) => `skeleton-random-${i}`).map((id) => (
-                <Skeleton key={id} className="h-48 w-full rounded-xl" />
-              ))
-            : randomBooks.slice(0, RANDOM_BOOKS_COUNT).map((book) => (
-                <BookCard key={book.id} book={book} />
-              ))}
+          <BookGrid
+            books={randomBooks}
+            loading={loadingRandom}
+            skeletonCount={RANDOM_BOOKS_COUNT}
+            emptyMessage="No books available"
+          />
         </div>
       </section>
 
@@ -99,15 +97,13 @@ export default function Home() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {loadingRecent
-            ? Array.from({ length: RECENT_BOOKS_COUNT }, (_, i) => `skeleton-recent-${i}`).map((id) => (
-                <Skeleton key={id} className="h-48 w-full rounded-xl" />
-              ))
-            : recentBooks.slice(0, RECENT_BOOKS_COUNT).map((book) => (
-                <BookCard key={book.id} book={book} moreInfo />
-              ))}
-        </div>
+        <BookGrid
+          books={recentBooks}
+          loading={loadingRecent}
+          skeletonCount={RECENT_BOOKS_COUNT}
+          moreInfo
+          emptyMessage="No recent books"
+        />
       </section>
     </div>
   )

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { fetchBooks, searchSemantic } from "@/lib/api/books"
 import type { Book } from "@/types/book"
-import { BookCard } from "@/components/book-card"
+import { BookGrid } from "@/components/book-grid"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -54,11 +54,11 @@ function SearchPageContent() {
       if (mode === 'semantic') {
         data = await searchSemantic(query)
       } else {
-        // 构建过滤器
+        // 构建过滤器 - 使用后端期望的格式: field = "value"
         const filters = []
-        if (author) filters.push(`authors:${author}`)
-        if (publisher) filters.push(`publisher:${publisher}`)
-        if (tag) filters.push(`tags:${tag}`)
+        if (author) filters.push(`authors = "${author}"`)
+        if (publisher) filters.push(`publisher = "${publisher}"`)
+        if (tag) filters.push(`tags = "${tag}"`)
         
         data = await fetchBooks(query, filters, 20, 0, [], mode)
       }
@@ -205,30 +205,21 @@ function SearchPageContent() {
           )}
 
           {/* Books Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {loading
-              ? Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="h-[280px]">
-                    <Skeleton className="h-full w-full rounded-xl" />
-                  </div>
-                ))
-              : books.map((book) => (
-                  <div key={book.id} className="h-[280px]">
-                    <BookCard book={book} moreInfo={true} />
-                  </div>
-                ))}
-          </div>
-          
-          {/* Empty State */}
-          {!loading && books.length === 0 && (query || author || publisher) && (
-            <div className="text-center py-20 text-muted-foreground">
-              <SearchIcon className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg mb-2">未找到匹配的书籍</p>
-              <p className="text-sm">
-                尝试调整搜索关键词或过滤条件
-              </p>
-            </div>
-          )}
+          <BookGrid
+            books={books}
+            loading={loading}
+            skeletonCount={10}
+            moreInfo
+            emptyMessage={
+              (query || author || publisher || tag) ? (
+                <div className="space-y-2">
+                  <SearchIcon className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg mb-2">未找到匹配的书籍</p>
+                  <p className="text-sm">尝试调整搜索关键词或过滤条件</p>
+                </div>
+              ) : "Enter a search query to find books"
+            }
+          />
         </div>
       </div>
 
@@ -262,7 +253,7 @@ function SearchPageContent() {
 export default function SearchPage() {
   return (
     <Suspense fallback={
-      <div className="container py-8">
+      <div className="container">
         <Skeleton className="h-12 w-full mb-6" />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {[...Array(10)].map((_, idx) => (
