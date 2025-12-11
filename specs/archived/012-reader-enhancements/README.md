@@ -1,5 +1,5 @@
 ---
-status: planned
+status: archived
 created: '2025-12-10'
 tags:
   - frontend
@@ -10,12 +10,17 @@ priority: medium
 created_at: '2025-12-10T15:38:29.555Z'
 depends_on:
   - 009-frontend-migration
-updated_at: '2025-12-10T15:38:29.560Z'
+updated_at: '2025-12-11T14:43:01.982Z'
+transitions:
+  - status: in-progress
+    at: '2025-12-11T14:39:06.407Z'
+  - status: archived
+    at: '2025-12-11T14:43:01.982Z'
 ---
 
 # 阅读器功能增强
 
-> **Status**: 🗓️ Planned · **Priority**: Medium · **Created**: 2025-12-10 · **Tags**: frontend, reader, features, sync
+> **Status**: 📦 Archived · **Priority**: Medium · **Created**: 2025-12-10 · **Tags**: frontend, reader, features, sync
 
 ## Overview
 

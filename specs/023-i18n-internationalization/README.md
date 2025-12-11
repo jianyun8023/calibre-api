@@ -33,30 +33,18 @@ completed: '2025-12-11'
 
 为 Next.js 前端添加国际化（i18n）支持，使用 next-intl 库，默认语言为中文（zh-CN），支持中英文切换。
 
-## Design
+## Documents
 
-<!-- Technical approach, architecture decisions -->
+- [requirements.md](requirements.md) - 需求文档和验收标准
+- [design.md](design.md) - 技术设计和架构决策
+- [tasks.md](tasks.md) - 实施任务分解
 
-## Plan
+## Status
 
-<!-- Break down implementation into steps -->
+✅ **已完成** - 完整的国际化系统已实现
 
-<!-- 💡 TIP: If your plan has >6 phases or this spec approaches 
-     400 lines, consider using sub-spec files:
-     - IMPLEMENTATION.md for detailed implementation
-     - See spec 012-sub-spec-files for guidance on splitting -->
-
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
-
-## Test
-
-<!-- How will we verify this works? -->
-
-- [ ] Test criteria 1
-- [ ] Test criteria 2
-
-## Notes
-
-<!-- Optional: Research findings, alternatives considered, open questions -->
+**已实现功能**:
+- next-intl 集成
+- 中英文语言包
+- 语言切换功能
+- 所有页面和组件的翻译

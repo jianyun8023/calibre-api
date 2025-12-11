@@ -127,9 +127,17 @@ completed: '2025-12-11'
 - `web-next/src/components/book-card.tsx` - 现有 BookCard 组件
 - `web-next/src/app/books/page.tsx` - 现有分页实现
 
+## Documents
+
+- [design.md](design.md) - 设计文档
+- [tasks.md](tasks.md) - 实施任务
+- [implementation-notes.md](implementation-notes.md) - 实施笔记
+- [layout-verification.md](layout-verification.md) - 页面布局验证清单
+- [SUMMARY.md](SUMMARY.md) - 维护总结
+
 ## 实施计划
 
-详见 `tasks.md`
+详见 [tasks.md](tasks.md)
 
 ## 测试计划
 

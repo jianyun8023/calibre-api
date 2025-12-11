@@ -55,6 +55,7 @@ Calibre API 是一个基于 Go 的书籍管理系统，集成了语义搜索、�
 | **ALWAYS link spec references** | Content mentions another spec → `lean-spec link <spec> --depends-on <other>` |
 | **Track status transitions** | `planned` → `in-progress` (before coding) → `complete` (after done) |
 | **No nested code blocks** | Use indentation instead |
+| **Reference sub-docs in README** | Spec README.md MUST reference all sub-documents (requirements.md, design.md, tasks.md, etc.) using `[filename.md](filename.md)` syntax |
 
 ### 🚫 Common Mistakes
 
@@ -64,6 +65,7 @@ Calibre API 是一个基于 Go 的书籍管理系统，集成了语义搜索、�
 | Skip discovery | Run `board` and `search` first |
 | Leave status as "planned" | Update to `in-progress` before coding |
 | Edit frontmatter manually | Use `update` tool |
+| Forget to reference sub-docs | Add `[xxx.md](xxx.md)` references in README.md |
 
 ## 📋 SDD Workflow
 
@@ -84,6 +86,51 @@ Link dependencies when one spec builds on another:
 ```bash
 lean-spec link <spec> --depends-on <other-spec>
 ```
+
+## Spec Structure and Sub-Documents
+
+### README.md Requirements
+
+The main `README.md` file in each spec directory MUST:
+
+1. **Reference all sub-documents** using standard Markdown links:
+   ```markdown
+   - [requirements.md](requirements.md)
+   - [design.md](design.md)
+   - [tasks.md](tasks.md)
+   ```
+
+2. **Provide context** for when to read each document:
+   - `requirements.md` - User stories and acceptance criteria
+   - `design.md` - Technical architecture and design decisions
+   - `tasks.md` - Implementation task breakdown
+   - `IMPLEMENTATION.md` - Implementation notes and progress
+   - Other custom documents as needed
+
+3. **Example README.md structure**:
+   ```markdown
+   # Spec XXX - Feature Name
+   
+   ## Overview
+   Brief description of the feature
+   
+   ## Documents
+   
+   - [requirements.md](requirements.md) - Detailed requirements and user stories
+   - [design.md](design.md) - Technical design and architecture
+   - [tasks.md](tasks.md) - Implementation task list
+   - [IMPLEMENTATION.md](IMPLEMENTATION.md) - Implementation notes (if exists)
+   
+   ## Status
+   Current implementation status and notes
+   ```
+
+### Why Reference Sub-Documents?
+
+- **Context Loading**: AI agents can automatically load referenced documents
+- **Navigation**: Makes it easy to find related documentation
+- **Completeness**: Ensures all spec documents are discoverable
+- **Tooling**: LeanSpec tools can parse and validate document references
 
 ## When to Use Specs
 

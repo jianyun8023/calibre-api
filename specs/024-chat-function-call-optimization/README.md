@@ -25,32 +25,22 @@ completed: '2025-12-11'
 
 ## Overview
 
-优化 chat 功能中 function call 返回的数据，减少 token 数量，提高上下文有效性
+优化 chat 功能中 function call 返回的数据，减少 token 数量，提高上下文有效性。通过创建精简的数据结构和优化 MCP 工具返回值，实现了 70-80% 的 token 减少。
 
-## Design
+## Documents
 
-<!-- Technical approach, architecture decisions -->
+- [requirements.md](requirements.md) - 需求文档和验收标准
+- [design.md](design.md) - 技术设计和架构决策
+- [tasks.md](tasks.md) - 实施任务分解
+- [IMPLEMENTATION.md](IMPLEMENTATION.md) - 实施总结
+- [COMPLETION_CHECKLIST.md](COMPLETION_CHECKLIST.md) - 完成清单
 
-## Plan
+## Status
 
-<!-- Break down implementation into steps -->
+✅ **已完成** - 所有核心功能已实现并测试通过
 
-<!-- 💡 TIP: If your plan has >6 phases or this spec approaches 
-     400 lines, consider using sub-spec files:
-     - IMPLEMENTATION.md for detailed implementation
-     - See spec 012-sub-spec-files for guidance on splitting -->
-
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
-
-## Test
-
-<!-- How will we verify this works? -->
-
-- [ ] Test criteria 1
-- [ ] Test criteria 2
-
-## Notes
-
-<!-- Optional: Research findings, alternatives considered, open questions -->
+**关键成果**:
+- 单本书 token 减少 79.37% (189 → 39 tokens)
+- 详细书籍 token 减少 72.24% (1,592 → 442 tokens)
+- 批量数据 token 减少 75.31% (1,948 → 481 tokens)
+- 所有测试通过 (15/15)

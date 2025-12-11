@@ -11,32 +11,24 @@ priority: medium
 
 ## Overview
 
-<!-- What are we solving? Why now? -->
+<!-- Brief description: What are we solving? Why now? -->
 
-## Design
+## Documents
 
-<!-- Technical approach, architecture decisions -->
+<!-- Reference all sub-documents using standard Markdown links -->
+<!-- The spec workflow creates these files: requirements.md → design.md → tasks.md -->
+<!-- Add references as you create them:
+- [requirements.md](requirements.md) - User stories and acceptance criteria
+- [design.md](design.md) - Technical design and architecture
+- [tasks.md](tasks.md) - Implementation task breakdown
+- [IMPLEMENTATION.md](IMPLEMENTATION.md) - Implementation notes (optional)
+-->
 
-## Plan
+## Status
 
-<!-- Break down implementation into steps -->
-
-<!-- 💡 TIP: If your plan has >6 phases or this spec approaches 
-     400 lines, consider using sub-spec files:
-     - IMPLEMENTATION.md for detailed implementation
-     - See spec 012-sub-spec-files for guidance on splitting -->
-
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
-
-## Test
-
-<!-- How will we verify this works? -->
-
-- [ ] Test criteria 1
-- [ ] Test criteria 2
-
-## Notes
-
-<!-- Optional: Research findings, alternatives considered, open questions -->
+<!-- Track implementation progress here -->
+<!-- Example:
+✅ **Complete** - All features implemented and tested
+⏳ **In Progress** - Currently implementing tasks 3-5
+📋 **Planned** - Requirements and design complete, ready to start
+-->

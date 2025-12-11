@@ -26,32 +26,26 @@ completed: '2025-12-11'
 
 ## Overview
 
-实现设置页面的配置保存到 localStorage，包括主题、API 配置、阅读器设置、搜索偏好，添加重置和导入/导出功能。
+实现用户设置持久化系统，包括主题、API 配置、阅读器设置、搜索偏好、UI 设置等。使用 localStorage 进行本地存储，支持导入/导出功能。
 
-## Design
+## Documents
 
-<!-- Technical approach, architecture decisions -->
+- [requirements.md](requirements.md) - 需求文档和验收标准
+- [design.md](design.md) - 技术设计和架构决策
+- [tasks.md](tasks.md) - 实施任务分解
+- [IMPLEMENTATION.md](IMPLEMENTATION.md) - 实施报告
 
-## Plan
+## Status
 
-<!-- Break down implementation into steps -->
+✅ **已完成** - 核心功能完成度 85%
 
-<!-- 💡 TIP: If your plan has >6 phases or this spec approaches 
-     400 lines, consider using sub-spec files:
-     - IMPLEMENTATION.md for detailed implementation
-     - See spec 012-sub-spec-files for guidance on splitting -->
+**已实现功能**:
+- Settings Context 和 Provider
+- 自动持久化到 localStorage
+- 导入/导出功能
+- 增强的设置页面 UI
+- 5 个设置分类（外观、API、阅读器、搜索、界面）
 
-- [ ] Task 1
-- [ ] Task 2
-- [ ] Task 3
-
-## Test
-
-<!-- How will we verify this works? -->
-
-- [ ] Test criteria 1
-- [ ] Test criteria 2
-
-## Notes
-
-<!-- Optional: Research findings, alternatives considered, open questions -->
+**待完成**:
+- 在阅读器和搜索页面应用设置
+- 属性测试和集成测试
