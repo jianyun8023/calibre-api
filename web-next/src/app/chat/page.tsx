@@ -484,22 +484,24 @@ export default function ChatPage() {
                       
                       {/* Book cards */}
                       {msg.books && msg.books.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {getVisibleBooks(msg.books, msg.id).map((book) => (
-                              <div key={book.id} className="relative group">
-                                                <BookCard book={book} />
+                              <div key={book.id} className="relative group space-y-2">
+                                <div className="h-[280px]">
+                                  <BookCard book={book} proxyImage={true} />
+                                </div>
                                 <Button
                                   variant="secondary"
                                   size="sm"
-                                  className="w-full mt-2"
+                                  className="w-full"
                                   onClick={() => summarizeBook(book)}
                                 >
                                   总结此书
                                 </Button>
-                                            </div>
-                                        ))}
-                                    </div>
+                              </div>
+                            ))}
+                          </div>
                           
                           {/* Change books button */}
                           {msg.books.length > 8 && (

@@ -85,7 +85,7 @@ export function MetadataSearchDialog({ open, onOpenChange, book, onSelect }: Met
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto w-[95vw]">
         <DialogHeader>
           <DialogTitle>搜索元数据</DialogTitle>
           <DialogDescription>
@@ -143,35 +143,37 @@ export function MetadataSearchDialog({ open, onOpenChange, book, onSelect }: Met
                     </div>
 
                     {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <h3 className="font-semibold line-clamp-2 leading-tight">
                         {result.title}
                         {result.sub_title && (
                           <span className="text-muted-foreground">：{result.sub_title}</span>
                         )}
                       </h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        <span className="font-medium">作者：</span>
-                        {result.author.join(", ")}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        <span className="font-medium">出版社：</span>
-                        {result.publisher || "-"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        <span className="font-medium">出版日期：</span>
-                        {result.pubdate || "-"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        <span className="font-medium">ISBN：</span>
-                        {result.isbn13 || result.isbn10 || "-"}
-                      </p>
-                      {result.rating && result.rating.average > 0 && (
-                        <p className="text-sm text-muted-foreground">
-                          <span className="font-medium">评分：</span>
-                          {result.rating.average} ({result.rating.numRaters} 人评价)
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1 text-sm text-muted-foreground">
+                        <p className="truncate">
+                          <span className="font-medium">作者：</span>
+                          {result.author.join(", ")}
                         </p>
-                      )}
+                        <p className="truncate">
+                          <span className="font-medium">出版社：</span>
+                          {result.publisher || "-"}
+                        </p>
+                        <p className="truncate">
+                          <span className="font-medium">出版日期：</span>
+                          {result.pubdate || "-"}
+                        </p>
+                        <p className="truncate">
+                          <span className="font-medium">ISBN：</span>
+                          {result.isbn13 || result.isbn10 || "-"}
+                        </p>
+                        {result.rating && result.rating.average > 0 && (
+                          <p className="truncate md:col-span-2">
+                            <span className="font-medium">评分：</span>
+                            {result.rating.average} ({result.rating.numRaters} 人评价)
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
