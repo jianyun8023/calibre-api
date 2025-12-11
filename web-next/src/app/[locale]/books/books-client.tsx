@@ -1,15 +1,13 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { BookGrid } from "@/components/book-grid"
 import { Pagination } from "@/components/pagination"
 import { fetchAllBooks } from "@/lib/api/books"
 import type { Book } from "@/types/book"
-import { Skeleton } from "@/components/ui/skeleton"
 
-// 分离组件以使用 useSearchParams (需要 Suspense)
-function BookList() {
+export default function BooksClient({ locale }: { locale: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -44,7 +42,7 @@ function BookList() {
     }
     
     loadBooks()
-  }, [cursor])
+  }, [cursor, limit])
 
   const handleNext = () => {
     if (nextCursor) {
@@ -67,7 +65,7 @@ function BookList() {
     else params.delete('cursor')
     params.set('page', newPage.toString())
     
-    router.push(`/books?${params.toString()}`)
+    router.push(`/${locale}/books?${params.toString()}`)
   }
 
   return (
@@ -104,21 +102,3 @@ function BookList() {
     </div>
   )
 }
-
-export default function BooksPage() {
-  return (
-    <Suspense fallback={
-      <div className="p-8">
-        <Skeleton className="h-10 w-40 mb-8" />
-        <div className="grid grid-cols-4 gap-4">
-          {Array.from({length:8}, (_, i) => `fallback-skeleton-${i}`).map((id) => (
-            <Skeleton key={id} className="h-60" />
-          ))}
-        </div>
-      </div>
-    }>
-      <BookList />
-    </Suspense>
-  )
-}
-

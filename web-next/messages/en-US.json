@@ -1,0 +1,95 @@
+{
+  "common": {
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "Error",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "reset": "Reset"
+  },
+  "nav": {
+    "home": "Home",
+    "allBooks": "All Books",
+    "search": "Search",
+    "metadataManager": "Metadata Manager",
+    "chatAgent": "Chat Agent",
+    "tasks": "Tasks",
+    "publishers": "Publishers",
+    "settings": "Settings"
+  },
+  "books": {
+    "title": "Book List",
+    "author": "Author",
+    "publisher": "Publisher",
+    "rating": "Rating",
+    "tags": "Tags",
+    "series": "Series",
+    "language": "Language",
+    "publishDate": "Publish Date",
+    "addedDate": "Added Date",
+    "size": "Size",
+    "format": "Format",
+    "noBooks": "No books found",
+    "loadMore": "Load More",
+    "viewDetails": "View Details",
+    "download": "Download",
+    "read": "Read"
+  },
+  "search": {
+    "placeholder": "Search books, authors, publishers...",
+    "filters": "Filters",
+    "sortBy": "Sort By",
+    "results": "Search Results",
+    "noResults": "No results found",
+    "searching": "Searching..."
+  },
+  "chat": {
+    "title": "Chat Agent",
+    "placeholder": "Type your question...",
+    "send": "Send",
+    "newChat": "New Chat",
+    "history": "History",
+    "clearHistory": "Clear History"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "appearance": "Appearance",
+    "language": "Language",
+    "theme": "Theme",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "systemMode": "System"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "status": "Status",
+    "progress": "Progress",
+    "pending": "Pending",
+    "running": "Running",
+    "completed": "Completed",
+    "failed": "Failed",
+    "cancel": "Cancel Task"
+  },
+  "metadata": {
+    "title": "Metadata Manager",
+    "edit": "Edit Metadata",
+    "update": "Update",
+    "fetch": "Fetch Metadata",
+    "manual": "Manual Edit"
+  },
+  "publisher": {
+    "title": "Publishers",
+    "name": "Name",
+    "bookCount": "Book Count",
+    "viewBooks": "View Books"
+  }
+}

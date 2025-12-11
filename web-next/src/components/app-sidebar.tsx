@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useTranslations } from 'next-intl'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -17,19 +18,23 @@ import {
   FileEdit
 } from "lucide-react"
 
-const sidebarItems = [
-  { name: "Home", href: "/", icon: Home },
-  { name: "All Books", href: "/books", icon: Library },
-  { name: "Search", href: "/search", icon: Search },
-  { name: "Metadata Manager", href: "/metadata/manager", icon: FileEdit },
-  { name: "Chat Agent", href: "/chat", icon: MessageSquare },
-  { name: "Tasks", href: "/tasks", icon: ListTodo },
-  { name: "Publishers", href: "/publisher", icon: Building2 },
-  { name: "Settings", href: "/settings", icon: Settings },
-]
-
 export function AppSidebar({ className }: { className?: string }) {
   const pathname = usePathname()
+  const t = useTranslations('nav')
+  
+  // Extract locale from pathname
+  const locale = pathname.split('/')[1] || 'zh-CN'
+  
+  const sidebarItems = [
+    { name: t('home'), href: `/${locale}`, icon: Home },
+    { name: t('allBooks'), href: `/${locale}/books`, icon: Library },
+    { name: t('search'), href: `/${locale}/search`, icon: Search },
+    { name: t('metadataManager'), href: `/${locale}/metadata/manager`, icon: FileEdit },
+    { name: t('chatAgent'), href: `/${locale}/chat`, icon: MessageSquare },
+    { name: t('tasks'), href: `/${locale}/tasks`, icon: ListTodo },
+    { name: t('publishers'), href: `/${locale}/publisher`, icon: Building2 },
+    { name: t('settings'), href: `/${locale}/settings`, icon: Settings },
+  ]
 
   return (
     <div className={cn("pb-12 w-64 border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60", className)}>

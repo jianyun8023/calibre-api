@@ -1,24 +1,24 @@
 # Implementation Plan
 
 - [ ] 1. Setup i18n infrastructure
-- [ ] 1.1 Install next-intl and dependencies
+- [x] 1.1 Install next-intl and dependencies
   - Run `pnpm add next-intl` in web-next directory
   - Run `pnpm add -D fast-check @types/jest` for testing
   - _Requirements: All_
 
-- [ ] 1.2 Create i18n configuration files
+- [x] 1.2 Create i18n configuration files
   - Create `web-next/src/i18n/config.ts` with locale definitions
   - Define supported locales: zh-CN (default), en-US
   - Define locale display names
   - _Requirements: 1.1, 1.3, 2.1_
 
-- [ ] 1.3 Create next-intl request configuration
+- [x] 1.3 Create next-intl request configuration
   - Create `web-next/src/i18n/request.ts`
   - Implement getRequestConfig for message loading
   - Add locale validation
   - _Requirements: 3.1, 3.2_
 
-- [ ] 1.4 Create initial translation files
+- [x] 1.4 Create initial translation files
   - Create `web-next/messages/zh-CN.json` with Chinese translations
   - Create `web-next/messages/en-US.json` with English translations
   - Add common translations (buttons, labels, navigation)
@@ -31,19 +31,19 @@
   - Verify both files have matching key structure
 
 - [ ] 2. Implement locale-based routing
-- [ ] 2.1 Create middleware for locale detection
+- [x] 2.1 Create middleware for locale detection
   - Create `web-next/src/middleware.ts`
   - Use next-intl's createMiddleware
   - Configure locale detection and routing
   - _Requirements: 1.2, 1.4, 4.3_
 
-- [ ] 2.2 Restructure app directory for locale routing
+- [x] 2.2 Restructure app directory for locale routing
   - Move `web-next/src/app/*` to `web-next/src/app/[locale]/*`
   - Update all page.tsx files to accept locale param
   - Preserve existing page functionality
   - _Requirements: 4.3, 4.5_
 
-- [ ] 2.3 Update root layout with NextIntlClientProvider
+- [x] 2.3 Update root layout with NextIntlClientProvider
   - Modify `web-next/src/app/[locale]/layout.tsx`
   - Wrap application with NextIntlClientProvider
   - Load messages for current locale
@@ -65,14 +65,14 @@
   - Verify URL contains /zh-CN/
 
 - [ ] 3. Implement language switcher component
-- [ ] 3.1 Create LanguageSwitcher component
+- [x] 3.1 Create LanguageSwitcher component
   - Create `web-next/src/components/language-switcher.tsx`
   - Use useLocale and useRouter from next-intl
   - Implement locale switching logic
   - Use existing UI components (Select, DropdownMenu)
   - _Requirements: 2.1, 2.2, 2.5_
 
-- [ ] 3.2 Add LanguageSwitcher to AppHeader
+- [x] 3.2 Add LanguageSwitcher to AppHeader
   - Import and render LanguageSwitcher in AppHeader component
   - Position in header navigation area
   - _Requirements: 2.1_
@@ -92,7 +92,7 @@
   - Reload and verify locale is restored
 
 - [ ] 4. Migrate common components to use translations
-- [ ] 4.1 Migrate AppSidebar component
+- [x] 4.1 Migrate AppSidebar component
   - Extract hardcoded navigation labels
   - Add translation keys to translation files
   - Use useTranslations() hook

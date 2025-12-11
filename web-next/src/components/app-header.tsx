@@ -1,6 +1,7 @@
 "use client"
 
 import { ModeToggle } from "@/components/mode-toggle"
+import { LanguageSwitcher } from "@/components/language-switcher"
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -38,7 +39,8 @@ export function AppHeader({ className = '' }: AppHeaderProps = {}) {
           <div className="w-full flex-1 md:w-auto md:flex-none">
             {/* Global Search could go here */}
           </div>
-          <nav className="flex items-center">
+          <nav className="flex items-center gap-2">
+            <LanguageSwitcher />
             <ModeToggle />
           </nav>
         </div>
