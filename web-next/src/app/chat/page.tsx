@@ -419,11 +419,11 @@ export default function ChatPage() {
                     }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                    </Button>
                 )}
               </div>
-            ))}
-          </div>
+                ))}
+            </div>
         </ScrollArea>
       </div>
       
@@ -436,11 +436,11 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-              <div className="space-y-6 max-w-3xl mx-auto">
+        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+          <div className="space-y-6 max-w-3xl mx-auto">
                 {chatMessages.map((msg) => (
                   <div key={msg.id} className={cn("flex gap-3", msg.role === 'user' && "flex-row-reverse")}>
-                    <div className={cn(
+                <div className={cn(
                       "shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
                       msg.role === 'user' ? "bg-primary text-primary-foreground" : "bg-muted"
                     )}>
@@ -488,7 +488,7 @@ export default function ChatPage() {
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                             {getVisibleBooks(msg.books, msg.id).map((book) => (
                               <div key={book.id} className="relative group">
-                                <BookCard book={book} />
+                                                <BookCard book={book} />
                                 <Button
                                   variant="secondary"
                                   size="sm"
@@ -497,9 +497,9 @@ export default function ChatPage() {
                                 >
                                   总结此书
                                 </Button>
-                              </div>
-                            ))}
-                          </div>
+                                            </div>
+                                        ))}
+                                    </div>
                           
                           {/* Change books button */}
                           {msg.books.length > 8 && (
@@ -513,14 +513,14 @@ export default function ChatPage() {
                               </Button>
                             </div>
                           )}
-                        </div>
+                                </div>
                       )}
-                    </div>
-                  </div>
-                ))}
-                
+                </div>
+              </div>
+            ))}
+            
                 {/* Loading state */}
-                {isLoading && (
+            {isLoading && (
                   <div className="flex gap-3">
                     <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                       <Bot className="h-4 w-4" />
@@ -532,36 +532,36 @@ export default function ChatPage() {
                         <StopCircle className="h-4 w-4 mr-2" /> 停止生成
                       </Button>
                     </Card>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-            
+                </div>
+            )}
+          </div>
+        </ScrollArea>
+        
             {/* Input area */}
             <div className="border-t p-4 bg-background">
               <div className="flex gap-2 max-w-3xl mx-auto">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                <Input 
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="输入消息... (Shift+Enter 换行，Enter 发送)"
                   disabled={isLoading}
-                  className="flex-1"
+                    className="flex-1"
                 />
                 {isLoading ? (
                   <Button onClick={stopGeneration} variant="destructive">
                     <StopCircle className="h-4 w-4 mr-2" /> 停止
-                  </Button>
+                    </Button>
                 ) : (
                   <Button onClick={handleSend}>
                     <Send className="h-4 w-4 mr-2" /> 发送
-                  </Button>
+                    </Button>
                 )}
               </div>
               <div className="text-xs text-muted-foreground text-center mt-2">
                 Shift+Enter 换行，Enter 发送
               </div>
-            </div>
+        </div>
           </>
         )}
       </div>

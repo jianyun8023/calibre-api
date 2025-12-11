@@ -35,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 修复 SSE 响应格式（`data: ` 前缀）
   - 添加工具调用支持（书籍搜索和推荐）
   - 修复聊天窗口布局（固定高度+内容滚动）
+  - 移除发送按钮的 `disabled` 属性（依赖内部逻辑判断）
+  - **测试验证**：
+    - ✅ 后端 API 测试通过（curl）
+    - ✅ 书籍推荐功能正常（返回24本科幻书籍）
+    - ✅ SSE 流式响应正常
+    - ✅ AI 生成回复质量良好
 
 - **前端 UI/UX 优化** (2025-12-10):
   - **数据展示修复**: 修复 Discover 区域不显示数据的问题
