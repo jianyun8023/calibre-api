@@ -222,7 +222,7 @@ docker-compose down
 - `calibre-web`: Next.js 前端服务，提供现代化 UI
 - `qdrant`: 可选的向量数据库服务（使用 profile 启用）
 
-前端通过 Docker 内部网络访问后端，环境变量 `API_BASE_URL=http://calibre-api:8080/api/:path*` 配置了服务间通信。
+前端通过 Docker 内部网络访问后端，环境变量 `API_BASE_URL=http://calibre-api:8080` 配置了服务间通信（代理会自动拼接 `/api/:path*` 路径）。
 
 详细的部署指南和配置说明请参考：[DEPLOYMENT.md](./specs/025-github-ci-docker-compose-update/DEPLOYMENT.md)
 
@@ -243,7 +243,7 @@ docker run -d -p 8080:8080 \
 
 # 运行前端容器
 docker run -d -p 3000:3000 \
-  -e API_BASE_URL=http://calibre-api:8080/api/:path* \
+  -e API_BASE_URL=http://calibre-api:8080 \
   --link calibre-api \
   calibre-web:latest
 ```
@@ -331,11 +331,11 @@ MCP_MODE=true                    # 快速启用 MCP 模式
 
 ```bash
 # API 配置（必需）
-# Docker Compose 环境使用服务名
-API_BASE_URL=http://calibre-api:8080/api/:path*
+# Docker Compose 环境使用服务名（基础 URL，不包含路径）
+API_BASE_URL=http://calibre-api:8080
 
 # 本地开发环境使用 localhost
-# API_BASE_URL=http://localhost:8080/api/:path*
+# API_BASE_URL=http://localhost:8080
 
 # Node.js 配置
 NODE_ENV=production

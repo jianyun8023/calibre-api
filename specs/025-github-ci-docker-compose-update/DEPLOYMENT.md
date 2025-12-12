@@ -53,8 +53,8 @@
 calibre-web:
   environment:
     # 服务端 API 代理配置
-    # 使用 Docker 服务名称作为主机名
-    - API_BASE_URL=http://calibre-api:8080/api/:path*
+    # 使用 Docker 服务名称作为主机名（基础 URL，代理会自动拼接 /api/:path*）
+    - API_BASE_URL=http://calibre-api:8080
 ```
 
 **工作原理**:
@@ -82,7 +82,7 @@ pnpm dev
 **配置**:
 ```bash
 # web-next/.env.local
-API_BASE_URL=http://localhost:8080/api/:path*
+API_BASE_URL=http://localhost:8080
 ```
 
 ### 3. 生产环境（Kubernetes）
@@ -95,7 +95,7 @@ kind: ConfigMap
 metadata:
   name: calibre-web-config
 data:
-  API_BASE_URL: "http://calibre-api-service:8080/api/:path*"
+  API_BASE_URL: "http://calibre-api-service:8080"
 ```
 
 ### 4. 反向代理环境（Nginx）
@@ -134,7 +134,7 @@ server {
 
 | 变量名 | 说明 | 示例值 | 必需 |
 |--------|------|--------|------|
-| `API_BASE_URL` | 后端 API 地址（服务端使用） | `http://calibre-api:8080/api/:path*` | ✅ |
+| `API_BASE_URL` | 后端 API 基础地址（不包含路径） | `http://calibre-api:8080` | ✅ |
 | `NODE_ENV` | Node.js 运行环境 | `production` | ✅ |
 | `PORT` | 前端服务端口 | `3000` | ❌ |
 | `TZ` | 时区设置 | `Asia/Shanghai` | ❌ |
@@ -218,7 +218,7 @@ docker run -d \
 docker run -d \
   --name calibre-web \
   -p 3000:3000 \
-  -e API_BASE_URL=http://calibre-api:8080/api/:path* \
+  -e API_BASE_URL=http://calibre-api:8080 \
   --link calibre-api \
   ghcr.io/jianyun8023/calibre-web:latest
 ```
@@ -288,7 +288,8 @@ calibre-web     ghcr.io/jianyun8023/calibre-web:latest   Up (healthy)
 **常见问题**:
 
 - ❌ `API_BASE_URL=http://localhost:8080` - 错误！容器内 localhost 指向自己
-- ✅ `API_BASE_URL=http://calibre-api:8080` - 正确！使用 Docker 服务名
+- ❌ `API_BASE_URL=http://calibre-api:8080/api/:path*` - 错误！不应包含路径部分
+- ✅ `API_BASE_URL=http://calibre-api:8080` - 正确！使用 Docker 服务名，代理会自动拼接路径
 
 ### 服务依赖问题
 

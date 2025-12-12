@@ -54,8 +54,8 @@ services:
       - TZ=Asia/Shanghai
       - NODE_ENV=production
       # API_BASE_URL: Next.js 服务端通过 Docker 网络访问后端
-      # 格式: http://<service-name>:<port>/api/:path*
-      - API_BASE_URL=http://calibre-api:8080/api/:path*
+      # 格式: http://<service-name>:<port> (不包含路径，代理会自动拼接 /api/:path*)
+      - API_BASE_URL=http://calibre-api:8080
     depends_on:
       calibre-api:
         condition: service_healthy

@@ -137,7 +137,7 @@ docker-compose --profile qdrant config ✅
 ```
 
 **配置亮点**:
-- 前端通过 Docker 服务名访问后端: `API_BASE_URL=http://calibre-api:8080/api/:path*`
+- 前端通过 Docker 服务名访问后端: `API_BASE_URL=http://calibre-api:8080`（代理自动拼接 `/api/:path*`）
 - 健康检查配置完善，前端等待后端就绪
 - 网络隔离，服务间通过 calibre-network 通信
 - 数据持久化，使用 named volumes
@@ -285,8 +285,8 @@ docker-compose --profile qdrant config ✅
 ### 3. API 代理
 
 - Next.js 通过 rewrites 代理 `/api/*` 到 Go 后端
-- 需要确保 `API_BASE_URL` 环境变量正确设置
-- 容器内使用 `localhost` 通信
+- `API_BASE_URL` 只需配置基础 URL（如 `http://calibre-api:8080`）
+- 代理会自动拼接 `/api/:path*` 路径
 
 ### 4. 健康检查
 
