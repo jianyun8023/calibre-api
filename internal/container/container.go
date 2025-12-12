@@ -8,6 +8,7 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/cache"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
 	"github.com/jianyun8023/calibre-api/internal/chat"
+	"github.com/jianyun8023/calibre-api/internal/config"
 	"github.com/jianyun8023/calibre-api/internal/repository"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
@@ -21,7 +22,8 @@ import (
 // Container 依赖注入容器
 // 管理应用程序的所有依赖组件
 type Container struct {
-	config *calibre.Config
+	configManager *config.Manager
+	config        *calibre.Config
 
 	// Core components
 	contentAPI   *content.Api
@@ -32,6 +34,7 @@ type Container struct {
 
 	// Search components
 	qdrantSearcher *qdrant.Searcher
+	cachedSearcher *cache.CachedSearcher
 
 	// Chat components
 	chatDB    *chat.DB
@@ -53,6 +56,43 @@ type Container struct {
 func NewContainer(config *calibre.Config) (*Container, error) {
 	c := &Container{
 		config: config,
+	}
+
+	// 按依赖顺序初始化组件
+	if err := c.initContentAPI(); err != nil {
+		return nil, fmt.Errorf("failed to initialize content API: %w", err)
+	}
+
+	if err := c.initQdrant(); err != nil {
+		log.Warnf("Qdrant initialization failed (optional): %v", err)
+	}
+
+	if err := c.initCache(); err != nil {
+		log.Warnf("Cache initialization failed (optional): %v", err)
+	}
+
+	if err := c.initChat(); err != nil {
+		log.Warnf("Chat initialization failed (optional): %v", err)
+	}
+
+	if err := c.initTasks(); err != nil {
+		return nil, fmt.Errorf("failed to initialize task manager: %w", err)
+	}
+
+	return c, nil
+}
+
+// NewContainerWithConfigManager 使用配置管理器创建容器（支持热重载）
+func NewContainerWithConfigManager() (*Container, error) {
+	// 创建配置管理器
+	configManager, err := config.NewManager()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create config manager: %w", err)
+	}
+
+	c := &Container{
+		configManager: configManager,
+		config:        configManager.GetConfig(),
 	}
 
 	// 按依赖顺序初始化组件
@@ -125,6 +165,12 @@ func (c *Container) initQdrant() error {
 	// 创建搜索器
 	c.qdrantSearcher = qdrant.NewSearcher(provider, c.qdrantClient)
 	log.Infof("Qdrant searcher initialized with provider: %s", c.config.Embedding.Provider)
+
+	// 包装搜索器添加缓存功能
+	cacheMaxSize := 1000
+	cacheTTL := 300 // 5 分钟
+	c.cachedSearcher = cache.WrapSearcher(c.qdrantSearcher, cacheMaxSize, cacheTTL)
+	log.Infof("Search cache initialized: maxSize=%d, ttl=%ds", cacheMaxSize, cacheTTL)
 
 	// 确保索引存在
 	ctx := context.Background()
@@ -253,6 +299,7 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		c.contentAPI,
 		c.qdrantClient,
 		c.qdrantSearcher,
+		c.cachedSearcher,
 		c.cacheManager,
 		c.chatDB,
 		c.sseManager,
@@ -322,6 +369,11 @@ func (c *Container) GetQdrantSearcher() *qdrant.Searcher {
 	return c.qdrantSearcher
 }
 
+// GetCachedSearcher 获取带缓存的搜索器
+func (c *Container) GetCachedSearcher() *cache.CachedSearcher {
+	return c.cachedSearcher
+}
+
 // GetCacheManager 获取缓存管理器
 func (c *Container) GetCacheManager() *cache.Manager {
 	return c.cacheManager
@@ -352,6 +404,64 @@ func (c *Container) GetAPI() *calibre.Api {
 	return c.api
 }
 
+// GetConfigManager 获取配置管理器
+func (c *Container) GetConfigManager() *config.Manager {
+	return c.configManager
+}
+
+// EnableConfigHotReload 启用配置热重载
+func (c *Container) EnableConfigHotReload() error {
+	if c.configManager == nil {
+		return fmt.Errorf("config manager not available")
+	}
+
+	// 添加配置变更监听器
+	c.configManager.AddWatcherFunc(func(oldConfig, newConfig *calibre.Config) error {
+		log.Infof("config changed, applying updates...")
+		
+		// 更新容器中的配置
+		c.config = newConfig
+		
+		// 这里可以添加更多的配置变更处理逻辑
+		// 例如：重新初始化某些组件、更新日志级别等
+		
+		// 更新日志级别
+		if oldConfig.Debug != newConfig.Debug {
+			log.EnableDebug = newConfig.Debug
+			log.Infof("debug mode changed: %v -> %v", oldConfig.Debug, newConfig.Debug)
+		}
+		
+		// 如果 Content Server 地址变更，记录警告
+		if oldConfig.Content.Server != newConfig.Content.Server {
+			log.Warnf("content server changed: %s -> %s (requires restart)", 
+				oldConfig.Content.Server, newConfig.Content.Server)
+		}
+		
+		// 如果 Qdrant 配置变更，记录警告
+		if oldConfig.Qdrant.URL != newConfig.Qdrant.URL {
+			log.Warnf("qdrant URL changed: %s -> %s (requires restart)", 
+				oldConfig.Qdrant.URL, newConfig.Qdrant.URL)
+		}
+		
+		return nil
+	})
+
+	// 开始监听配置文件变更
+	c.configManager.StartWatching()
+	
+	log.Info("config hot reload enabled")
+	return nil
+}
+
+// ReloadConfig 手动重新加载配置
+func (c *Container) ReloadConfig() error {
+	if c.configManager == nil {
+		return fmt.Errorf("config manager not available")
+	}
+	
+	return c.configManager.ReloadConfig()
+}
+
 // Close 关闭容器，清理资源
 func (c *Container) Close() error {
 	var errs []error
@@ -365,6 +475,12 @@ func (c *Container) Close() error {
 	if c.cacheManager != nil {
 		// Cache manager 可能需要清理资源
 		log.Info("Cache manager cleanup (if needed)")
+	}
+
+	if c.configManager != nil {
+		if err := c.configManager.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("failed to close config manager: %w", err))
+		}
 	}
 
 	if len(errs) > 0 {

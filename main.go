@@ -17,26 +17,27 @@ import (
 )
 
 func main() {
-	conf, err := initConfig()
+	// 创建支持热重载的依赖注入容器
+	cont, err := container.NewContainerWithConfigManager()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize configuration: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Failed to create container: %v\n", err)
 		os.Exit(1)
 	}
+	defer cont.Close()
 
+	// 启用配置热重载
+	if err := cont.EnableConfigHotReload(); err != nil {
+		log.Warnf("Failed to enable config hot reload: %v", err)
+	}
+
+	// 获取初始配置
+	conf := cont.GetConfig()
 	log.EnableDebug = conf.Debug
 	if conf.Debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
-
-	// 创建依赖注入容器
-	cont, err := container.NewContainer(conf)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create container: %v\n", err)
-		os.Exit(1)
-	}
-	defer cont.Close()
 
 	// 构建 API 实例
 	client, err := cont.BuildAPI()
@@ -63,8 +64,45 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
+	// 配置管理端点
+	r.POST("/admin/config/reload", func(c *gin.Context) {
+		if err := cont.ReloadConfig(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "failed to reload config",
+				"details": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"message": "config reloaded successfully",
+		})
+	})
+
+	r.GET("/admin/config", func(c *gin.Context) {
+		config := cont.GetConfig()
+		c.JSON(http.StatusOK, gin.H{
+			"config": config,
+		})
+	})
+
 	// 设置 API 路由
 	client.SetupRouter(r)
+
+	// 注册 pprof 性能分析端点（仅在 debug 模式下）
+	if conf.Debug {
+		pprofHandler := calibre.NewPProfHandler()
+		pprofHandler.RegisterRoutes(r)
+		
+		// 添加调试端点
+		debugGroup := r.Group("/api/debug")
+		{
+			debugGroup.GET("/goroutines", pprofHandler.GetGoroutineInfo)
+			debugGroup.POST("/gc", pprofHandler.TriggerGC)
+			debugGroup.GET("/memstats", pprofHandler.GetMemStats)
+			debugGroup.GET("/check-leak", pprofHandler.CheckGoroutineLeak)
+		}
+		log.Info("Debug endpoints enabled (pprof + debug APIs)")
+	}
 
 	// 初始化并挂载 MCP 服务器（必须在 setPages/NoRoute 之前）
 	if conf.MCP.Enabled {

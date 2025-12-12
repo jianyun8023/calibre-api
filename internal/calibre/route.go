@@ -27,11 +27,13 @@ type Api struct {
 	http             *client.Client
 	qdrantClient     *qdrant.Client
 	semanticSearcher interface{} // *qdrant.Searcher
+	cachedSearcher   *cache.CachedSearcher // 带缓存的搜索器
 	cacheManager     *cache.Manager
 	chatDB           *chat.DB
 	chatAgent        *chat.Agent
 	sseManager       *tasks.SSEManager
 	bookHandler      *BookHandlerV2 // 新的 Handler（使用 Service 层）
+	metricsHandler   *MetricsHandler // 性能指标处理器
 }
 
 // InjectDependencies 注入依赖（用于依赖注入容器）
@@ -40,6 +42,7 @@ func (a *Api) InjectDependencies(
 	contentApi *content.Api,
 	qdrantClient *qdrant.Client,
 	qdrantSearcher *qdrant.Searcher,
+	cachedSearcher *cache.CachedSearcher,
 	cacheManager *cache.Manager,
 	chatDB *chat.DB,
 	sseManager *tasks.SSEManager,
@@ -51,10 +54,16 @@ func (a *Api) InjectDependencies(
 	a.http = contentApi.Client
 	a.qdrantClient = qdrantClient
 	a.semanticSearcher = qdrantSearcher
+	a.cachedSearcher = cachedSearcher
 	a.cacheManager = cacheManager
 	a.chatDB = chatDB
 	a.sseManager = sseManager
 	a.bookHandler = bookHandler
+
+	// 创建性能指标处理器
+	if cachedSearcher != nil {
+		a.metricsHandler = NewMetricsHandler(cachedSearcher)
+	}
 
 	// 确保 baseDir 存在
 	if !Exists(a.baseDir) {
@@ -133,6 +142,15 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.DELETE("/chat/messages/:id", c.DeleteMessage)
 	base.POST("/chat/conversations/:id/messages", c.SendMessage)
 	base.POST("/chat/stream", c.ChatStream) // AI SDK stream endpoint
+
+	// 性能监控和指标
+	if c.metricsHandler != nil {
+		base.GET("/metrics", c.metricsHandler.GetMetrics)
+		base.GET("/metrics/cache", c.metricsHandler.GetCacheStats)
+		base.POST("/metrics/cache/clear", c.metricsHandler.ClearCache)
+		base.POST("/metrics/cache/clean", c.metricsHandler.CleanExpiredCache)
+		base.GET("/health", c.metricsHandler.GetHealthCheck)
+	}
 }
 
 // NewClient 创建 Calibre API 客户端
