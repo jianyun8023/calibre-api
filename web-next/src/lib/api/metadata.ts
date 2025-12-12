@@ -1,61 +1,75 @@
-// 豆瓣元数据结构
-export interface DoubanBook {
-  title: string
-  sub_title?: string
-  author: string[]
-  publisher: string
-  pubdate: string
-  isbn13: string
-  isbn10?: string
-  summary: string
-  image: string
-  rating: {
-    average: number
-    numRaters: number
-  }
-  tags: Array<{ name: string; count: number }>
-  pages?: number
-  price?: string
-}
+/**
+ * Metadata API Functions (V2)
+ * 
+ * This module provides backward-compatible API functions using the new V2 service layer.
+ * 
+ * @deprecated These functions are maintained for backward compatibility.
+ * New code should use metadataService directly from '@/lib/services'
+ */
 
-export interface MetadataSearchResponse {
-  success: boolean
-  books: DoubanBook[]
-  count: number
-  start: number
-  total: number
-}
+import { 
+  metadataService, 
+  DoubanBook as ServiceDoubanBook, 
+  MetadataSearchResponse as ServiceMetadataSearchResponse,
+  MetadataISBNResponse as ServiceMetadataISBNResponse,
+} from '@/lib/services'
 
-export interface MetadataISBNResponse extends DoubanBook {
-  // Additional fields from ISBN API if needed
-}
+// ============================================================================
+// Re-export Types for Backward Compatibility
+// ============================================================================
+
+/**
+ * 豆瓣元数据结构
+ * @deprecated Use DoubanBook from '@/lib/services' instead
+ */
+export type DoubanBook = ServiceDoubanBook
+
+/**
+ * Metadata search response
+ * @deprecated Use MetadataSearchResponse from '@/lib/services' instead
+ */
+export type MetadataSearchResponse = ServiceMetadataSearchResponse
+
+/**
+ * Metadata ISBN response
+ * @deprecated Use MetadataISBNResponse from '@/lib/services' instead
+ */
+export type MetadataISBNResponse = ServiceMetadataISBNResponse
+
+// ============================================================================
+// API Functions
+// ============================================================================
 
 /**
  * 通过 ISBN 搜索元数据
- * 注意：豆瓣 API 返回格式与 Calibre API 不同，直接使用 fetch
+ * 
+ * @param isbn - ISBN (10 or 13 digits, hyphens will be removed)
+ * @returns Douban book metadata
+ * 
+ * @example
+ * ```typescript
+ * const book = await searchMetadataByISBN('978-7-111-63308-2')
+ * console.log(book.title)
+ * ```
  */
 export async function searchMetadataByISBN(isbn: string): Promise<MetadataISBNResponse> {
-  const cleanISBN = isbn.replace(/-/g, '')
-  const response = await fetch(`/api/metadata/isbn/${cleanISBN}`)
-  
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`)
-  }
-  
-  return await response.json()
+  return metadataService.searchByISBN(isbn)
 }
 
 /**
  * 通过关键词搜索元数据（支持标题、作者、ISBN）
- * 注意：豆瓣 API 返回格式与 Calibre API 不同，直接使用 fetch
+ * 
+ * @param query - Search query string
+ * @returns Search response with matching books
+ * 
+ * @example
+ * ```typescript
+ * const results = await searchMetadata('TypeScript Programming')
+ * console.log(`Found ${results.total} books`)
+ * results.books.forEach(book => console.log(book.title))
+ * ```
  */
 export async function searchMetadata(query: string): Promise<MetadataSearchResponse> {
-  const response = await fetch(`/api/metadata/search?query=${encodeURIComponent(query)}`)
-  
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`)
-  }
-  
-  return await response.json()
+  return metadataService.searchByKeyword(query)
 }
 
