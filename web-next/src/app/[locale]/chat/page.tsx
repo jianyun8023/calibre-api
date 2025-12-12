@@ -11,6 +11,7 @@ import type { Book } from '@/types/book'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { useSearchParams } from 'next/navigation'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
@@ -38,6 +39,7 @@ interface ChatMessage {
 
 export default function ChatPage() {
   const { toast } = useToast()
+  const searchParams = useSearchParams()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
   const [input, setInput] = useState('')
@@ -64,6 +66,16 @@ export default function ChatPage() {
     loadConversations()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Handle URL parameter for pre-filled message (from book card summary button)
+  useEffect(() => {
+    const messageParam = searchParams.get('message')
+    if (messageParam) {
+      setInput(decodeURIComponent(messageParam))
+      // Clear the URL parameter after setting
+      window.history.replaceState({}, '', '/chat')
+    }
+  }, [searchParams])
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -363,10 +375,6 @@ export default function ChatPage() {
     }
   }
 
-  const summarizeBook = (book: Book) => {
-    setInput(`总结一下《${book.title}》这本书的内容`)
-  }
-
   const changeBooks = (messageId: string, totalBooks: number) => {
     const currentPage = bookPageMap[messageId] || 0
     const nextPage = (currentPage + 1) * 8 >= totalBooks ? 0 : currentPage + 1
@@ -496,23 +504,10 @@ export default function ChatPage() {
                           <BookGrid
                             books={getVisibleBooks(msg.books, msg.id)}
                             proxyImage
+                            showSummaryButton={true}
+                            autoFetchCompleteData={true}
                             columns={{ base: 2, sm: 3, md: 3, lg: 4, xl: 4 }}
                           />
-                          
-                          {/* Summarize buttons for visible books */}
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                            {getVisibleBooks(msg.books, msg.id).map((book) => (
-                              <Button
-                                key={book.id}
-                                variant="secondary"
-                                size="sm"
-                                className="w-full text-xs"
-                                onClick={() => summarizeBook(book)}
-                              >
-                                总结此书
-                              </Button>
-                            ))}
-                          </div>
                           
                           {/* Change books button */}
                           {msg.books.length > 8 && (

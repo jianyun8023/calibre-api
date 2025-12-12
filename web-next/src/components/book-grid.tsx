@@ -12,6 +12,9 @@ interface BookGridProps {
   emptyMessage?: string
   moreInfo?: boolean
   proxyImage?: boolean
+  showSummaryButton?: boolean
+  /** Auto-fetch complete data for incomplete books (useful for chat responses) */
+  autoFetchCompleteData?: boolean
   skeletonCount?: number
   columns?: {
     base?: number
@@ -29,6 +32,8 @@ export const BookGrid = memo(function BookGrid({
   emptyMessage = "No books found.",
   moreInfo = false,
   proxyImage = false,
+  showSummaryButton = false,
+  autoFetchCompleteData = false,
   skeletonCount = 10,
   columns = {
     base: 2,
@@ -91,6 +96,8 @@ export const BookGrid = memo(function BookGrid({
           book={book}
           moreInfo={moreInfo}
           proxyImage={proxyImage}
+          showSummaryButton={showSummaryButton}
+          autoFetchCompleteData={autoFetchCompleteData}
         />
       ))}
     </div>
