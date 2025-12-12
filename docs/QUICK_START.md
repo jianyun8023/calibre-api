@@ -9,7 +9,7 @@
 
 1. **Go 语言环境** (Go 1.19+)
 2. **Calibre Content Server** 正在运行
-3. **MeiliSearch** 服务器正在运行
+3. **Qdrant 向量数据库** 正在运行（用于语义搜索）
 4. **支持 MCP 的 AI 客户端** (如 Claude Desktop)
 
 ## 方式一: 集成模式（推荐）
@@ -36,16 +36,23 @@ go build -o calibre-api .
 # config.yaml
 address: :8080
 debug: true
-staticDir: "./static"
 tmpDir: "./.files"
 
 content:
   server: "http://localhost:8083"  # 您的 Calibre Content Server 地址
 
-search:
-  host: "http://localhost:7700"    # MeiliSearch 地址
-  apikey: ""                       # MeiliSearch API Key (如需要)
-  index: "books"
+# Qdrant 向量数据库配置（用于语义搜索）
+qdrant:
+  url: "http://localhost:6333"
+  collection: "books"
+  timeout: 30
+
+# Embedding 配置
+embedding:
+  provider: "ollama"  # 或 "siliconflow"
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "bge-m3:latest"
 
 metadata:
   doubanurl: "https://api.douban.com"
@@ -60,26 +67,27 @@ metadata:
 calibre-server --port=8083 /path/to/your/calibre/library
 ```
 
-## 步骤 4: 启动 MeiliSearch
+## 步骤 4: 启动 Qdrant 向量数据库
 
 ```bash
-# 使用 Docker 启动 MeiliSearch
-docker run -it --rm \
-    -p 7700:7700 \
-    -v $(pwd)/meili_data:/meili_data \
-    getmeili/meilisearch:v1.5
+# 使用 Docker 启动 Qdrant
+docker run -p 6333:6333 -p 6334:6334 \
+    -v $(pwd)/qdrant_storage:/qdrant/storage \
+    qdrant/qdrant:latest
 ```
 
-## 步骤 5: 初始化搜索索引
+## 步骤 5: 同步书籍数据到 Qdrant
 
-在 MCP 服务器运行之前，需要创建和配置搜索索引：
+在 MCP 服务器运行之前，需要同步书籍数据到 Qdrant：
 
 ```bash
 # 启动主 Calibre API 服务器
 ./calibre-api
 
-# 更新搜索索引
-curl -X POST "http://localhost:8080/api/index/update"
+# 启动 Qdrant 同步任务（通过任务管理 API）
+curl -X POST "http://localhost:8080/api/tasks/start" \
+  -H "Content-Type: application/json" \
+  -d '{"type": "qdrant_sync", "mode": "full"}'
 ```
 
 ## 步骤 6A: 运行集成模式的 MCP 服务器
@@ -176,7 +184,7 @@ export CALIBRE_MCP_BASE_URL="http://localhost:8080"
 ### 1. MCP 服务器无法启动
 
 - 检查配置文件路径和格式
-- 确保 Calibre Content Server 和 MeiliSearch 正在运行
+- 确保 Calibre Content Server 和 Qdrant 正在运行
 - 查看服务器日志获取详细错误信息
 
 ### 2. AI 客户端无法连接
@@ -188,14 +196,16 @@ export CALIBRE_MCP_BASE_URL="http://localhost:8080"
 ### 3. 搜索功能不工作
 
 ```bash
-# 检查 MeiliSearch 状态
-curl "http://localhost:7700/health"
+# 检查 Qdrant 状态
+curl "http://localhost:6333/health"
 
-# 检查搜索索引
-curl "http://localhost:7700/indexes"
+# 检查 collection 信息
+curl "http://localhost:6333/collections/books"
 
-# 重建搜索索引
-curl -X POST "http://localhost:8080/api/index/update"
+# 重新同步数据到 Qdrant
+curl -X POST "http://localhost:8080/api/tasks/start" \
+  -H "Content-Type: application/json" \
+  -d '{"type": "qdrant_sync", "mode": "full"}'
 ```
 
 ### 4. API 调用失败
@@ -215,7 +225,7 @@ curl "http://localhost:8080/api/search?q=test"
 | `CALIBRE_MCP_BASE_URL` | Calibre API 服务器地址 | `http://localhost:8080` |
 | `CALIBRE_DEBUG` | 启用调试模式 | `false` |
 | `CALIBRE_CONTENT_SERVER` | Calibre Content Server 地址 | 从配置文件读取 |
-| `CALIBRE_SEARCH_HOST` | MeiliSearch 服务器地址 | 从配置文件读取 |
+| `CALIBRE_QDRANT_URL` | Qdrant 服务器地址 | 从配置文件读取 |
 
 ## 下一步
 

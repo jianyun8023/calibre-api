@@ -31,20 +31,75 @@ type Api struct {
 	chatDB           *chat.DB
 	chatAgent        *chat.Agent
 	sseManager       *tasks.SSEManager
+	bookHandler      *BookHandlerV2 // 新的 Handler（使用 Service 层）
+}
+
+// InjectDependencies 注入依赖（用于依赖注入容器）
+func (a *Api) InjectDependencies(
+	config *Config,
+	contentApi *content.Api,
+	qdrantClient *qdrant.Client,
+	qdrantSearcher *qdrant.Searcher,
+	cacheManager *cache.Manager,
+	chatDB *chat.DB,
+	sseManager *tasks.SSEManager,
+	bookHandler *BookHandlerV2,
+) error {
+	a.config = config
+	a.contentApi = contentApi
+	a.baseDir = config.TmpDir
+	a.http = contentApi.Client
+	a.qdrantClient = qdrantClient
+	a.semanticSearcher = qdrantSearcher
+	a.cacheManager = cacheManager
+	a.chatDB = chatDB
+	a.sseManager = sseManager
+	a.bookHandler = bookHandler
+
+	// 确保 baseDir 存在
+	if !Exists(a.baseDir) {
+		if err := os.MkdirAll(a.baseDir, fs.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// InjectChatAgent 注入聊天 Agent（需要在 API 实例创建后）
+func (a *Api) InjectChatAgent(agent *chat.Agent) error {
+	a.chatAgent = agent
+	return nil
+}
+
+// CreateTocFetcher 创建 TOC 获取函数（用于 Chat Agent）
+func (a *Api) CreateTocFetcher() func(ctx context.Context, bookID int64) (string, error) {
+	return func(ctx context.Context, bookID int64) (string, error) {
+		tocData, err := a.GetBookTocData(strconv.FormatInt(bookID, 10))
+		if err != nil {
+			return "", err
+		}
+		// 将 tocData 转换为 JSON 字符串
+		bytes, err := json.MarshalIndent(tocData, "", "  ")
+		if err != nil {
+			return "", err
+		}
+		return string(bytes), nil
+	}
 }
 
 // SetupRouter 设置路由
 func (c *Api) SetupRouter(r *gin.Engine) {
 	base := r.Group("/api")
 
-	// 书籍基本操作
-	base.GET("/book/:id", c.getBook)
-	base.POST("/book/:id/delete", c.deleteBook)
-	base.POST("/book/:id/update", c.updateMetadata)
-	base.GET("/recently", c.recently)
-	base.GET("/random", c.random)
-	base.GET("/books/all", c.getAllBooks)
-	base.GET("/publisher", c.listPublisher)
+	// 书籍基本操作（使用新的 Service 层）
+	base.GET("/book/:id", c.getBookV2)
+	base.POST("/book/:id/delete", c.deleteBookV2)
+	base.POST("/book/:id/update", c.updateMetadataV2)
+	base.GET("/recently", c.recentlyV2)
+	base.GET("/random", c.randomV2)
+	base.GET("/books/all", c.getAllBooksV2)
+	base.GET("/publisher", c.listPublisherV2)
 
 	// 书籍内容相关
 	base.GET("/get/cover/:id", c.getCover)

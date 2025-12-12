@@ -11,6 +11,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
+	"github.com/jianyun8023/calibre-api/internal/container"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 	"github.com/spf13/viper"
 )
@@ -28,6 +29,23 @@ func main() {
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
+
+	// 创建依赖注入容器
+	cont, err := container.NewContainer(conf)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create container: %v\n", err)
+		os.Exit(1)
+	}
+	defer cont.Close()
+
+	// 构建 API 实例
+	client, err := cont.BuildAPI()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to build API: %v\n", err)
+		os.Exit(1)
+	}
+
+	// 创建 Gin 路由器
 	r := gin.Default()
 
 	// 配置 CORS 中间件（支持 MCP Inspector 等跨域请求）
@@ -40,12 +58,12 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// 2. Define your API routes (Gin-MCP will discover these)
+	// 健康检查端点
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
-	client := calibre.NewClient(conf)
+	// 设置 API 路由
 	client.SetupRouter(r)
 
 	// 初始化并挂载 MCP 服务器（必须在 setPages/NoRoute 之前）
@@ -65,6 +83,7 @@ func main() {
 		})
 	})
 
+	// 打印所有路由
 	for _, route := range r.Routes() {
 		log.Infof("route: %s %s", route.Method, route.Path)
 	}

@@ -1,5 +1,5 @@
 services:
-  # main service
+  # Backend service - Calibre API (Go)
   calibre-api:
     build:
       context: .
@@ -10,11 +10,88 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # System
       - TZ=Asia/Shanghai
+      
+      # Calibre API Configuration
       - CALIBRE_DEBUG=true
       - CALIBRE_CONTENT_SERVER=https://lib.pve.icu
       - CALIBRE_SEARCH_INDEX=books
       - CALIBRE_TMPDIR=/tmp
       - CALIBRE_METADATA_DOUBANURL=http://192.168.2.236:8085
       - CALIBRE_MCP_ENABLED=false
+      
+      # Qdrant Configuration (使用本地 Qdrant 时取消注释)
+      # - CALIBRE_QDRANT_URL=http://qdrant:6333
+      # - CALIBRE_QDRANT_API_KEY=
+      
+      # OpenAI Configuration (启用 AI 功能时配置)
+      # - OPENAI_API_KEY=your-api-key-here
+      # - OPENAI_BASE_URL=https://api.openai.com/v1
+      # - OPENAI_MODEL=gpt-4
+    volumes:
+      - calibre_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - calibre-network
+
+  # Frontend service - Next.js Web UI
+  calibre-web:
+    build:
+      context: ./web-next
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    container_name: calibre-web
+    image: ghcr.io/jianyun8023/calibre-web:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - TZ=Asia/Shanghai
+      - NODE_ENV=production
+      # API_BASE_URL: Next.js 服务端通过 Docker 网络访问后端
+      # 格式: http://<service-name>:<port>/api/:path*
+      - API_BASE_URL=http://calibre-api:8080/api/:path*
+    depends_on:
+      calibre-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - calibre-network
+
+  # Optional Qdrant vector database
+  # 使用方法: docker-compose --profile qdrant up
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: calibre-qdrant
+    restart: unless-stopped
+    profiles: ["qdrant"]
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - TZ=Asia/Shanghai
+    networks:
+      - calibre-network
+
+volumes:
+  calibre_data:
+    driver: local
+  qdrant_data:
+    driver: local
+
+networks:
+  calibre-network:
+    driver: bridge
 

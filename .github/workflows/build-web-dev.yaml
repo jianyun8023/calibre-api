@@ -4,14 +4,16 @@
 # Copyright (C) 2019 jianyun8023 <https://zhaojianyun.com>
 #
 
-name: Build Calibre-API Images
+name: Build Web Dev Images
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+  push:
+    paths:
+      - 'web-next/**'
+      - '.github/workflows/build-web-dev.yaml'
 env:
-  IMAGE_NAME: calibre-api
-  VERSION: "0.0.1"
+  IMAGE_NAME: calibre-web
+  VERSION: "dev"
 
 jobs:
   docker:
@@ -37,13 +39,13 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./
+          context: ./web-next
+          file: ./web-next/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
             VERSION=${{ env.VERSION }}
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

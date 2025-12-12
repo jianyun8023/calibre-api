@@ -239,30 +239,36 @@ HybridSearch(ctx context.Context, vector []float32, filter map[string]interface{
 
 修改 `internal/calibre/api.go`：
 
-**需要更新的端点**：
+**已实现的端点**：
 
 - `GET /api/search/semantic?q=description` - 使用 Qdrant 语义搜索
-- 可选：`GET /api/search?q=keyword` - 关键词搜索（可继续使用 Meilisearch 或使用 Qdrant 过滤）
-- 可选：`POST /api/search/hybrid` - 混合搜索
+- `GET /api/search?q=keyword` - 使用 Qdrant 关键词过滤搜索
+- 支持混合搜索（语义 + 关键词过滤）
 
-**需要实现**：
+**已完成**：
 
-- 集成 Qdrant 搜索器
-- 统一搜索结果格式
-- 保持前端兼容性
+- ✅ 集成 Qdrant 搜索器
+- ✅ 统一搜索结果格式
+- ✅ 保持前端兼容性
 
-### 5.3 ⏳ 更新配置文件
+### 5.3 ✅ 配置文件
 
-`config.yaml` 已添加 Qdrant 配置：
+`config.yaml` Qdrant 配置：
 
 ```yaml
 qdrant:
-  url: "http://192.168.2.236:6333"
+  url: "http://localhost:6333"
   collection: "books"
   timeout: 30
+
+embedding:
+  provider: "ollama"
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "bge-m3:latest"
 ```
 
-**考虑保留 Meilisearch** 用于全文搜索（BM25），Qdrant 专注于语义搜索。
+**架构说明**：已完全迁移到 Qdrant，统一处理语义搜索和关键词搜索。
 
 ---
 
@@ -305,45 +311,37 @@ wrk -t4 -c100 -d30s http://192.168.2.236:8080/api/search/semantic?q=测试
 
 ---
 
-## 🚀 阶段 7: 上线和清理（可选）
+## 🚀 阶段 7: 上线和监控
 
-### 7.1 ⏳ 灰度切换
+### 7.1 ✅ 已完全迁移到 Qdrant
 
-**切换策略**：
-
-1. 保持 Milvus/Meilisearch 继续运行
-2. 10% 语义搜索流量切到 Qdrant
-3. 监控错误率和延迟
-4. 逐步增加到 50% → 100%
+**迁移状态**：
+- ✅ 已完全迁移到 Qdrant
+- ✅ 统一的搜索架构（语义 + 关键词）
+- ✅ 移除了 Milvus 和 MeiliSearch 依赖
+- ✅ 简化了系统架构和运维复杂度
 
 ### 7.2 ✅ 监控已配置
 
 **Prometheus 指标**：
 - Qdrant 已添加到 Prometheus 监控
-- 指标端点: `http://192.168.2.236:6333/metrics`
+- 指标端点: `http://localhost:6333/metrics`
 
 **Grafana 面板**（建议添加）：
-
 - Qdrant QPS
 - 搜索延迟 (P50/P95/P99)
 - 错误率
 - 存储使用量
 - NVMe IOPS
 
-### 7.3 🔄 清理旧系统（可选）
+### 7.3 ✅ 架构优势
 
-**清理选项**：
-
-**选项 A: 完全迁移到 Qdrant**
-1. 停止 Milvus 容器
-2. 备份 Milvus 数据（以防需要回滚）
-3. 删除 Milvus 相关代码
-4. 清理 `internal/semantic/milvus/` 目录
-
-**选项 B: 保留混合架构（推荐）**
-1. Qdrant: 语义搜索（向量）
-2. Meilisearch: 全文搜索（BM25）
-3. 两者互补，发挥各自优势
+**统一架构的优势**：
+1. **简化运维**：单一搜索引擎，降低维护成本
+2. **统一存储**：向量和元数据存储在一起
+3. **灵活搜索**：支持语义搜索、关键词过滤、混合搜索
+4. **高性能**：HNSW 索引优化，搜索延迟 < 50ms
+5. **易扩展**：原生支持分布式和复制
 
 ---
 

@@ -4,13 +4,13 @@
 # Copyright (C) 2019 jianyun8023 <https://zhaojianyun.com>
 #
 
-name: Build Calibre-API Images
+name: Build Calibre-Web Images
 on:
   workflow_dispatch:
   release:
     types: [published]
 env:
-  IMAGE_NAME: calibre-api
+  IMAGE_NAME: calibre-web
   VERSION: "0.0.1"
 
 jobs:
@@ -37,7 +37,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./
+          context: ./web-next
+          file: ./web-next/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
             VERSION=${{ env.VERSION }}

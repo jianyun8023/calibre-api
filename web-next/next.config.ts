@@ -11,6 +11,9 @@ const withBundleAnalyzer = bundleAnalyzer({
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
+  // 启用 standalone 输出模式用于 Docker 部署
+  output: 'standalone',
+  
   // 使用 SSR 模式，支持服务端渲染和 API 代理
   // API 请求会被代理到 Go 后端
   async rewrites() {

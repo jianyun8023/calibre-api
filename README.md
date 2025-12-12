@@ -190,20 +190,62 @@ go build -o calibre-mcp-server ./cmd/mcp-server
 ```
 
 ### Docker 部署
+
+#### 使用 Docker Compose（推荐）
+
+项目提供了完整的 Docker Compose 配置，支持前后端分离部署：
+
 ```bash
-# 构建 Docker 镜像
-docker build -t calibre-api:latest .
+# 1. 基础部署（前端 + 后端）
+docker-compose up -d
 
-# 运行容器（HTTP 模式）
+# 2. 完整部署（包含 Qdrant 向量数据库）
+docker-compose --profile qdrant up -d
+
+# 3. 查看服务状态
+docker-compose ps
+
+# 4. 查看日志
+docker-compose logs -f
+
+# 5. 停止服务
+docker-compose down
+```
+
+**服务访问**:
+- 前端 (Next.js): http://localhost:3000
+- 后端 API (Go): http://localhost:8080
+- Qdrant 管理界面: http://localhost:6333/dashboard (使用 --profile qdrant 时)
+
+**架构说明**:
+- `calibre-api`: Go 后端服务，提供 RESTful API
+- `calibre-web`: Next.js 前端服务，提供现代化 UI
+- `qdrant`: 可选的向量数据库服务（使用 profile 启用）
+
+前端通过 Docker 内部网络访问后端，环境变量 `API_BASE_URL=http://calibre-api:8080/api/:path*` 配置了服务间通信。
+
+详细的部署指南和配置说明请参考：[DEPLOYMENT.md](./specs/025-github-ci-docker-compose-update/DEPLOYMENT.md)
+
+#### 手动 Docker 部署
+
+```bash
+# 构建后端镜像
+docker build -t calibre-api:latest -f Dockerfile .
+
+# 构建前端镜像
+docker build -t calibre-web:latest -f web-next/Dockerfile ./web-next
+
+# 运行后端容器
 docker run -d -p 8080:8080 \
-  -v $(pwd)/config.yaml:/app/config.yaml \
+  -e CALIBRE_CONTENT_SERVER=https://lib.pve.icu \
+  -v calibre_data:/data \
   calibre-api:latest
 
-# 运行容器（MCP 模式）
-docker run -d \
-  -e MCP_MODE=true \
-  -v $(pwd)/config.yaml:/app/config.yaml \
-  calibre-api:latest
+# 运行前端容器
+docker run -d -p 3000:3000 \
+  -e API_BASE_URL=http://calibre-api:8080/api/:path* \
+  --link calibre-api \
+  calibre-web:latest
 ```
 
 ### 预构建二进制
@@ -256,30 +298,55 @@ mcp:
 
 环境变量优先于配置文件，可以使用环境变量覆盖配置文件中的参数
 
-```text
+#### 后端环境变量 (calibre-api)
+
+```bash
 # 基础配置
 CALIBRE_ADDRESS=:8080
 CALIBRE_DEBUG=false
-CALIBRE_STATICDIR=/app/static
-CALIBRE_TMP_DIR=.files
+CALIBRE_TMPDIR=/tmp
+CALIBRE_SEARCH_INDEX=books
 
-# Calibre Content Server
+# Calibre Content Server（必需）
 CALIBRE_CONTENT_SERVER=https://your-calibre-server.com
 
-# Qdrant 配置
-CALIBRE_QDRANT_URL=http://localhost:6333
-CALIBRE_QDRANT_COLLECTION=books
-CALIBRE_QDRANT_TIMEOUT=30
+# Qdrant 配置（可选，启用向量搜索时配置）
+CALIBRE_QDRANT_URL=http://qdrant:6333
+CALIBRE_QDRANT_API_KEY=your-api-key
+
+# OpenAI 配置（可选，启用 AI 功能时配置）
+OPENAI_API_KEY=sk-your-api-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4
 
 # 元数据服务
-CALIBRE_METADATA_DOUBANURL=https://api.douban.com
+CALIBRE_METADATA_DOUBANURL=http://your-douban-api
 
 # MCP 配置
 CALIBRE_MCP_ENABLED=false
-CALIBRE_MCP_BASE_URL=http://localhost:8080
 MCP_MODE=true                    # 快速启用 MCP 模式
-CALIBRE_MCP_MODE=true           # 快速启用 MCP 模式
 ```
+
+#### 前端环境变量 (calibre-web)
+
+```bash
+# API 配置（必需）
+# Docker Compose 环境使用服务名
+API_BASE_URL=http://calibre-api:8080/api/:path*
+
+# 本地开发环境使用 localhost
+# API_BASE_URL=http://localhost:8080/api/:path*
+
+# Node.js 配置
+NODE_ENV=production
+PORT=3000
+TZ=Asia/Shanghai
+```
+
+**重要提示**:
+- Docker Compose 环境中，前端使用 `http://calibre-api:8080` 访问后端（Docker 服务名）
+- 本地开发环境中，前端使用 `http://localhost:8080` 访问后端
+- 详细配置说明请参考 [DEPLOYMENT.md](./specs/025-github-ci-docker-compose-update/DEPLOYMENT.md)
 
 ## 适配阅读书源
 
