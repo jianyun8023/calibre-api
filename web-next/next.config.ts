@@ -1,14 +1,13 @@
 import type { NextConfig } from "next";
-import bundleAnalyzer from '@next/bundle-analyzer';
 import createNextIntlPlugin from 'next-intl/plugin';
-
-// Bundle Analyzer 配置
-const withBundleAnalyzer = bundleAnalyzer({
-  enabled: process.env.ANALYZE === 'true',
-})
 
 // next-intl 配置
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+
+// 注意：已移除 @next/bundle-analyzer 以支持 Standalone 模式
+// 如需分析包大小，请在本地开发环境使用：
+// npm install --save-dev @next/bundle-analyzer
+// 然后取消注释下面的代码
 
 const nextConfig: NextConfig = {
   // 启用 Standalone 输出模式（最小化镜像）
@@ -58,4 +57,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withBundleAnalyzer(withNextIntl(nextConfig));
+export default withNextIntl(nextConfig);
