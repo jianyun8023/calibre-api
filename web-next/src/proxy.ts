@@ -54,12 +54,16 @@ export default async function proxy(request: NextRequest) {
 
 /**
  * 配置 Proxy 匹配的路径
- * 根据 next-intl 官方文档建议的配置
+ * 基于 next-intl 官方文档，但允许 /api/ 和 /mcp/ 路径包含点（图片、文件）
  * @see https://next-intl.dev/docs/routing/middleware
  */
 export const config = {
-  // Match all pathnames except for
-  // - … if they start with `/_next` or `/_vercel`  
-  // - … the ones containing a dot (e.g. `favicon.ico`)
-  matcher: '/((?!_next|_vercel|.*\\..*).*)'
+  matcher: [
+    // 匹配 /api/ 开头的所有路径（包括图片等文件）
+    '/api/:path*',
+    // 匹配 /mcp/ 开头的所有路径
+    '/mcp/:path*',
+    // 匹配其他路径，但排除静态资源
+    '/((?!api|mcp|_next|_vercel|.*\\..*).*)' 
+  ]
 };
