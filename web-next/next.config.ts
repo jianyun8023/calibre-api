@@ -11,23 +11,13 @@ const withBundleAnalyzer = bundleAnalyzer({
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
-  // 使用 SSR 模式，支持服务端渲染和 API 代理
-  // API 和 MCP 请求会被代理到 Go 后端
-  async rewrites() {
-    // 运行时动态获取 API_BASE_URL
-    const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:8080';
-    return [
-      { 
-        source: '/api/:path*', 
-        destination: `${apiBaseUrl}/api/:path*`
-      },
-      // MCP 协议端点转发（用于 AI 助手集成）
-      { 
-        source: '/mcp/:path*', 
-        destination: `${apiBaseUrl}/mcp/:path*`
-      }
-    ]
-  },
+  // 启用 Standalone 输出模式（最小化镜像）
+  output: 'standalone',
+  
+  // 注意：Standalone 模式下 rewrites 会在构建时固化
+  // 因此我们使用 Proxy 实现运行时动态代理
+  // 参见：src/proxy.ts
+  
   // 图片优化配置
   // 允许从多种来源加载图片（本地开发、Docker、生产环境）
   images: {
