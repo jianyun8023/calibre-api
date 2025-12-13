@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import createMiddleware from 'next-intl/middleware';
+import { locales, defaultLocale } from './i18n/config';
 
 /**
  * Proxy 用于运行时动态代理 API 和 MCP 请求
+ * 同时集成 next-intl middleware 处理 locale 路由
  * 
  * 在 Standalone 模式下，next.config.ts 中的 rewrites 会在构建时固化，
  * 无法在运行时读取环境变量。因此我们使用 Proxy 来实现动态代理。
@@ -11,8 +14,17 @@ import type { NextRequest } from 'next/server';
  * 
  * @see https://nextjs.org/docs/app/building-your-application/routing/proxy
  * @see https://nextjs.org/docs/messages/middleware-to-proxy
+ * @see https://next-intl.dev/docs/routing/middleware
  */
-export function proxy(request: NextRequest) {
+
+// 创建 next-intl middleware
+const handleI18nRouting = createMiddleware({
+  locales,
+  defaultLocale,
+  localePrefix: 'always' // 总是显示 locale 前缀
+});
+
+export default async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   
   // 运行时动态读取 API_BASE_URL 环境变量
@@ -36,17 +48,18 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(new URL(backendUrl));
   }
   
-  // 其他请求正常处理
-  return NextResponse.next();
+  // 其他请求使用 next-intl middleware 处理 locale 路由
+  return handleI18nRouting(request);
 }
 
 /**
  * 配置 Proxy 匹配的路径
- * 只在 /api/* 和 /mcp/* 路径上运行，提高性能
+ * 根据 next-intl 官方文档建议的配置
+ * @see https://next-intl.dev/docs/routing/middleware
  */
 export const config = {
-  matcher: [
-    '/api/:path*',
-    '/mcp/:path*',
-  ],
+  // Match all pathnames except for
+  // - … if they start with `/_next` or `/_vercel`  
+  // - … the ones containing a dot (e.g. `favicon.ico`)
+  matcher: '/((?!_next|_vercel|.*\\..*).*)'
 };
