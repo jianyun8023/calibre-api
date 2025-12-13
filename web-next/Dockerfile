@@ -6,7 +6,7 @@ RUN corepack enable
 
 WORKDIR /app
 
-# 复制依赖文件并安装所有依赖
+# 复制依赖文件并安装所有依赖（包括 devDependencies，构建时需要）
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile
