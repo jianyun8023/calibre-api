@@ -46,6 +46,7 @@
 - [DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) - 代码规范和开发流程
 - [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) - RESTful API 参考
 - [CODE_STRUCTURE.md](docs/CODE_STRUCTURE.md) - 项目目录说明
+- [PHASE_WORKFLOW.md](docs/PHASE_WORKFLOW.md) - 阶段工作流指南（PDPI-spec）
 
 ### 功能规格 (`specs/` 目录)
 - [项目概览](specs/007-000-project-overview/) - 系统架构和技术栈
@@ -55,6 +56,7 @@
 - [智能问答](specs/004-chat-agent/) - LLM 对话和工具调用
 - [向量搜索](specs/005-qdrant-vector-search/) - Qdrant 语义搜索
 - [任务管理](specs/006-task-management/) - 异步任务和性能优化
+- [示例规格](specs/example-detailed-spec/) - 完整的 PDPI-spec 工作流示例
 
 ### 用户文档 (`docs/` 目录)
 - [QUICK_START.md](docs/QUICK_START.md) - 部署和配置指南

@@ -9,9 +9,26 @@
     "defaultFile": "README.md"
   },
   "features": {
-    "aiAgents": true
+    "aiAgents": true,
+    "phaseTracking": true
   },
   "templates": {
-    "default": "spec-template.md"
+    "default": "spec-template.md",
+    "minimal": "spec-template.md",
+    "standard": "standard-template.md",
+    "detailed": "detailed-template.md"
+  },
+  "phases": {
+    "enabled": true,
+    "sequence": [
+      "PREWORK",
+      "REQUIREMENTS",
+      "DESIGN",
+      "PLAN",
+      "IMPLEMENTATION",
+      "ACCEPTANCE",
+      "COMPLETE"
+    ],
+    "qaRequired": true
   }
 }

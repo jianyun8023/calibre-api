@@ -53,6 +53,7 @@
 - [智能问答](./specs/004-chat-agent/) - LLM 对话和工具调用
 - [向量搜索](./specs/005-qdrant-vector-search/) - Qdrant 语义搜索
 - [任务管理](./specs/006-task-management/) - 异步任务和性能优化
+- [示例规格](./specs/example-detailed-spec/) - 完整的 PDPI-spec 工作流示例（用于学习）
 
 **用户文档** (`docs/` 目录):
 - [快速开始](./docs/QUICK_START.md) - 部署和配置指南
@@ -61,6 +62,7 @@
 - [MCP 指南](./docs/MCP_README.md) - MCP 协议集成和使用
 - [MCP Inspector](./docs/features/MCP_INSPECTOR_GUIDE.md) - MCP 工具测试指南
 - [Qdrant 配置](./docs/QDRANT_COLLECTION_SETUP.md) - 向量数据库设置
+- [阶段工作流](./docs/PHASE_WORKFLOW.md) - PDPI-spec 阶段工作流指南（用于复杂功能开发）
 
 **前端开发**:
 - [Vue.js 前端](./app/AGENTS.md) - Vue 3 + Element Plus (旧版)

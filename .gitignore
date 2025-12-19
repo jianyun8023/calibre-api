@@ -30,3 +30,4 @@ calibre-pages/.vscode
 calibre-api
 *.log
 .cursor/mcp.json
+config.yaml
