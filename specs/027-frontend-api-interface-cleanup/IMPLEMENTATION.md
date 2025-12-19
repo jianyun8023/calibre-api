@@ -10,7 +10,7 @@
 
 ### 整体进度 (Overall Progress)
 
-**完成度**: 80% (Good Progress)
+**完成度**: 85% (Good Progress)
 
 | 模块 | 完成度 | 状态 | 备注 |
 |------|--------|------|------|
@@ -18,7 +18,7 @@
 | API 客户端 | 95% | ✅ 完成 | UnifiedApiClient 已实现，缓存未启用 |
 | 错误处理 | 85% | ✅ 完成 | ErrorHandler 已实现 |
 | 服务层 | 90% | ✅ 完成 | BookService, ChatService 等已实现 |
-| 组件迁移 | 60% | ⏳ 进行中 | 部分组件仍使用旧 API |
+| 组件迁移 | 75% | ⏳ 进行中 | Chat 页面已完成 |
 | 测试覆盖 | 50% | ⏳ 进行中 | 目标 80% |
 | 性能优化 | 20% | 📋 计划中 | 缓存、批量操作未实施 |
 | 文档编写 | 60% | ⏳ 进行中 | 缺少迁移指南 |
@@ -186,11 +186,14 @@ export async function fetchRandomBooks(limit: number = 5) {
 - ✅ `detail/[id]/page.tsx` - 使用 `fetchBook`, `deleteBook`
 - ✅ `search/page.tsx` - 使用 `searchSemantic`, `fetchBooks`
 
-**未完全迁移**:
-- ⚠️ `chat/page.tsx` - 直接使用 `fetch` (9 处调用)
-  - Line 92: `fetch('/api/chat/conversations')`
-  - Line 113: `fetch('/api/chat/conversations/${conversationId}/messages')`
-  - 需要替换为 `chatService.getConversations()`, `chatService.getMessages()`
+**已迁移**:
+- ✅ `chat/page.tsx` - 已全部迁移到 `chatService`
+  - `chatService.getConversations()` - 获取对话列表
+  - `chatService.getMessages()` - 获取消息列表
+  - `chatService.createConversation()` - 创建对话
+  - `chatService.deleteConversation()` - 删除对话
+  - `chatService.deleteMessage()` - 删除消息
+  - `chatService.streamChat()` - 流式聊天
   
 - ⚠️ `publisher/page.tsx` - 使用旧 `apiRequest` (Line 64)
   - 需要替换为 `bookService.getPublishers()`
@@ -199,7 +202,7 @@ export async function fetchRandomBooks(limit: number = 5) {
   - 需要替换为 `metadataService`
 
 **下一步行动**:
-1. 迁移 Chat 页面（优先级：🔴 High）
+1. ✅ 迁移 Chat 页面（优先级：🔴 High）- **已完成 (2025-12-19)**
 2. 迁移 Publisher 和 Metadata Manager 页面（优先级：🟡 Medium）
 3. 删除旧的 `api-client.ts`
 
@@ -233,19 +236,28 @@ touch src/__tests__/lib/property-tests/error-handling.test.ts
 
 ### 阻塞问题 (Blockers)
 
-#### 1. 🔴 Chat 页面未迁移
+#### 1. ✅ Chat 页面迁移 - **已完成** (2025-12-19)
 
-**影响**: 无法完全移除旧 `fetch` 调用
+**完成内容**:
+- ✅ 修正 `chatService` API 端点 (从 `/api/conversations` 改为 `/api/chat/conversations`)
+- ✅ 修复 `chatService` 类型定义 (metadata 改用 `unknown`)
+- ✅ 替换 `loadConversations()` → `chatService.getConversations()`
+- ✅ 替换 `loadMessages()` → `chatService.getMessages()`
+- ✅ 替换 `createNewConversation()` → `chatService.createConversation()`
+- ✅ 替换 `deleteConversation()` → `chatService.deleteConversation()`
+- ✅ 替换 `deleteMessage()` → `chatService.deleteMessage()`
+- ✅ 替换流式聊天 → `chatService.streamChat()`
+- ✅ 统一错误处理 (添加 error.message 显示)
+- ✅ 通过 linter 检查
 
-**文件**: `web-next/src/app/[locale]/chat/page.tsx`
+**实际时间**: 30 分钟
 
-**任务**:
-- [ ] 替换 Line 92: `fetch('/api/chat/conversations')` → `chatService.getConversations()`
-- [ ] 替换 Line 113: `fetch('/api/chat/.../messages')` → `chatService.getMessages(conversationId)`
-- [ ] 更新所有聊天相关的 API 调用（约 9 处）
-- [ ] 测试对话创建、消息加载、删除功能
-
-**预计时间**: 1-2 小时
+**待 QA 验证**:
+- 对话创建功能
+- 消息加载功能
+- 流式聊天功能
+- 删除功能
+- 错误处理
 
 ---
 
@@ -330,7 +342,8 @@ touch src/__tests__/lib/property-tests/error-handling.test.ts
 | 2025-12-12 | API 客户端和服务层实现 | 60% |
 | 2025-12-12 | 向后兼容层和基础测试 | 80% |
 | 2025-12-19 | 实施状态评估和规范维护 | 80% |
-| **待定** | 完成组件迁移和测试覆盖 | → 95% |
+| 2025-12-19 | Chat 页面迁移完成 | 85% |
+| **待定** | 完成剩余组件迁移和测试覆盖 | → 95% |
 | **待定** | 性能优化和文档编写 | → 100% |
 
 ---
@@ -423,6 +436,21 @@ touch src/__tests__/lib/property-tests/error-handling.test.ts
 **影响**: 代码不一致，容易出错
 
 **解决方案**: 统一使用 `page/page_size`，服务层自动转换
+
+---
+
+#### 问题 3: chatService API 端点不匹配
+
+**问题描述**: chatService 使用 `/api/conversations` 但后端使用 `/api/chat/conversations`
+
+**影响**: Chat 功能无法正常工作
+
+**解决方案**: 
+- 修正 chatService 所有端点，添加 `/chat` 前缀
+- 更新 `streamChat` 方法参数格式，匹配后端期望的 `{ conversationId, messages }` 格式
+- 修复类型定义，将 `any` 改为 `unknown`
+
+**完成日期**: 2025-12-19
 
 ---
 

@@ -52,9 +52,16 @@ transitions:
 
 ## 文档索引 (Documents)
 
+### 规划文档
 - [requirements.md](requirements.md) - 需求定义和用户故事 (13 个主要需求)
 - [design.md](design.md) - 技术设计和架构 (统一 API 客户端、错误处理、10 个正确性属性)
+
+### 实施文档
 - [IMPLEMENTATION.md](IMPLEMENTATION.md) - 实施进度和详细状态
+
+### QA 文档
+- [QA_REPORT.md](QA_REPORT.md) - Chat 页面迁移 QA 报告 (2025-12-19, 9/10 分)
+- [CHAT_MIGRATION_SUMMARY.md](CHAT_MIGRATION_SUMMARY.md) - Chat 页面迁移总结 (2025-12-19)
 
 ## 需求总结 (Requirements Summary)
 
@@ -71,7 +78,8 @@ transitions:
 - [x] 实现统一的错误处理器（ErrorHandler）
 - [x] 创建 API 服务层（BookService, ChatService, MetadataService, TaskService）
 - [x] 提供向后兼容层支持渐进式迁移
-- [ ] 迁移所有组件使用新的 API 客户端（当前 60%）
+- [x] 迁移 Chat 页面使用 chatService（2025-12-19）
+- [ ] 迁移所有组件使用新的 API 客户端（当前 75%）
 - [ ] 清理旧的 API 客户端代码
 - [ ] 测试覆盖率达到 80%+（当前 50%）
 - [ ] 启用缓存策略优化性能
@@ -110,9 +118,9 @@ HTTP / REST API
 
 ## 实施状态 (Implementation Status)
 
-**当前状态**: ⏳ **实施阶段 (Implementation Phase)** - 核心架构已完成，正在进行组件迁移
+**当前状态**: ⏳ **实施阶段 (Implementation Phase)** - 核心架构已完成，Chat 页面迁移完成
 
-**完成度**: 80%
+**完成度**: 85%
 
 **已完成**:
 - ✅ 统一 API 客户端 (UnifiedApiClient)
@@ -122,12 +130,20 @@ HTTP / REST API
 - ✅ 向后兼容层 (api/books.ts)
 - ✅ 基础单元测试和属性测试
 
+**最新完成** (2025-12-19):
+- ✅ Chat 页面迁移完成
+  - 修正 chatService API 端点
+  - 替换所有 fetch 调用为 chatService
+  - 统一错误处理
+  - 通过 QA 检查（9/10 分）
+
 **进行中**:
-- ⏳ 组件层迁移（60% 完成）
+- ⏳ 组件层迁移（75% 完成）
 - ⏳ 测试覆盖补充
 
 **待完成**:
-- 📋 Chat 页面迁移（使用 chatService 替换 fetch）
+- 📋 Publisher 页面迁移
+- 📋 Metadata Manager 页面迁移
 - 📋 旧 API 客户端清理（api-client.ts）
 - 📋 分页参数统一（改用 page/page_size）
 - 📋 性能优化（启用缓存）

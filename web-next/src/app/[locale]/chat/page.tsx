@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useSearchParams } from 'next/navigation'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { chatService } from '@/lib/services'
 
 // 懒加载 Markdown 组件 (大约 100KB)
 const MemoizedMarkdown = dynamic(
@@ -89,10 +90,7 @@ export default function ChatPage() {
 
   const loadConversations = async () => {
     try {
-      const res = await fetch('/api/chat/conversations')
-      if (!res.ok) throw new Error('Failed to load conversations')
-      const data = await res.json()
-      const convs = data.data || []
+      const convs = await chatService.getConversations()
       setConversations(convs)
       
       // Select first conversation if none selected
@@ -103,6 +101,7 @@ export default function ChatPage() {
       console.error('Load conversations error:', error)
       toast({
         title: '加载对话列表失败',
+        description: error instanceof Error ? error.message : '未知错误',
         variant: 'destructive'
       })
     }
@@ -110,32 +109,27 @@ export default function ChatPage() {
 
   const loadMessages = async (conversationId: string) => {
     try {
-      const res = await fetch(`/api/chat/conversations/${conversationId}/messages`)
-      if (!res.ok) throw new Error('Failed to load messages')
-      const data = await res.json()
-      const msgs = data.data || []
+      const msgs = await chatService.getMessages(conversationId)
       
       // Convert to ChatMessage format
-      const chatMsgs: ChatMessage[] = msgs.map((msg: {
-        id: string;
-        role: 'user' | 'assistant';
-        content: string;
-        thinking?: string;
-        metadata?: string;
-      }) => {
+      const chatMsgs: ChatMessage[] = msgs.map((msg) => {
         const chatMsg: ChatMessage = {
           id: msg.id,
           role: msg.role,
           content: msg.content,
-          thinking: msg.thinking,
         }
         
-        // Parse metadata for books
+        // Parse metadata for books and thinking
         if (msg.metadata) {
           try {
-            const meta = JSON.parse(msg.metadata)
+            const meta = typeof msg.metadata === 'string' 
+              ? JSON.parse(msg.metadata) 
+              : msg.metadata
             if (meta.books) {
-              chatMsg.books = meta.books
+              chatMsg.books = meta.books as Book[]
+            }
+            if (meta.thinking) {
+              chatMsg.thinking = meta.thinking as string
             }
           } catch (e) {
             console.error('Parse metadata error:', e)
@@ -150,6 +144,7 @@ export default function ChatPage() {
       console.error('Load messages error:', error)
       toast({
         title: '加载消息失败',
+        description: error instanceof Error ? error.message : '未知错误',
         variant: 'destructive'
       })
     }
@@ -157,13 +152,7 @@ export default function ChatPage() {
 
   const createNewConversation = async () => {
     try {
-      const res = await fetch('/api/chat/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: '新对话' })
-      })
-      if (!res.ok) throw new Error('Failed to create conversation')
-      const newConv = await res.json()  // API直接返回对话对象
+      const newConv = await chatService.createConversation({ title: '新对话' })
       
       setConversations([newConv, ...conversations])
       setCurrentConversation(newConv)
@@ -179,6 +168,7 @@ export default function ChatPage() {
       console.error('Create conversation error:', error)
       toast({
         title: '创建失败',
+        description: error instanceof Error ? error.message : '未知错误',
         variant: 'destructive'
       })
       return null
@@ -187,8 +177,7 @@ export default function ChatPage() {
 
   const deleteConversation = async (id: string) => {
     try {
-      const res = await fetch(`/api/chat/conversations/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete conversation')
+      await chatService.deleteConversation(id)
       
       setConversations(conversations.filter(c => c.id !== id))
       
@@ -204,6 +193,7 @@ export default function ChatPage() {
       console.error('Delete conversation error:', error)
       toast({
         title: '删除失败',
+        description: error instanceof Error ? error.message : '未知错误',
         variant: 'destructive'
       })
     }
@@ -211,8 +201,7 @@ export default function ChatPage() {
 
   const deleteMessage = async (id: string) => {
     try {
-      const res = await fetch(`/api/chat/messages/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete message')
+      await chatService.deleteMessage(id)
       
       setChatMessages(chatMessages.filter(m => m.id !== id))
       
@@ -223,6 +212,7 @@ export default function ChatPage() {
       console.error('Delete message error:', error)
       toast({
         title: '删除失败',
+        description: error instanceof Error ? error.message : '未知错误',
         variant: 'destructive'
       })
     }
@@ -270,20 +260,13 @@ export default function ChatPage() {
         throw new Error('No conversation available')
       }
       
-      const res = await fetch('/api/chat/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId: conv.id,
-          messages: [{ role: 'user', content: userMessage }]
-        }),
-        signal: controller.signal
-      })
+      // Use chatService to stream chat
+      const stream = await chatService.streamChat({
+        conversationId: conv.id,
+        messages: [{ role: 'user', content: userMessage }]
+      }, controller.signal)
       
-      if (!res.ok) throw new Error('Failed to send message')
-      
-      const reader = res.body?.getReader()
-      if (!reader) throw new Error('No response body')
+      const reader = stream.getReader()
       
       const decoder = new TextDecoder()
       let buffer = ''

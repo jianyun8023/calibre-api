@@ -19,8 +19,10 @@
  */
 
 import { BaseApiService } from './base-service'
-import { UnifiedApiClient, apiClient } from '../api-client-v2'
-import { ErrorHandler, errorHandler } from '../error-handler'
+import type { UnifiedApiClient } from '../api-client-v2'
+import { apiClient } from '../api-client-v2'
+import type { ErrorHandler } from '../error-handler'
+import { errorHandler } from '../error-handler'
 
 // ============================================================================
 // Type Definitions
@@ -46,7 +48,7 @@ export interface Message {
   role: 'user' | 'assistant' | 'system'
   content: string
   created_at: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 /**
@@ -60,9 +62,11 @@ export interface CreateConversationRequest {
  * Chat Stream Request
  */
 export interface ChatStreamRequest {
-  conversation_id: string
-  message: string
-  stream?: boolean
+  conversationId?: string
+  messages: Array<{
+    role: 'user' | 'assistant' | 'system'
+    content: string
+  }>
 }
 
 /**
@@ -98,7 +102,7 @@ export class ChatService extends BaseApiService {
    */
   async getConversations(): Promise<Conversation[]> {
     return this.handleRequest(async () => {
-      return this.client.get<Conversation[]>('/api/conversations')
+      return this.client.get<Conversation[]>('/api/chat/conversations')
     })
   }
 
@@ -117,7 +121,7 @@ export class ChatService extends BaseApiService {
    */
   async createConversation(data: CreateConversationRequest): Promise<Conversation> {
     return this.handleRequest(async () => {
-      return this.client.post<Conversation>('/api/conversations', data)
+      return this.client.post<Conversation>('/api/chat/conversations', data)
     })
   }
 
@@ -133,7 +137,7 @@ export class ChatService extends BaseApiService {
    */
   async deleteConversation(id: string): Promise<void> {
     return this.handleRequest(async () => {
-      return this.client.delete<void>(`/api/conversations/${id}`)
+      return this.client.delete<void>(`/api/chat/conversations/${id}`)
     })
   }
 
@@ -154,7 +158,7 @@ export class ChatService extends BaseApiService {
    */
   async getMessages(conversationId: string): Promise<Message[]> {
     return this.handleRequest(async () => {
-      return this.client.get<Message[]>(`/api/conversations/${conversationId}/messages`)
+      return this.client.get<Message[]>(`/api/chat/conversations/${conversationId}/messages`)
     })
   }
 
@@ -193,7 +197,7 @@ export class ChatService extends BaseApiService {
    */
   async deleteMessage(id: string): Promise<void> {
     return this.handleRequest(async () => {
-      return this.client.delete<void>(`/api/messages/${id}`)
+      return this.client.delete<void>(`/api/chat/messages/${id}`)
     })
   }
 
@@ -205,15 +209,16 @@ export class ChatService extends BaseApiService {
    * Stream chat response
    * 
    * @param request - Chat stream request
+   * @param signal - Optional AbortSignal for cancellation
    * @returns ReadableStream of chat chunks
    * 
    * @example
    * ```typescript
+   * const controller = new AbortController()
    * const stream = await chatService.streamChat({
-   *   conversation_id: 'conv-123',
-   *   message: 'Tell me about TypeScript',
-   *   stream: true
-   * })
+   *   conversationId: 'conv-123',
+   *   messages: [{ role: 'user', content: 'Tell me about TypeScript' }]
+   * }, controller.signal)
    * 
    * const reader = stream.getReader()
    * while (true) {
@@ -223,17 +228,15 @@ export class ChatService extends BaseApiService {
    * }
    * ```
    */
-  async streamChat(request: ChatStreamRequest): Promise<ReadableStream> {
+  async streamChat(request: ChatStreamRequest, signal?: AbortSignal): Promise<ReadableStream> {
     return this.handleRequest(async () => {
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...request,
-          stream: true,
-        }),
+        body: JSON.stringify(request),
+        signal,
       })
 
       if (!response.ok) {
