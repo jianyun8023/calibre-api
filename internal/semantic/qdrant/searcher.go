@@ -39,37 +39,29 @@ func (s *Searcher) EnsureIndexes(ctx context.Context) error {
 	return nil
 }
 
-// GetMaxID retrieves the maximum book ID from Qdrant
+// GetMaxID retrieves the maximum book ID from Qdrant efficiently
 func (s *Searcher) GetMaxID() (uint64, error) {
 	ctx := context.Background()
-	var maxID uint64
-	var scrollOffset *uint64
-	batchSize := 1000
 
-	// Scroll through all points to find the max ID
-	// Qdrant returns points ordered by ID, so the last point will have the max ID
-	for {
-		// We only need IDs, no payload or vectors
-		points, nextOffset, err := s.client.Scroll(ctx, batchSize, scrollOffset, false)
-		if err != nil {
-			return 0, fmt.Errorf("qdrant scroll failed: %w", err)
-		}
-
-		if len(points) > 0 {
-			// Update maxID with the ID of the last point in the batch
-			lastPoint := points[len(points)-1]
-			if lastPoint.ID > maxID {
-				maxID = lastPoint.ID
-			}
-		}
-
-		if nextOffset == nil {
-			break
-		}
-		scrollOffset = nextOffset
+	// Create OrderBy for book_id descending to get the book with the highest ID
+	orderBy := &OrderBy{
+		Key:       "book_id",
+		Direction: "desc",
 	}
 
-	return maxID, nil
+	// Fetch only the top 1 point, we only need the ID, no payload or vectors
+	points, _, err := s.client.ScrollWithOrder(ctx, 1, nil, false, orderBy)
+	if err != nil {
+		return 0, fmt.Errorf("qdrant scroll with order failed: %w", err)
+	}
+
+	if len(points) == 0 {
+		// No books found, return 0
+		return 0, nil
+	}
+
+	// The first point has the max book_id, so its ID is the max ID.
+	return points[0].ID, nil
 }
 
 // Search performs semantic search using vector similarity
