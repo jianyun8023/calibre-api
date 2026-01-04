@@ -131,16 +131,25 @@ func (m *SSEManager) RegisterClient(client *SSEClient) error {
 	}
 
 	m.clients[client.ID] = client
+	fmt.Printf("[SSE DEBUG] Client %s registered, total clients: %d\n", client.ID, len(m.clients))
 
 	// 发送初始任务列表
 	go func() {
 		tasks := m.taskManager.GetTasks()
+		fmt.Printf("[SSE DEBUG] Sending initial task list to client %s, task count: %d\n", client.ID, len(tasks))
+		for i, t := range tasks {
+			fmt.Printf("[SSE DEBUG]   Task[%d]: ID=%s, Type=%s, State=%s\n", i, t.ID, t.Type, t.State)
+		}
 		msg := SSEMessage{
 			Type:      SSEMessageTypeTaskList,
 			Tasks:     tasks,
 			Timestamp: time.Now().Format(time.RFC3339),
 		}
-		_ = client.Send(msg)
+		if err := client.Send(msg); err != nil {
+			fmt.Printf("[SSE DEBUG] Failed to send initial task list to client %s: %v\n", client.ID, err)
+		} else {
+			fmt.Printf("[SSE DEBUG] Initial task list sent successfully to client %s\n", client.ID)
+		}
 	}()
 
 	return nil

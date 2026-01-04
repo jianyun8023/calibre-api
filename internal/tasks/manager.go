@@ -150,12 +150,19 @@ func (m *Manager) GetTasks() []TaskStatus {
 
 	var result []TaskStatus
 
+	fmt.Printf("[TASK DEBUG] GetTasks called: active tasks=%d, history=%d\n", len(m.tasks), len(m.history))
+
 	// Active tasks
-	for _, task := range m.tasks {
-		result = append(result, task.GetStatus())
+	for id, task := range m.tasks {
+		status := task.GetStatus()
+		fmt.Printf("[TASK DEBUG]   Active task: ID=%s, Type=%s, State=%s\n", id, status.Type, status.State)
+		result = append(result, status)
 	}
 
 	// History
+	for i, h := range m.history {
+		fmt.Printf("[TASK DEBUG]   History[%d]: ID=%s, Type=%s, State=%s\n", i, h.ID, h.Type, h.State)
+	}
 	result = append(result, m.history...)
 
 	return result
