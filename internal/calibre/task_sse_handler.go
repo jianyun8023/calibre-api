@@ -1,8 +1,9 @@
 package calibre
 
 import (
+	"encoding/json"
 	"fmt"
-	"net/http"
+	"io"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,20 +12,14 @@ import (
 )
 
 // streamTasks 处理 SSE 任务流请求
+// 使用 Gin 的 c.Stream 方法实现 SSE，确保正确刷新
 func (c *Api) streamTasks(r *gin.Context) {
-	// 设置 SSE 响应头
-	r.Header("Content-Type", "text/event-stream")
-	r.Header("Cache-Control", "no-cache")
-	r.Header("Connection", "keep-alive")
-	r.Header("Access-Control-Allow-Origin", "*")
-	r.Header("X-Accel-Buffering", "no") // 禁用 nginx 缓冲
-
 	fmt.Println("[STREAM DEBUG] streamTasks handler called")
 
 	// 检查 SSE 管理器是否已初始化
 	if c.sseManager == nil {
 		fmt.Println("[STREAM DEBUG] sseManager is nil!")
-		r.JSON(http.StatusServiceUnavailable, gin.H{
+		r.JSON(503, gin.H{
 			"code":    503,
 			"message": "SSE service is not available",
 		})
@@ -41,7 +36,7 @@ func (c *Api) streamTasks(r *gin.Context) {
 	// 注册客户端
 	if err := c.sseManager.RegisterClient(client); err != nil {
 		fmt.Printf("[STREAM DEBUG] Failed to register client: %v\n", err)
-		r.JSON(http.StatusServiceUnavailable, gin.H{
+		r.JSON(503, gin.H{
 			"code":    503,
 			"message": fmt.Sprintf("Failed to register client: %v", err),
 		})
@@ -53,73 +48,64 @@ func (c *Api) streamTasks(r *gin.Context) {
 	// 确保在函数退出时注销客户端
 	defer c.sseManager.UnregisterClient(clientID)
 
-	// 获取响应写入器
-	w := r.Writer
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		r.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "Streaming not supported",
-		})
-		return
-	}
-
-	// 显式写入状态码并立即刷新，确保响应头发送到客户端
-	r.Writer.WriteHeader(http.StatusOK)
-	flusher.Flush()
-
-	// 立即发送初始任务列表（在进入循环之前）
-	initialTasks := tasks.GetManager().GetTasks()
-	fmt.Printf("[STREAM DEBUG] Sending initial task list: %d tasks\n", len(initialTasks))
-	initialMsg := tasks.SSEMessage{
-		Type:      tasks.SSEMessageTypeTaskList,
-		Tasks:     initialTasks,
-		Timestamp: time.Now().Format(time.RFC3339),
-	}
-	if formatted, err := tasks.FormatSSEMessage(initialMsg); err == nil {
-		fmt.Fprint(w, formatted)
-		flusher.Flush()
-		fmt.Printf("[STREAM DEBUG] Initial task list sent successfully\n")
-	}
-
-	// 监听客户端断开连接
-	notify := r.Request.Context().Done()
-
-	// 持续发送消息
-	for {
+	// 使用 Gin 的 Stream 方法，它会自动处理 SSE 的刷新
+	r.Stream(func(w io.Writer) bool {
 		select {
-		case <-notify:
+		case <-r.Request.Context().Done():
 			// 客户端断开连接
-			return
+			fmt.Printf("[STREAM DEBUG] Client %s disconnected\n", clientID)
+			return false
 
 		case msg, ok := <-client.Channel:
 			if !ok {
 				// 通道已关闭
 				fmt.Printf("[STREAM DEBUG] Client %s channel closed\n", clientID)
-				return
+				return false
 			}
 
-			fmt.Printf("[STREAM DEBUG] Received message for client %s: type=%s, tasks=%d\n", clientID, msg.Type, len(msg.Tasks))
+			fmt.Printf("[STREAM DEBUG] Received message for client %s: type=%s\n", clientID, msg.Type)
 
-			// 格式化并发送 SSE 消息
-			formatted, err := tasks.FormatSSEMessage(msg)
+			// 格式化 SSE 消息
+			data, err := json.Marshal(msg)
 			if err != nil {
-				// 记录错误但继续服务其他连接
-				fmt.Printf("Error formatting SSE message: %v\n", err)
-				continue
+				fmt.Printf("Error marshaling SSE message: %v\n", err)
+				return true // 继续等待下一条消息
 			}
 
-			fmt.Printf("[STREAM DEBUG] Sending formatted message to client %s: %s\n", clientID, formatted)
-
-			// 写入响应
-			_, err = fmt.Fprint(w, formatted)
+			// 写入 SSE 格式的数据
+			// SSE 格式: "data: <json>\n\n"
+			sseData := fmt.Sprintf("data: %s\n\n", string(data))
+			_, err = w.Write([]byte(sseData))
 			if err != nil {
-				// 写入失败，客户端可能已断开
-				return
+				fmt.Printf("[STREAM DEBUG] Write error for client %s: %v\n", clientID, err)
+				return false // 写入失败，关闭连接
 			}
 
-			// 立即刷新缓冲区
-			flusher.Flush()
+			fmt.Printf("[STREAM DEBUG] Message sent to client %s\n", clientID)
+			return true // 继续等待下一条消息
+
+		case <-time.After(100 * time.Millisecond):
+			// 短超时，让 Stream 有机会检查连接状态并刷新
+			return true
 		}
+	})
+}
+
+// sendInitialTaskList 发送初始任务列表到客户端
+// 注意：这个函数现在不再使用，初始列表通过 RegisterClient 中的 goroutine 发送
+func sendInitialTaskList(client *tasks.SSEClient) {
+	initialTasks := tasks.GetManager().GetTasks()
+	fmt.Printf("[STREAM DEBUG] Preparing initial task list: %d tasks\n", len(initialTasks))
+
+	msg := tasks.SSEMessage{
+		Type:      tasks.SSEMessageTypeTaskList,
+		Tasks:     initialTasks,
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+
+	if err := client.Send(msg); err != nil {
+		fmt.Printf("[STREAM DEBUG] Failed to send initial task list: %v\n", err)
+	} else {
+		fmt.Printf("[STREAM DEBUG] Initial task list queued for sending\n")
 	}
 }
