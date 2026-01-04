@@ -26,28 +26,56 @@ const handleI18nRouting = createMiddleware({
 
 export default async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  
+
   // 运行时动态读取 API_BASE_URL 环境变量
   const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:8080';
-  
+
   // 代理 /api/* 请求到后端
   if (pathname.startsWith('/api/')) {
     const backendUrl = `${apiBaseUrl}${pathname}${search}`;
-    
+
     console.log(`[Proxy] Proxying ${pathname} -> ${backendUrl}`);
-    
+
+    // SSE 流式端点需要特殊处理，不能使用 rewrite（会缓冲整个响应）
+    if (pathname === '/api/tasks/stream') {
+      console.log(`[Proxy] SSE Stream: ${pathname} -> ${backendUrl}`);
+
+      try {
+        const response = await fetch(backendUrl, {
+          headers: {
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+          },
+        });
+
+        // 直接返回流式响应，不缓冲
+        return new Response(response.body, {
+          status: response.status,
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache, no-transform',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no', // 告诉 Nginx 不要缓冲
+          },
+        });
+      } catch (error) {
+        console.error(`[Proxy] SSE Stream error:`, error);
+        return new Response('SSE connection failed', { status: 502 });
+      }
+    }
+
     return NextResponse.rewrite(new URL(backendUrl));
   }
-  
+
   // 代理 /mcp/* 请求到后端（MCP 协议支持）
   if (pathname.startsWith('/mcp/')) {
     const backendUrl = `${apiBaseUrl}${pathname}${search}`;
-    
+
     console.log(`[Proxy] Proxying ${pathname} -> ${backendUrl}`);
-    
+
     return NextResponse.rewrite(new URL(backendUrl));
   }
-  
+
   // 其他请求使用 next-intl middleware 处理 locale 路由
   return handleI18nRouting(request);
 }
@@ -64,6 +92,6 @@ export const config = {
     // 匹配 /mcp/ 开头的所有路径
     '/mcp/:path*',
     // 匹配其他路径，但排除静态资源
-    '/((?!api|mcp|_next|_vercel|.*\\..*).*)' 
+    '/((?!api|mcp|_next|_vercel|.*\\..*).*)'
   ]
 };
