@@ -38,13 +38,20 @@ export function MetadataEditDialog({ open, onOpenChange, book, onSuccess }: Meta
     try {
       const result = await extractBookMetadata(String(book.id))
       if (result.success && result.data) {
-        // Fill extracted data into form (only fill empty fields)
+        // Fill extracted data into form
+        // For pubdate: use extracted date if current is empty or matches original book date
+        const originalPubdate = book.pubdate ? new Date(book.pubdate).toISOString().split('T')[0] : ""
+        const extractedDate = result.data.publish_date || ''
+
         setFormData(prev => ({
           ...prev,
           isbn: prev.isbn || result.data!.isbn || '',
           authors: prev.authors || result.data!.author || '',
           publisher: prev.publisher || result.data!.publisher || '',
-          pubdate: prev.pubdate || result.data!.publish_date || '',
+          // Fill pubdate if: empty, or still equals original (user hasn't manually changed it)
+          pubdate: (!prev.pubdate || prev.pubdate === originalPubdate) && extractedDate
+            ? extractedDate
+            : prev.pubdate,
           comments: prev.comments || '', // Keep existing comments
         }))
         toast.success(`抽取成功！ISBN: ${result.data.isbn}`)
