@@ -41,32 +41,21 @@
 ## 📚 文档导航
 
 **开发指南**:
-- [AGENTS.md](./AGENTS.md) - AI 助手快速参考（LeanSpec 工作流）
-- [CLAUDE.md](./CLAUDE.md) - 完整的开发指南（架构、代码规范、开发流程）
+- [AGENTS.md](./AGENTS.md) - AI 助手快速参考
 - [CHANGELOG.md](./CHANGELOG.md) - 版本变更历史
-
-**功能规格** (`specs/` 目录):
-- [项目概览](./specs/007-000-project-overview/) - 系统架构和技术栈
-- [书籍管理](./specs/001-book-management/) - CRUD 操作和文件处理
-- [搜索功能](./specs/002-search-functionality/) - 混合搜索策略（语义 + 关键词）
-- [MCP 集成](./specs/003-mcp-integration/) - AI 助手协议支持
-- [智能问答](./specs/004-chat-agent/) - LLM 对话和工具调用
-- [向量搜索](./specs/005-qdrant-vector-search/) - Qdrant 语义搜索
-- [任务管理](./specs/006-task-management/) - 异步任务和性能优化
-- [示例规格](./specs/example-detailed-spec/) - 完整的 PDPI-spec 工作流示例（用于学习）
 
 **用户文档** (`docs/` 目录):
 - [快速开始](./docs/QUICK_START.md) - 部署和配置指南
 - [API 文档](./docs/API_DOCUMENTATION.md) - RESTful API 参考
+- [系统架构](./docs/ARCHITECTURE.md) - 系统架构设计
+- [开发指南](./docs/DEVELOPMENT_GUIDE.md) - 代码规范和开发流程
 - [代码结构](./docs/CODE_STRUCTURE.md) - 项目目录说明
 - [MCP 指南](./docs/MCP_README.md) - MCP 协议集成和使用
 - [MCP Inspector](./docs/features/MCP_INSPECTOR_GUIDE.md) - MCP 工具测试指南
 - [Qdrant 配置](./docs/QDRANT_COLLECTION_SETUP.md) - 向量数据库设置
-- [阶段工作流](./docs/PHASE_WORKFLOW.md) - PDPI-spec 阶段工作流指南（用于复杂功能开发）
 
 **前端开发**:
-- [Vue.js 前端](./app/AGENTS.md) - Vue 3 + Element Plus (旧版)
-- [Next.js 前端](./web-next/README.md) - Next.js 15 + Shadcn/UI (新版, 推荐)
+- [Next.js 前端](./web-next/README.md) - Next.js 15 + Shadcn/UI (推荐)
 
 ## 🚀 快速开始
 
@@ -171,7 +160,7 @@ POST   /api/index/switch             --> 切换搜索索引
 2. 在 MCP 客户端（如 Cursor）中连接到 `http://localhost:8080/mcp`
 3. 所有 API 工具都会包含详细的参数说明
 
-详细文档请参考：[MCP 参数说明改进方案](docs/MCP_SCHEMA_IMPROVEMENT.md)
+详细文档请参考：[MCP 指南](docs/MCP_README.md)
 
 ## 🔨 构建和部署
 
@@ -226,7 +215,7 @@ docker-compose down
 
 前端通过 Docker 内部网络访问后端，环境变量 `API_BASE_URL=http://calibre-api:8080` 配置了服务间通信（代理会自动拼接 `/api/:path*` 路径）。
 
-详细的部署指南和配置说明请参考：[DEPLOYMENT.md](./specs/025-github-ci-docker-compose-update/DEPLOYMENT.md)
+详细的部署指南请参考：[快速开始](./docs/QUICK_START.md)
 
 #### 手动 Docker 部署
 
@@ -348,7 +337,7 @@ TZ=Asia/Shanghai
 **重要提示**:
 - Docker Compose 环境中，前端使用 `http://calibre-api:8080` 访问后端（Docker 服务名）
 - 本地开发环境中，前端使用 `http://localhost:8080` 访问后端
-- 详细配置说明请参考 [DEPLOYMENT.md](./specs/025-github-ci-docker-compose-update/DEPLOYMENT.md)
+- 详细配置说明请参考 [快速开始](./docs/QUICK_START.md)
 
 ## 适配阅读书源
 
@@ -405,7 +394,7 @@ TZ=Asia/Shanghai
 
 - **[快速开始指南](docs/QUICK_START.md)** - 详细的设置和部署指南
 - **[MCP 使用文档](docs/MCP_README.md)** - AI 助手集成的完整说明
-- **[API 参考](docs/API.md)** - RESTful API 接口文档
+- **[API 参考](docs/API_DOCUMENTATION.md)** - RESTful API 接口文档
 
 ## 🎯 使用场景
 

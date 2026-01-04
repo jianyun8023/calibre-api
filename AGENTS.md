@@ -20,9 +20,11 @@ Calibre 电子书管理系统的 AI 原生升级版，提供 RESTful + MCP 双�
 |------|------|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 系统架构 |
 | [DEVELOPMENT_GUIDE.md](docs/DEVELOPMENT_GUIDE.md) | 代码规范 |
+| [CODE_STRUCTURE.md](docs/CODE_STRUCTURE.md) | 代码结构 |
 | [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) | REST API |
 | [MCP_README.md](docs/MCP_README.md) | MCP 协议 |
 | [QUICK_START.md](docs/QUICK_START.md) | 部署指南 |
+| [QDRANT_COLLECTION_SETUP.md](docs/QDRANT_COLLECTION_SETUP.md) | Qdrant 配置 |
 | [CHANGELOG.md](CHANGELOG.md) | 变更历史 |
 
 ## 架构分层
