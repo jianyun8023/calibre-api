@@ -20,22 +20,24 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { 
-  ArrowLeft, 
-  Trash2, 
-  Download, 
-  BookOpen, 
-  Edit, 
-  RefreshCw, 
-  List, 
-  Share2, 
-  User, 
-  Building2, 
-  Calendar, 
-  Star, 
+import {
+  ArrowLeft,
+  Trash2,
+  Download,
+  BookOpen,
+  Edit,
+  RefreshCw,
+  List,
+  Share2,
+  User,
+  Building2,
+  Calendar,
+  Star,
   FileText,
   Tag as TagIcon,
-  Search
+  Search,
+  Hash,
+  ExternalLink
 } from "lucide-react"
 import { formatFileSize, copyToClipboard } from "@/lib/utils"
 import { toast } from "sonner"
@@ -64,7 +66,7 @@ export default function BookDetailPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
-  
+
   const [book, setBook] = useState<Book | null>(null)
   const [loading, setLoading] = useState(true)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -131,13 +133,13 @@ export default function BookDetailPage() {
       toast.error("No download link available")
       return
     }
-    
+
     // 从文件路径提取文件格式
     const pathParts = book.file_path.split('/')
     const lastPart = pathParts[pathParts.length - 1]
     const fileExt = lastPart.split('.').pop() || 'epub'
     const fileName = `${book.title}.${fileExt.toLowerCase()}`
-    
+
     // 创建隐藏的下载链接
     const link = document.createElement('a')
     link.href = book.file_path
@@ -146,21 +148,21 @@ export default function BookDetailPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    
+
     toast.success(`Downloading ${fileName}`)
   }
 
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto space-y-8">
-        <Button variant="ghost" disabled><ArrowLeft className="mr-2 h-4 w-4"/> Back</Button>
+        <Button variant="ghost" disabled><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
         <div className="grid md:grid-cols-3 gap-8">
           <Skeleton className="h-[500px] rounded-lg" />
           <div className="md:col-span-2 space-y-4">
             <Skeleton className="h-12 w-3/4" />
             <Skeleton className="h-6 w-1/2" />
             <div className="space-y-2 mt-8">
-              {Array.from({length: 6}, (_, i) => `skeleton-${i}`).map((key) => (
+              {Array.from({ length: 6 }, (_, i) => `skeleton-${i}`).map((key) => (
                 <Skeleton key={key} className="h-12 w-full" />
               ))}
             </div>
@@ -177,15 +179,15 @@ export default function BookDetailPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <Button variant="ghost" onClick={() => router.back()} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4"/> Back
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back
       </Button>
 
       <div className="grid md:grid-cols-12 gap-8">
         {/* Left Column: Cover */}
         <div className="md:col-span-4 flex flex-col items-center">
           <div className="relative w-full max-w-[300px] aspect-2/3 rounded-lg overflow-hidden shadow-2xl mb-6">
-            <Image 
-              src={book.cover} 
+            <Image
+              src={book.cover}
               alt={book.title}
               fill
               className="object-cover"
@@ -212,7 +214,7 @@ export default function BookDetailPage() {
                 </Button>
               </div>
             </div>
-            
+
             {/* Metadata List */}
             <Card>
               <CardContent className="p-0 divide-y">
@@ -243,6 +245,22 @@ export default function BookDetailPage() {
                   </div>
                 } />
                 <MetaItem icon={FileText} label="Size" value={formatFileSize(book.size || 0)} />
+                <MetaItem icon={Hash} label="ISBN" value={
+                  book.isbn || book.identifiers?.isbn || '-'
+                } />
+                {book.identifiers && Object.keys(book.identifiers).filter(k => k !== 'isbn').length > 0 && (
+                  <MetaItem icon={ExternalLink} label="Identifiers" value={
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(book.identifiers)
+                        .filter(([key]) => key !== 'isbn')
+                        .map(([key, value]) => (
+                          <Badge key={key} variant="outline" className="cursor-pointer hover:bg-accent" title={`${key}: ${value}`}>
+                            {key}: {value}
+                          </Badge>
+                        ))}
+                    </div>
+                  } />
+                )}
               </CardContent>
             </Card>
 
@@ -259,7 +277,7 @@ export default function BookDetailPage() {
                   <Download className="mr-2 h-4 w-4" /> Download
                 </Button>
               )}
-              
+
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" size="icon">
@@ -294,7 +312,7 @@ export default function BookDetailPage() {
           </CardHeader>
           <CardContent>
             {/* eslint-disable-next-line react/no-danger */}
-            <div 
+            <div
               className="prose dark:prose-invert max-w-none"
               dangerouslySetInnerHTML={{ __html: book.comments }}
             />

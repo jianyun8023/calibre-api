@@ -14,6 +14,8 @@ export interface Book {
     // Added for file download
     file_path?: string
     size?: number
+    // Identifiers (isbn, douban, amazon, etc.)
+    identifiers?: Record<string, string>
 }
 
 export interface MetaBook {
