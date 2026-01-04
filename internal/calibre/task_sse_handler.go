@@ -64,6 +64,10 @@ func (c *Api) streamTasks(r *gin.Context) {
 		return
 	}
 
+	// 显式写入状态码并立即刷新，确保响应头发送到客户端
+	r.Writer.WriteHeader(http.StatusOK)
+	flusher.Flush()
+
 	// 立即发送初始任务列表（在进入循环之前）
 	initialTasks := tasks.GetManager().GetTasks()
 	fmt.Printf("[STREAM DEBUG] Sending initial task list: %d tasks\n", len(initialTasks))
