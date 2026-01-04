@@ -21,6 +21,7 @@ type QdrantSyncTask struct {
 	status       TaskStatus
 	mu           sync.RWMutex
 	cancel       context.CancelFunc
+	errors       []string // 记录同步过程中的错误
 }
 
 func NewQdrantSyncTask(id string, mode TaskMode, contentApi *content.Api, qdrantClient *qdrant.Client, searcher *qdrant.Searcher) *QdrantSyncTask {
@@ -30,6 +31,7 @@ func NewQdrantSyncTask(id string, mode TaskMode, contentApi *content.Api, qdrant
 		contentApi:   contentApi,
 		qdrantClient: qdrantClient,
 		searcher:     searcher,
+		errors:       make([]string, 0),
 		status: TaskStatus{
 			ID:        id,
 			Type:      TaskTypeQdrantSync,
@@ -161,7 +163,14 @@ func (t *QdrantSyncTask) Run() error {
 			}
 
 			if err := t.searcher.IndexBooks(ctx, semBooks); err != nil {
+				errMsg := fmt.Sprintf("Batch %d-%d failed: %v", i, end, err)
 				log.Printf("Error indexing batch: %v", err)
+				t.mu.Lock()
+				t.errors = append(t.errors, errMsg)
+				t.status.Message = fmt.Sprintf("Processing batch %d-%d (errors: %d)", i, end, len(t.errors))
+				t.mu.Unlock()
+				// 广播任务进度更新
+				GetManager().BroadcastTaskProgress(t.id)
 				continue
 			}
 		}
@@ -169,8 +178,15 @@ func (t *QdrantSyncTask) Run() error {
 
 	t.mu.Lock()
 	t.status.Progress = 100
-	t.status.State = "completed"
-	t.status.Message = "Sync completed"
+	if len(t.errors) > 0 {
+		t.status.State = "completed"
+		t.status.Message = fmt.Sprintf("Sync completed with %d errors", len(t.errors))
+		// 将错误信息放入 Error 字段，方便前端显示
+		t.status.Error = fmt.Sprintf("%d batches failed. Last error: %s", len(t.errors), t.errors[len(t.errors)-1])
+	} else {
+		t.status.State = "completed"
+		t.status.Message = "Sync completed successfully"
+	}
 	t.mu.Unlock()
 
 	return nil
