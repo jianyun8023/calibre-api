@@ -159,6 +159,25 @@ func (c *Api) startTask(r *gin.Context) {
 	}
 }
 
+// getTask 获取单个任务状态
+func (c *Api) getTask(r *gin.Context) {
+	id := r.Param("id")
+	manager := tasks.GetManager()
+	task, err := manager.GetTask(id)
+	if err != nil {
+		r.JSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	r.JSON(http.StatusOK, gin.H{
+		"code": 200,
+		"data": task,
+	})
+}
+
 // stopTask 停止任务
 func (c *Api) stopTask(r *gin.Context) {
 	id := r.Param("id")

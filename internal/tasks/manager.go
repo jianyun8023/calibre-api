@@ -143,6 +143,27 @@ func (m *Manager) StopTask(id string) error {
 	return nil
 }
 
+// GetTask 获取单个任务状态（先查活动任务，再查历史任务）
+func (m *Manager) GetTask(id string) (*TaskStatus, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// 先查活动任务
+	if task, exists := m.tasks[id]; exists {
+		status := task.GetStatus()
+		return &status, nil
+	}
+
+	// 再查历史任务
+	for _, h := range m.history {
+		if h.ID == id {
+			return &h, nil
+		}
+	}
+
+	return nil, fmt.Errorf("task not found: %s", id)
+}
+
 // GetTasks 获取所有任务状态（包括活动任务和历史任务）
 func (m *Manager) GetTasks() []TaskStatus {
 	m.mu.RLock()

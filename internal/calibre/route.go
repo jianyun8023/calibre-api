@@ -129,6 +129,7 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 
 	// 任务管理
 	base.GET("/tasks", c.listTasks)
+	base.GET("/tasks/:id", c.getTask)
 	base.POST("/tasks/start", c.startTask)
 	base.POST("/tasks/:id/stop", c.stopTask)
 	base.GET("/tasks/stream", c.streamTasks) // SSE 任务流
