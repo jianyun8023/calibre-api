@@ -34,10 +34,11 @@ export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cance
 /**
  * Task Type
  */
-export type TaskType = 
-  | 'qdrant_sync' 
-  | 'toc_extract' 
+export type TaskType =
+  | 'qdrant_sync'
+  | 'toc_extract'
   | 'check_missing'
+  | 'copyright_extract'
   | 'book_operation'
   | string
 

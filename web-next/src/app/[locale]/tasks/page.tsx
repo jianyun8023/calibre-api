@@ -25,6 +25,7 @@ const TASK_TYPES = [
   { value: "qdrant_sync", label: "Qdrant Sync", description: "Sync books to vector database" },
   { value: "toc_extract", label: "TOC Extract", description: "Extract table of contents" },
   { value: "check_missing", label: "Check Missing", description: "Check missing vectors" },
+  { value: "copyright_extract", label: "Copyright Extract", description: "Extract ISBN and metadata from copyright pages" },
 ]
 
 const TASK_MODES = [
@@ -37,14 +38,14 @@ export default function TasksPage() {
   const [selectedMode, setSelectedMode] = useState("incremental")
 
   // Use the new task stream hook
-  const { 
-    tasks, 
-    loading, 
-    connected, 
-    useFallback, 
-    refresh, 
-    startTask: startTaskStream, 
-    stopTask: stopTaskStream 
+  const {
+    tasks,
+    loading,
+    connected,
+    useFallback,
+    refresh,
+    startTask: startTaskStream,
+    stopTask: stopTaskStream
   } = useTaskStream({
     onTaskComplete: (task) => {
       console.log('Task completed:', task.type)
@@ -104,7 +105,7 @@ export default function TasksPage() {
     const seconds = Math.floor(duration / 1000)
     const minutes = Math.floor(seconds / 60)
     const hours = Math.floor(minutes / 60)
-    
+
     if (hours > 0) return `${hours}h ${minutes % 60}m`
     if (minutes > 0) return `${minutes}m ${seconds % 60}s`
     return `${seconds}s`
@@ -200,7 +201,7 @@ export default function TasksPage() {
       {/* Task List */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Active & Recent Tasks</h2>
-        
+
         {loading ? (
           <Card className="glass">
             <CardContent className="py-8 text-center text-muted-foreground">
