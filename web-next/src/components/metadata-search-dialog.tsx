@@ -49,7 +49,7 @@ export function MetadataSearchDialog({ open, onOpenChange, book, onSelect }: Met
 
     try {
       const response = await searchMetadata(query)
-      
+
       // 豆瓣 API 返回格式：{ success: boolean, books: [], message?: string }
       if (response.success && response.books && response.books.length > 0) {
         setSearchResults(response.books)
@@ -153,7 +153,7 @@ export function MetadataSearchDialog({ open, onOpenChange, book, onSelect }: Met
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-1 text-sm text-muted-foreground">
                         <p className="truncate">
                           <span className="font-medium">作者：</span>
-                          {result.author.join(", ")}
+                          {result.author?.join(", ") || "-"}
                         </p>
                         <p className="truncate">
                           <span className="font-medium">出版社：</span>

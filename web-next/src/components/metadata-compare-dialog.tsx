@@ -190,7 +190,7 @@ export function MetadataCompareDialog({ open, onOpenChange, book, doubanMetadata
               </RadioGroup>
             </div>
             <div className="flex flex-wrap gap-2">
-              {(selection.authors === "new" ? doubanMetadata.author : book.authors || []).map((author) => (
+              {(selection.authors === "new" ? (doubanMetadata.author || []) : (book.authors || [])).map((author) => (
                 <div key={author} className="flex items-center gap-2">
                   <Checkbox
                     checked={selectedAuthors.includes(author)}
@@ -336,7 +336,7 @@ export function MetadataCompareDialog({ open, onOpenChange, book, doubanMetadata
               </RadioGroup>
             </div>
             <div className="flex flex-wrap gap-2">
-              {(selection.tags === "new" ? doubanMetadata.tags?.map(t => t.name) : book.tags || []).map((tag) => (
+              {(selection.tags === "new" ? (doubanMetadata.tags?.map(t => t.name) || []) : (book.tags || [])).map((tag) => (
                 <div key={tag} className="flex items-center gap-2">
                   <Checkbox
                     checked={selectedTags.includes(tag)}
