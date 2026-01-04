@@ -45,6 +45,7 @@ func (t *CheckMissingTask) Run() error {
 	t.status.State = "running"
 	t.status.Message = "Fetching all book IDs from Calibre..."
 	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
 
 	// 1. Fetch all IDs from Calibre
 	calibreIDs, err := t.contentApi.GetAllBooksIds("")

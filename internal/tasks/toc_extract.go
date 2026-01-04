@@ -103,6 +103,7 @@ func (t *TocExtractTask) Run() error {
 	t.status.State = "running"
 	t.status.Message = "Loading progress..."
 	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
 
 	// Load progress if exists
 	if err := t.loadProgress(); err != nil {

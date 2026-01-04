@@ -68,6 +68,7 @@ func (t *QdrantSyncTask) Run() error {
 	t.status.State = "running"
 	t.status.Message = "Starting Qdrant sync..."
 	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
 
 	var ids []int64
 

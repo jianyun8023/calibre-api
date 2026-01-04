@@ -108,6 +108,7 @@ func (t *UpdateMetadataTask) Run() error {
 	t.status.State = "running"
 	t.status.Message = fmt.Sprintf("Updating metadata for book %d in Qdrant", t.book.ID)
 	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
 
 	// Perform update (re-index)
 	// Note: IndexBooks handles embedding generation internally
