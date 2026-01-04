@@ -44,6 +44,7 @@ export function MetadataEditDialog({ open, onOpenChange, book, onSuccess }: Meta
           isbn: prev.isbn || result.data!.isbn || '',
           authors: prev.authors || result.data!.author || '',
           publisher: prev.publisher || result.data!.publisher || '',
+          pubdate: prev.pubdate || result.data!.publish_date || '',
           comments: prev.comments || '', // Keep existing comments
         }))
         toast.success(`抽取成功！ISBN: ${result.data.isbn}`)
