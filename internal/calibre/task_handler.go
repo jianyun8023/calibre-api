@@ -150,6 +150,43 @@ func (c *Api) startTask(r *gin.Context) {
 		})
 		return
 
+	case tasks.TaskTypeCopyrightExtract:
+		if c.contentApi == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Content API is not initialized",
+			})
+			return
+		}
+
+		if c.cacheManager == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Cache manager is not initialized",
+			})
+			return
+		}
+
+		manager := tasks.GetManager()
+		taskID, err := manager.StartTask(tasks.TaskTypeCopyrightExtract, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
+			return tasks.NewCopyrightExtractTask(id, tasks.TaskMode(req.Mode), c.contentApi, c.cacheManager)
+		})
+
+		if err != nil {
+			r.JSON(http.StatusConflict, gin.H{
+				"code":    409,
+				"message": err.Error(),
+			})
+			return
+		}
+
+		r.JSON(http.StatusOK, gin.H{
+			"code":    200,
+			"message": "Copyright extraction task started",
+			"data":    gin.H{"id": taskID},
+		})
+		return
+
 	default:
 		r.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
