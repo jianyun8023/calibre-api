@@ -94,19 +94,30 @@ func (a *Api) GetBook(id string, library string) (int64, io.ReadCloser, error) {
 }
 
 func (a *Api) GetAllBooksIds(query string) ([]int64, error) {
-	///ajax/search/library?num=10&offset=0&sort=id&sort_order=desc&query
+	///cdb/cmd/list/0
+	body := []interface{}{
+		[]string{"id"}, // Only get ID field
+		"id",           // Sort by ID
+		"True",         // Ascending
+		query,          // Search query
+		-1,             // No limit
+	}
+
 	var data map[string]interface{}
-	resp, err := a.R().SetResult(&data).
-		SetQueryParam("num", "9999999").
-		SetQueryParam("offset", "0").
-		SetQueryParam("sort", "id").
-		SetQueryParam("sort_order", "asc").
-		SetQueryParam("query", query).
-		Get("/ajax/search/library")
+	resp, err := a.R().SetResult(&data).SetBody(body).Post("/cdb/cmd/list/0")
 	log.Infof("%s %s", resp.Request.URL, resp.Status())
 	if err != nil {
 		return nil, err
 	}
+
+	if data["err"] != nil {
+		errMsg := data["err"].(string)
+		log.Warn("error: " + errMsg)
+		return nil, errors.New("error: " + errMsg)
+	}
+
+	data = data["result"].(map[string]interface{})
+
 	bookIds := make([]int64, 0)
 	bookIdsInterface := data["book_ids"].([]interface{})
 	for _, id := range bookIdsInterface {

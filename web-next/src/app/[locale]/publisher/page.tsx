@@ -3,10 +3,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Pagination } from "@/components/pagination"
-import { apiRequest } from "@/lib/api-client"
-import { useEffect, useState, useMemo } from "react"
+import { bookService } from "@/lib/services"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { Search, Building2 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
 
 const ITEMS_PER_PAGE = 50
 
@@ -17,9 +18,26 @@ export default function PublishersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
 
+  const fetchPublishers = useCallback(async () => {
+    try {
+      const data = await bookService.getPublishers()
+      // Sort alphabetically
+      const sorted = data.sort((a, b) => a.localeCompare(b))
+      setPublishers(sorted)
+      setFilteredPublishers(sorted)
+    } catch (error) {
+      console.error("Failed to fetch publishers:", error)
+      toast.error("Failed to load publishers", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchPublishers()
-  }, [])
+  }, [fetchPublishers])
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -56,20 +74,6 @@ export default function PublishersPage() {
     if (currentPage > 1) {
       setCurrentPage(prev => prev - 1)
       window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
-  }
-
-  const fetchPublishers = async () => {
-    try {
-      const data = await apiRequest<string[]>("/api/publisher")
-      // Sort alphabetically
-      const sorted = data.sort((a, b) => a.localeCompare(b))
-      setPublishers(sorted)
-      setFilteredPublishers(sorted)
-    } catch (error) {
-      console.error("Failed to fetch publishers:", error)
-    } finally {
-      setLoading(false)
     }
   }
 

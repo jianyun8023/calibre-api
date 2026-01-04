@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { apiRequest } from "@/lib/api-client"
+import { bookService } from "@/lib/services"
 import type { Book } from "@/types/book"
 import { useState } from "react"
 import { Search, Save, RefreshCw, FileEdit, Info, AlertCircle } from "lucide-react"
@@ -40,19 +40,22 @@ export default function MetadataManagerPage() {
 
     setSearching(true)
     try {
-      // 使用正确的搜索API参数：q 而不是 query
-      const response = await apiRequest<{ total: number, records: Book[] }>(
-        `/api/search?q=${encodeURIComponent(searchQuery)}&limit=50&offset=0&mode=keyword`
-      )
-      setSearchResults(response.records || [])
-      if (response.records && response.records.length > 0) {
-        toast.success(`Found ${response.records.length} books`)
+      const response = await bookService.searchBooks({
+        q: searchQuery,
+        mode: 'text',
+        pagination: { page: 1, page_size: 50 }
+      })
+      setSearchResults(response.data || [])
+      if (response.data && response.data.length > 0) {
+        toast.success(`Found ${response.data.length} books`)
       } else {
         toast.info("No books found")
       }
     } catch (error) {
       console.error("Search failed:", error)
-      toast.error("Search failed")
+      toast.error("Search failed", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      })
     } finally {
       setSearching(false)
     }
@@ -93,10 +96,7 @@ export default function MetadataManagerPage() {
 
     for (const bookId of selectedBooks) {
       try {
-        await apiRequest(`/api/book/${bookId}/update`, {
-          method: "POST",
-          body: JSON.stringify(batchUpdate),
-        })
+        await bookService.updateBook(String(bookId), batchUpdate)
         successCount++
       } catch (error) {
         errorCount++
