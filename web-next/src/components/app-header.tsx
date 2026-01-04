@@ -4,7 +4,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { Button } from "@/components/ui/button"
 import { Menu } from "lucide-react"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { AppSidebar } from "@/components/app-sidebar"
 import { useState } from "react"
 
@@ -21,7 +21,7 @@ export function AppHeader({ className = '' }: AppHeaderProps = {}) {
         <div className="mr-4 hidden md:flex">
           {/* Desktop Logo or Breadcrumbs could go here */}
         </div>
-        
+
         {/* Mobile Sidebar Trigger */}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
@@ -31,6 +31,10 @@ export function AppHeader({ className = '' }: AppHeaderProps = {}) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="pr-0">
+            <SheetTitle className="sr-only">导航菜单</SheetTitle>
+            <SheetDescription className="sr-only">
+              网站导航侧边栏菜单
+            </SheetDescription>
             <AppSidebar />
           </SheetContent>
         </Sheet>
