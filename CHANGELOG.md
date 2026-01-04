@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Qdrant 增量同步修复** (2025-01-04):
+  - 修复增量同步无法正确同步缺失书籍的问题
+  - **问题原因**: 旧实现使用 `GetMaxID()` 获取 Qdrant 中最大 ID，然后查询 `id:>maxID` 的书籍。这种方法无法发现 ID < maxID 但不在 Qdrant 中的书籍（如之前同步失败的）
+  - **修复方案**: 新实现通过比较 Calibre 和 Qdrant 的所有 ID 差异，找出真正缺失的书籍进行同步
+  - 新增 `findMissingBooks()` 方法，实现正确的增量同步逻辑
+  - 新增单元测试 `TestFindMissingBooksLogic` 验证修复
+
 ### Added
 - **后端架构重构 P2** (Spec 026, 2025-12-12):
   - **Repository 层**:
