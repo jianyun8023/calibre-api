@@ -36,11 +36,11 @@ func TestExtractTextFromHTML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractTextFromHTML(tt.html)
+			got := ExtractTextFromHTML(tt.html)
 			// Normalize newlines for comparison
 			got = strings.TrimSpace(got)
 			if got != tt.expected {
-				t.Errorf("extractTextFromHTML() = %q, want %q", got, tt.expected)
+				t.Errorf("ExtractTextFromHTML() = %q, want %q", got, tt.expected)
 			}
 		})
 	}

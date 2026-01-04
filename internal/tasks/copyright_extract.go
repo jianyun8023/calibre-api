@@ -397,19 +397,19 @@ func (t *CopyrightExtractTask) extractAndUpdateISBN(bookID int64) (*CopyrightMet
 	defer book.Close()
 
 	// 查找版权页
-	copyrightPath, err := findCopyrightPage(book)
+	copyrightPath, err := FindCopyrightPage(book)
 	if err != nil {
 		return nil, err
 	}
 
 	// 读取页面内容
-	content, err := readPageContent(book, copyrightPath)
+	content, err := ReadPageContent(book, copyrightPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read copyright page: %w", err)
 	}
 
 	// 解析元数据
-	metadata, err := parseMetadataFromContent(content)
+	metadata, err := ParseMetadataFromContent(content)
 	if err != nil {
 		return nil, err
 	}
@@ -424,10 +424,10 @@ func (t *CopyrightExtractTask) extractAndUpdateISBN(bookID int64) (*CopyrightMet
 	return metadata, nil
 }
 
-// findCopyrightPage 查找版权页
-func findCopyrightPage(book *epub.Book) (string, error) {
+// FindCopyrightPage 查找版权页
+func FindCopyrightPage(book *epub.Book) (string, error) {
 	// 遍历所有导航点查找版权页
-	for _, point := range flattenNavPoints(book.Ncx.Points) {
+	for _, point := range FlattenNavPoints(book.Ncx.Points) {
 		for _, keyword := range copyrightKeywords {
 			if strings.Contains(point.Text, keyword) {
 				return point.Content.Src, nil
@@ -437,27 +437,27 @@ func findCopyrightPage(book *epub.Book) (string, error) {
 	return "", fmt.Errorf("copyright page not found in TOC")
 }
 
-// flattenNavPoints 展平导航点
-func flattenNavPoints(points []epub.NavPoint) []epub.NavPoint {
+// FlattenNavPoints 展平导航点
+func FlattenNavPoints(points []epub.NavPoint) []epub.NavPoint {
 	var result []epub.NavPoint
 	for _, point := range points {
 		result = append(result, point)
 		if len(point.Points) > 0 {
-			result = append(result, flattenNavPoints(point.Points)...)
+			result = append(result, FlattenNavPoints(point.Points)...)
 		}
 	}
 	return result
 }
 
-// readPageContent 读取页面内容
-func readPageContent(book *epub.Book, pagePath string) (string, error) {
+// ReadPageContent 读取页面内容
+func ReadPageContent(book *epub.Book, pagePath string) (string, error) {
 	// 处理路径中的锚点
 	if idx := strings.Index(pagePath, "#"); idx != -1 {
 		pagePath = pagePath[:idx]
 	}
 
 	// 解析相对路径
-	resolvedPath := resolveContentPath(book, pagePath)
+	resolvedPath := ResolveContentPath(book, pagePath)
 
 	// 打开文件
 	reader, err := book.Open(resolvedPath)
@@ -477,11 +477,11 @@ func readPageContent(book *epub.Book, pagePath string) (string, error) {
 	}
 
 	// 提取纯文本
-	return extractTextFromHTML(string(data)), nil
+	return ExtractTextFromHTML(string(data)), nil
 }
 
-// resolveContentPath 解析内容路径
-func resolveContentPath(book *epub.Book, src string) string {
+// ResolveContentPath 解析内容路径
+func ResolveContentPath(book *epub.Book, src string) string {
 	baseDir := filepath.Dir(book.Container.Rootfile.Path)
 	if baseDir == "." || baseDir == "" {
 		return src
@@ -489,8 +489,8 @@ func resolveContentPath(book *epub.Book, src string) string {
 	return filepath.Join(baseDir, src)
 }
 
-// extractTextFromHTML 从 HTML 中提取纯文本
-func extractTextFromHTML(htmlContent string) string {
+// ExtractTextFromHTML 从 HTML 中提取纯文本
+func ExtractTextFromHTML(htmlContent string) string {
 	// 1. 移除 style 和 script 标签及其内容
 	reScript := regexp.MustCompile(`(?i)<script[^>]*>[\s\S]*?</script>|<style[^>]*>[\s\S]*?</style>`)
 	content := reScript.ReplaceAllString(htmlContent, "")
@@ -520,8 +520,8 @@ func extractTextFromHTML(htmlContent string) string {
 	return strings.TrimSpace(content)
 }
 
-// parseMetadataFromContent 从内容中解析元数据
-func parseMetadataFromContent(content string) (*CopyrightMetadata, error) {
+// ParseMetadataFromContent 从内容中解析元数据
+func ParseMetadataFromContent(content string) (*CopyrightMetadata, error) {
 	metadata := &CopyrightMetadata{}
 
 	// 解析 ISBN（最重要）

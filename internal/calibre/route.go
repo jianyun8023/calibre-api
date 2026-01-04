@@ -26,13 +26,13 @@ type Api struct {
 	baseDir          string
 	http             *client.Client
 	qdrantClient     *qdrant.Client
-	semanticSearcher interface{} // *qdrant.Searcher
+	semanticSearcher interface{}           // *qdrant.Searcher
 	cachedSearcher   *cache.CachedSearcher // 带缓存的搜索器
 	cacheManager     *cache.Manager
 	chatDB           *chat.DB
 	chatAgent        *chat.Agent
 	sseManager       *tasks.SSEManager
-	bookHandler      *BookHandlerV2 // 新的 Handler（使用 Service 层）
+	bookHandler      *BookHandlerV2  // 新的 Handler（使用 Service 层）
 	metricsHandler   *MetricsHandler // 性能指标处理器
 }
 
@@ -117,6 +117,7 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.GET("/read/:id/toc", c.getBookToc)
 	base.GET("/read/:id/file/*path", c.getBookContent)
 	base.GET("/book/content", c.getBookContentByQuery)
+	base.POST("/book/:id/extract-metadata", c.extractMetadata)
 
 	// 搜索相关
 	base.GET("/search", c.search)

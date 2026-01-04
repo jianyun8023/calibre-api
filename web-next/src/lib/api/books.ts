@@ -258,6 +258,54 @@ export async function fetchChapterContent(bookId: string, filePath: string): Pro
 }
 
 // ============================================================================
+// Metadata Extraction
+// ============================================================================
+
+/**
+ * Extracted metadata from book file (copyright page)
+ */
+export interface ExtractedMetadata {
+  book_id: number
+  isbn: string
+  book_title: string
+  author: string
+  translator: string
+  publisher: string
+  publish_date: string
+}
+
+/**
+ * Extract metadata from book file (copyright page)
+ * 
+ * @param bookId - Book ID
+ * @returns Extracted metadata result
+ * 
+ * @example
+ * ```typescript
+ * const result = await extractBookMetadata('123')
+ * if (result.success && result.data) {
+ *   console.log('Extracted ISBN:', result.data.isbn)
+ * }
+ * ```
+ */
+export async function extractBookMetadata(bookId: string): Promise<{
+  success: boolean
+  message: string
+  data: ExtractedMetadata | null
+}> {
+  const response = await fetch(`/api/book/${bookId}/extract-metadata`, {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to extract metadata: ${response.statusText}`)
+  }
+
+  const result = await response.json()
+  return result.data || result
+}
+
+// ============================================================================
 // Deprecated Interface (for backward compatibility)
 // ============================================================================
 

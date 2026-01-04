@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import { updateBook } from "@/lib/api/books"
+import { updateBook, extractBookMetadata } from "@/lib/api/books"
 import type { Book } from "@/types/book"
-import { Save, X } from "lucide-react"
+import { Save, X, FileSearch, Loader2 } from "lucide-react"
 
 interface MetadataEditDialogProps {
   open: boolean
@@ -30,6 +30,33 @@ export function MetadataEditDialog({ open, onOpenChange, book, onSuccess }: Meta
     comments: "",
   })
   const [saving, setSaving] = useState(false)
+  const [extracting, setExtracting] = useState(false)
+
+  // Handle extracting metadata from book file
+  const handleExtract = async () => {
+    setExtracting(true)
+    try {
+      const result = await extractBookMetadata(String(book.id))
+      if (result.success && result.data) {
+        // Fill extracted data into form (only fill empty fields)
+        setFormData(prev => ({
+          ...prev,
+          isbn: prev.isbn || result.data!.isbn || '',
+          authors: prev.authors || result.data!.author || '',
+          publisher: prev.publisher || result.data!.publisher || '',
+          comments: prev.comments || '', // Keep existing comments
+        }))
+        toast.success(`抽取成功！ISBN: ${result.data.isbn}`)
+      } else {
+        toast.warning(result.message || '未能从书籍文件中抽取到元数据')
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error('抽取元数据失败，请确保书籍文件为 EPUB 格式')
+    } finally {
+      setExtracting(false)
+    }
+  }
 
   // Initialize form data when dialog opens
   useEffect(() => {
@@ -51,21 +78,21 @@ export function MetadataEditDialog({ open, onOpenChange, book, onSuccess }: Meta
     setSaving(true)
     try {
       const updateData: Partial<Book> = {}
-      
+
       // Only include changed fields
       if (formData.title !== book.title) {
         updateData.title = formData.title
       }
-      
+
       const authorsArray = formData.authors.split(",").map(a => a.trim()).filter(Boolean)
       if (JSON.stringify(authorsArray) !== JSON.stringify(book.authors)) {
         updateData.authors = authorsArray
       }
-      
+
       if (formData.publisher !== book.publisher) {
         updateData.publisher = formData.publisher
       }
-      
+
       if (formData.pubdate) {
         const newDate = new Date(formData.pubdate).toISOString()
         const oldDate = book.pubdate ? new Date(book.pubdate).toISOString() : ""
@@ -73,23 +100,23 @@ export function MetadataEditDialog({ open, onOpenChange, book, onSuccess }: Meta
           updateData.pubdate = newDate
         }
       }
-      
+
       if (formData.isbn !== book.isbn) {
         updateData.isbn = formData.isbn
       }
-      
+
       const tagsArray = formData.tags.split(",").map(t => t.trim()).filter(Boolean)
       if (JSON.stringify(tagsArray) !== JSON.stringify(book.tags)) {
         updateData.tags = tagsArray
       }
-      
+
       if (formData.rating) {
         const newRating = parseFloat(formData.rating) * 2 // Convert to 0-10 scale
         if (newRating !== book.rating) {
           updateData.rating = newRating
         }
       }
-      
+
       if (formData.comments !== book.comments) {
         updateData.comments = formData.comments
       }
@@ -116,7 +143,23 @@ export function MetadataEditDialog({ open, onOpenChange, book, onSuccess }: Meta
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Metadata</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Edit Metadata</DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExtract}
+              disabled={extracting || saving}
+              title="从书籍文件中抽取元数据（版权页）"
+            >
+              {extracting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileSearch className="w-4 h-4 mr-2" />
+              )}
+              {extracting ? '抽取中...' : '从文件抽取'}
+            </Button>
+          </div>
           <DialogDescription>
             Update the book&apos;s metadata. Changes will be saved to the library.
           </DialogDescription>
