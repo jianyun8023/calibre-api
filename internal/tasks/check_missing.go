@@ -76,18 +76,29 @@ func (t *CheckMissingTask) Run() error {
 			return fmt.Errorf("failed to fetch from Qdrant: %w", err)
 		}
 
+		if len(books) == 0 {
+			break
+		}
+
 		for _, b := range books {
 			qdrantIDs = append(qdrantIDs, b.ID)
 		}
 
-		if nextCursor == "" || len(books) == 0 {
+		if nextCursor == "" {
 			break
 		}
+
+		// Prevent infinite loop
+		if nextCursor == cursor {
+			break
+		}
+
 		cursor = nextCursor
 
 		t.mu.Lock()
 		t.status.Message = fmt.Sprintf("Fetched %d IDs from Qdrant...", len(qdrantIDs))
 		t.mu.Unlock()
+		GetManager().BroadcastTaskProgress(t.id)
 	}
 
 	t.mu.Lock()

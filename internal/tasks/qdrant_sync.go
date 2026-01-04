@@ -173,6 +173,9 @@ func (t *QdrantSyncTask) Run() error {
 				GetManager().BroadcastTaskProgress(t.id)
 				continue
 			}
+
+			// 成功处理一批，更新进度
+			GetManager().BroadcastTaskProgress(t.id)
 		}
 	}
 
@@ -188,6 +191,8 @@ func (t *QdrantSyncTask) Run() error {
 		t.status.Message = "Sync completed successfully"
 	}
 	t.mu.Unlock()
+	// 完成时最后广播一次
+	GetManager().BroadcastTaskProgress(t.id)
 
 	return nil
 }
@@ -197,6 +202,7 @@ func (t *QdrantSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) 
 	t.mu.Lock()
 	t.status.Message = "Incremental sync: fetching Calibre book IDs..."
 	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
 
 	// 1. 获取 Calibre 中所有书籍 ID
 	calibreIDs, err := t.contentApi.GetAllBooksIds("")
@@ -207,6 +213,7 @@ func (t *QdrantSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) 
 	t.mu.Lock()
 	t.status.Message = fmt.Sprintf("Found %d books in Calibre. Fetching Qdrant IDs...", len(calibreIDs))
 	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
 
 	// 2. 获取 Qdrant 中所有书籍 ID
 	qdrantIDMap := make(map[int64]bool)
@@ -225,11 +232,20 @@ func (t *QdrantSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) 
 			return nil, fmt.Errorf("failed to fetch from Qdrant: %w", err)
 		}
 
+		addedNew := false
 		for _, b := range books {
-			qdrantIDMap[b.ID] = true
+			if !qdrantIDMap[b.ID] {
+				qdrantIDMap[b.ID] = true
+				addedNew = true
+			}
 		}
 
 		if nextCursor == "" || len(books) == 0 {
+			break
+		}
+
+		// 防止死循环：如果 cursor 没有变化，或者没有读到新数据（说明一直在读重复数据）
+		if nextCursor == cursor || !addedNew {
 			break
 		}
 		cursor = nextCursor
@@ -238,6 +254,7 @@ func (t *QdrantSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) 
 	t.mu.Lock()
 	t.status.Message = fmt.Sprintf("Comparing %d Calibre books with %d Qdrant vectors...", len(calibreIDs), len(qdrantIDMap))
 	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
 
 	// 3. 找出 Qdrant 中缺失的 ID
 	var missingIDs []int64
