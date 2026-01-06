@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **元数据治理系统 (Governance System)** (2026-01-05):
+  - **后端实现**:
+    - 新增 `internal/governance` 包，提供完整的元数据审核流
+    - 实现基于置信度的自动应用与审核机制（ISBN 校验、上下文评分、复杂度惩罚）
+    - 引入 `metadata_drafts` 和 `metadata_changelog` 表，支持变更追溯与回滚
+    - 改造 `copyright_extract` 任务，支持 `dry-run` 模式，将结果写入审核队列
+    - 提供丰富的统计 API 和会话管理 API
+  - **依赖注入**:
+    - 在 `internal/container` 中完成 Governance 模块的自动初始化
+    - 在 `Api` 中注入治理处理器和业务逻辑服务
+  - **前端集成**:
+    - 定义 `MetadataDraft`, `Changelog`, `ExtractionSession` 等 TypeScript 类型
+    - 实现 `governanceService` 用于对接治理 API
+
 ### Fixed
 - **Qdrant 增量同步修复** (2025-01-04):
   - 修复增量同步无法正确同步缺失书籍的问题

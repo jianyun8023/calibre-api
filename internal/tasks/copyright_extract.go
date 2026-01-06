@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/cache"
+	"github.com/jianyun8023/calibre-api/internal/governance"
 	"github.com/jianyun8023/calibre-api/pkg/content"
 	"github.com/kapmahc/epub"
 )
@@ -38,6 +39,10 @@ type CopyrightExtractTask struct {
 	mu           sync.RWMutex
 	cancel       context.CancelFunc
 	numWorkers   int // 并行工作者数量
+
+	governanceService *governance.Service
+	dryRun            bool
+	sessionID         string
 }
 
 // 正则表达式模式
@@ -86,7 +91,8 @@ func NewCopyrightExtractTask(
 		mode:         mode,
 		contentApi:   contentApi,
 		cacheManager: cacheManager,
-		numWorkers:   5, // 并行工作者数量
+		numWorkers:   5,
+		dryRun:       false,
 		status: TaskStatus{
 			ID:        id,
 			Type:      TaskTypeCopyrightExtract,
@@ -96,6 +102,20 @@ func NewCopyrightExtractTask(
 			Message:   "Initializing copyright extraction...",
 		},
 	}
+}
+
+// NewCopyrightExtractTaskWithGovernance 创建支持治理模式的版权页抽取任务
+func NewCopyrightExtractTaskWithGovernance(
+	id string,
+	mode TaskMode,
+	contentApi *content.Api,
+	cacheManager *cache.Manager,
+	govService *governance.Service,
+) *CopyrightExtractTask {
+	task := NewCopyrightExtractTask(id, mode, contentApi, cacheManager)
+	task.governanceService = govService
+	task.dryRun = true
+	return task
 }
 
 func (t *CopyrightExtractTask) GetStatus() TaskStatus {
@@ -125,7 +145,6 @@ func (t *CopyrightExtractTask) Run() error {
 	t.mu.Unlock()
 	GetManager().BroadcastTaskProgress(t.id)
 
-	// 1. 获取缺少 ISBN 的书籍 ID（倒序）
 	bookIDs, err := t.getBooksWithoutISBN()
 	if err != nil {
 		return fmt.Errorf("failed to get books without ISBN: %w", err)
@@ -146,7 +165,19 @@ func (t *CopyrightExtractTask) Run() error {
 		return nil
 	}
 
-	// 2. 分片处理书籍（每片100本）
+	if t.dryRun && t.governanceService != nil {
+		mode := "dry_run"
+		if t.mode == TaskModeIncremental {
+			mode = "incremental"
+		}
+		session, err := t.governanceService.CreateSession("copyright_extract", mode, totalBooks)
+		if err != nil {
+			log.Printf("Warning: failed to create extraction session: %v", err)
+		} else {
+			t.sessionID = session.ID
+		}
+	}
+
 	const batchSize = 100
 	totalBatches := (totalBooks + batchSize - 1) / batchSize
 	processedTotal := 0
@@ -216,6 +247,12 @@ func (t *CopyrightExtractTask) Run() error {
 		processedTotal, totalBooks, successTotal, failTotal, skippedTotal)
 	t.mu.Unlock()
 	GetManager().BroadcastTaskProgress(t.id)
+
+	if t.sessionID != "" && t.governanceService != nil {
+		if err := t.governanceService.CompleteSession(t.sessionID, governance.SessionStateCompleted, ""); err != nil {
+			log.Printf("Warning: failed to complete session: %v", err)
+		}
+	}
 
 	return nil
 }
@@ -383,45 +420,105 @@ func (t *CopyrightExtractTask) worker(ctx context.Context, jobs <-chan int64, re
 func (t *CopyrightExtractTask) extractAndUpdateISBN(bookID int64) (*CopyrightMetadata, error) {
 	bookIDStr := strconv.FormatInt(bookID, 10)
 
-	// 获取 EPUB 文件
 	epubPath, err := t.cacheManager.GetOrExtractEpub(bookIDStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get EPUB file: %w", err)
 	}
 
-	// 打开 EPUB
 	book, err := epub.Open(epubPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open EPUB: %w", err)
 	}
 	defer book.Close()
 
-	// 查找版权页
 	copyrightPath, err := FindCopyrightPage(book)
 	if err != nil {
 		return nil, err
 	}
 
-	// 读取页面内容
-	content, err := ReadPageContent(book, copyrightPath)
+	pageContent, err := ReadPageContent(book, copyrightPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read copyright page: %w", err)
 	}
 
-	// 解析元数据
-	metadata, err := ParseMetadataFromContent(content)
+	metadata, err := ParseMetadataFromContent(pageContent)
 	if err != nil {
 		return nil, err
 	}
 
-	// 更新 ISBN 到 Calibre
-	if metadata.ISBN != "" {
-		if err := t.updateBookISBN(bookID, metadata.ISBN); err != nil {
-			return metadata, fmt.Errorf("failed to update ISBN: %w", err)
-		}
+	if metadata.ISBN == "" {
+		return nil, fmt.Errorf("ISBN not found in copyright page")
+	}
+
+	if t.dryRun && t.governanceService != nil {
+		return t.createDraftForISBN(bookID, metadata, pageContent)
+	}
+
+	if err := t.updateBookISBN(bookID, metadata.ISBN); err != nil {
+		return metadata, fmt.Errorf("failed to update ISBN: %w", err)
 	}
 
 	return metadata, nil
+}
+
+func (t *CopyrightExtractTask) createDraftForISBN(bookID int64, metadata *CopyrightMetadata, pageContent string) (*CopyrightMetadata, error) {
+	books, err := t.contentApi.GetBookMetaDatas([]int64{bookID}, "library")
+	if err != nil || len(books) == 0 {
+		return metadata, fmt.Errorf("failed to get book metadata: %w", err)
+	}
+	bookMeta := books[0]
+
+	isbnCount := countISBNsInContent(pageContent)
+	ctx := &governance.CopyrightContext{
+		ISBN:        metadata.ISBN,
+		BookTitle:   metadata.BookTitle,
+		Author:      metadata.Author,
+		Publisher:   metadata.Publisher,
+		PublishDate: metadata.PublishDate,
+		PageContent: pageContent,
+		ISBNCount:   isbnCount,
+	}
+
+	bookInfo := &governance.BookInfo{
+		Title:   bookMeta.Title,
+		Authors: bookMeta.Authors,
+	}
+
+	confidenceBreakdown := governance.CalculateConfidence(ctx, bookInfo)
+	flags := governance.DetectFlags(ctx, bookInfo)
+
+	config := t.governanceService.GetConfig()
+	suggestedAction := governance.DetermineSuggestedAction(
+		confidenceBreakdown.FinalScore,
+		config.Confidence.AutoApplyThreshold,
+		config.Confidence.ReviewThreshold,
+	)
+
+	draft := &governance.MetadataDraft{
+		BookID:              bookID,
+		BookTitle:           bookMeta.Title,
+		Field:               governance.FieldISBN,
+		OldValue:            bookMeta.Isbn,
+		NewValue:            metadata.ISBN,
+		Source:              governance.SourceCopyrightExtract,
+		Confidence:          confidenceBreakdown.FinalScore,
+		ConfidenceBreakdown: confidenceBreakdown,
+		Flags:               flags,
+		Status:              governance.DraftStatusPending,
+		SuggestedAction:     suggestedAction,
+		SessionID:           t.sessionID,
+	}
+
+	if err := t.governanceService.CreateDraft(draft); err != nil {
+		return metadata, fmt.Errorf("failed to create draft: %w", err)
+	}
+
+	return metadata, nil
+}
+
+func countISBNsInContent(content string) int {
+	matches := isbnPattern.FindAllString(content, -1)
+	return len(matches)
 }
 
 // FindCopyrightPage 查找版权页

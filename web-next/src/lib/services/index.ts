@@ -18,6 +18,7 @@ export { BookService, bookService } from './book-service'
 export { MetadataService, metadataService } from './metadata-service'
 export { ChatService, chatService } from './chat-service'
 export { TaskService, taskService } from './task-service'
+export { governanceService } from './governance-service'
 
 // Export type definitions
 export type {

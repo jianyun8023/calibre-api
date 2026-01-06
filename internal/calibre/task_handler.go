@@ -8,10 +8,10 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 )
 
-// StartTaskRequest 启动任务请求
 type StartTaskRequest struct {
-	Type string `json:"type"` // "qdrant_sync"
-	Mode string `json:"mode"` // "full" or "incremental"
+	Type   string `json:"type"`
+	Mode   string `json:"mode"`
+	DryRun bool   `json:"dry_run"`
 }
 
 // listTasks 获取任务列表
@@ -169,6 +169,9 @@ func (c *Api) startTask(r *gin.Context) {
 
 		manager := tasks.GetManager()
 		taskID, err := manager.StartTask(tasks.TaskTypeCopyrightExtract, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
+			if req.DryRun && c.governanceService != nil {
+				return tasks.NewCopyrightExtractTaskWithGovernance(id, tasks.TaskMode(req.Mode), c.contentApi, c.cacheManager, c.governanceService)
+			}
 			return tasks.NewCopyrightExtractTask(id, tasks.TaskMode(req.Mode), c.contentApi, c.cacheManager)
 		})
 

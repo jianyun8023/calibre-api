@@ -54,17 +54,22 @@ type Metadata struct {
 }
 
 type Config struct {
-	Address   string             `mapstructure:"address"`
-	Debug     bool               `mapstructure:"debug"`
-	TmpDir    string             `mapstructure:"tmpdir"`
-	Content   Content            `mapstructure:"content"`
-	Metadata  Metadata           `mapstructure:"metadata"`
-	MCP       MCPConfig          `mapstructure:"mcp"`
-	Embedding semantic.Embedding `mapstructure:"embedding"`
-	Qdrant    QdrantConfig       `mapstructure:"qdrant"`
-	Cache     cache.Config       `mapstructure:"cache"`
-	LLM       chat.LLMConfig     `mapstructure:"llm"`
-	Chat      chat.ChatConfig    `mapstructure:"chat"`
+	Address    string             `mapstructure:"address"`
+	Debug      bool               `mapstructure:"debug"`
+	TmpDir     string             `mapstructure:"tmpdir"`
+	Content    Content            `mapstructure:"content"`
+	Metadata   Metadata           `mapstructure:"metadata"`
+	MCP        MCPConfig          `mapstructure:"mcp"`
+	Embedding  semantic.Embedding `mapstructure:"embedding"`
+	Qdrant     QdrantConfig       `mapstructure:"qdrant"`
+	Cache      cache.Config       `mapstructure:"cache"`
+	LLM        chat.LLMConfig     `mapstructure:"llm"`
+	Chat       chat.ChatConfig    `mapstructure:"chat"`
+	Governance GovernanceConfig   `mapstructure:"governance"`
+}
+
+type GovernanceConfig struct {
+	DBPath string `mapstructure:"db_path"`
 }
 
 type QdrantConfig struct {

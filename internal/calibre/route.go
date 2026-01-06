@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/cache"
 	"github.com/jianyun8023/calibre-api/internal/chat"
+	"github.com/jianyun8023/calibre-api/internal/governance"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
@@ -21,19 +22,21 @@ import (
 
 // Api Calibre API 服务
 type Api struct {
-	config           *Config
-	contentApi       *content.Api
-	baseDir          string
-	http             *client.Client
-	qdrantClient     *qdrant.Client
-	semanticSearcher interface{}           // *qdrant.Searcher
-	cachedSearcher   *cache.CachedSearcher // 带缓存的搜索器
-	cacheManager     *cache.Manager
-	chatDB           *chat.DB
-	chatAgent        *chat.Agent
-	sseManager       *tasks.SSEManager
-	bookHandler      *BookHandlerV2  // 新的 Handler（使用 Service 层）
-	metricsHandler   *MetricsHandler // 性能指标处理器
+	config            *Config
+	contentApi        *content.Api
+	baseDir           string
+	http              *client.Client
+	qdrantClient      *qdrant.Client
+	semanticSearcher  interface{}
+	cachedSearcher    *cache.CachedSearcher
+	cacheManager      *cache.Manager
+	chatDB            *chat.DB
+	chatAgent         *chat.Agent
+	sseManager        *tasks.SSEManager
+	bookHandler       *BookHandlerV2
+	metricsHandler    *MetricsHandler
+	governanceHandler *governance.Handler
+	governanceService *governance.Service
 }
 
 // InjectDependencies 注入依赖（用于依赖注入容器）
@@ -79,6 +82,14 @@ func (a *Api) InjectDependencies(
 func (a *Api) InjectChatAgent(agent *chat.Agent) error {
 	a.chatAgent = agent
 	return nil
+}
+
+func (a *Api) InjectGovernanceHandler(handler *governance.Handler) {
+	a.governanceHandler = handler
+}
+
+func (a *Api) InjectGovernanceService(service *governance.Service) {
+	a.governanceService = service
 }
 
 // CreateTocFetcher 创建 TOC 获取函数（用于 Chat Agent）
@@ -152,6 +163,23 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 		base.POST("/metrics/cache/clear", c.metricsHandler.ClearCache)
 		base.POST("/metrics/cache/clean", c.metricsHandler.CleanExpiredCache)
 		base.GET("/health", c.metricsHandler.GetHealthCheck)
+	}
+
+	// 元数据治理
+	if c.governanceHandler != nil {
+		base.GET("/metadata/drafts", c.governanceHandler.ListDrafts)
+		base.GET("/metadata/drafts/:id", c.governanceHandler.GetDraft)
+		base.POST("/metadata/drafts/:id/approve", c.governanceHandler.ApproveDraft)
+		base.POST("/metadata/drafts/:id/reject", c.governanceHandler.RejectDraft)
+		base.PUT("/metadata/drafts/:id", c.governanceHandler.UpdateDraft)
+		base.POST("/metadata/drafts/batch", c.governanceHandler.BatchAction)
+		base.POST("/metadata/apply", c.governanceHandler.ApplyDrafts)
+		base.POST("/metadata/apply-all", c.governanceHandler.ApplyAll)
+		base.GET("/metadata/changelog", c.governanceHandler.ListChangelogs)
+		base.GET("/metadata/changelog/:id", c.governanceHandler.GetChangelog)
+		base.POST("/metadata/changelog/:id/revert", c.governanceHandler.RevertChangelog)
+		base.GET("/metadata/stats", c.governanceHandler.GetStats)
+		base.GET("/metadata/sessions/:id", c.governanceHandler.GetSession)
 	}
 }
 

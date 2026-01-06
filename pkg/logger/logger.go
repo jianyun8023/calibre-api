@@ -82,7 +82,7 @@ func WithContext(ctx context.Context, logger zerolog.Logger) context.Context {
 
 // FromContext 从 context 中获取日志器
 func FromContext(ctx context.Context) zerolog.Logger {
-	return zerolog.Ctx(ctx)
+	return *zerolog.Ctx(ctx)
 }
 
 // WithField 添加字段

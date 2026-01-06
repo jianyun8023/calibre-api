@@ -9,6 +9,7 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/calibre"
 	"github.com/jianyun8023/calibre-api/internal/chat"
 	"github.com/jianyun8023/calibre-api/internal/config"
+	"github.com/jianyun8023/calibre-api/internal/governance"
 	"github.com/jianyun8023/calibre-api/internal/repository"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
@@ -40,6 +41,11 @@ type Container struct {
 	chatDB    *chat.DB
 	chatLLM   llms.Model
 	chatAgent *chat.Agent
+
+	// Governance components
+	governanceDB      *governance.DB
+	governanceService *governance.Service
+	governanceHandler *governance.Handler
 
 	// Repository layer
 	bookRepo repository.BookRepository
@@ -79,6 +85,10 @@ func NewContainer(config *calibre.Config) (*Container, error) {
 		return nil, fmt.Errorf("failed to initialize task manager: %w", err)
 	}
 
+	if err := c.initGovernance(); err != nil {
+		log.Warnf("Governance initialization failed (optional): %v", err)
+	}
+
 	return c, nil
 }
 
@@ -114,6 +124,10 @@ func NewContainerWithConfigManager() (*Container, error) {
 
 	if err := c.initTasks(); err != nil {
 		return nil, fmt.Errorf("failed to initialize task manager: %w", err)
+	}
+
+	if err := c.initGovernance(); err != nil {
+		log.Warnf("Governance initialization failed (optional): %v", err)
 	}
 
 	return c, nil
@@ -261,6 +275,34 @@ func (c *Container) initTasks() error {
 	return nil
 }
 
+func (c *Container) initGovernance() error {
+	dbPath := c.config.Governance.DBPath
+	if dbPath == "" {
+		dbPath = "data/governance.db"
+	}
+
+	db, err := governance.NewDB(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to initialize governance database: %w", err)
+	}
+	c.governanceDB = db
+
+	govConfig := governance.Config{
+		DBPath: dbPath,
+	}
+	govConfig.Confidence.AutoApplyThreshold = 0.80
+	govConfig.Confidence.ReviewThreshold = 0.50
+	govConfig.Batch.DefaultLimit = 100
+	govConfig.Batch.MaxLimit = 1000
+	govConfig.Batch.WorkerCount = 5
+
+	c.governanceService = governance.NewService(db, govConfig, c.contentAPI)
+	c.governanceHandler = governance.NewHandler(c.governanceService)
+
+	log.Infof("Governance system initialized: %s", dbPath)
+	return nil
+}
+
 // BuildAPI 构建 API 实例
 // 这是容器的主要输出，返回完全初始化的 API 实例
 func (c *Container) BuildAPI() (*calibre.Api, error) {
@@ -322,6 +364,12 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		}
 
 		log.Info("Chat agent initialized and injected")
+	}
+
+	if c.governanceHandler != nil {
+		api.InjectGovernanceHandler(c.governanceHandler)
+		api.InjectGovernanceService(c.governanceService)
+		log.Info("Governance handler injected")
 	}
 
 	c.api = api
@@ -418,37 +466,37 @@ func (c *Container) EnableConfigHotReload() error {
 	// 添加配置变更监听器
 	c.configManager.AddWatcherFunc(func(oldConfig, newConfig *calibre.Config) error {
 		log.Infof("config changed, applying updates...")
-		
+
 		// 更新容器中的配置
 		c.config = newConfig
-		
+
 		// 这里可以添加更多的配置变更处理逻辑
 		// 例如：重新初始化某些组件、更新日志级别等
-		
+
 		// 更新日志级别
 		if oldConfig.Debug != newConfig.Debug {
 			log.EnableDebug = newConfig.Debug
 			log.Infof("debug mode changed: %v -> %v", oldConfig.Debug, newConfig.Debug)
 		}
-		
+
 		// 如果 Content Server 地址变更，记录警告
 		if oldConfig.Content.Server != newConfig.Content.Server {
-			log.Warnf("content server changed: %s -> %s (requires restart)", 
+			log.Warnf("content server changed: %s -> %s (requires restart)",
 				oldConfig.Content.Server, newConfig.Content.Server)
 		}
-		
+
 		// 如果 Qdrant 配置变更，记录警告
 		if oldConfig.Qdrant.URL != newConfig.Qdrant.URL {
-			log.Warnf("qdrant URL changed: %s -> %s (requires restart)", 
+			log.Warnf("qdrant URL changed: %s -> %s (requires restart)",
 				oldConfig.Qdrant.URL, newConfig.Qdrant.URL)
 		}
-		
+
 		return nil
 	})
 
 	// 开始监听配置文件变更
 	c.configManager.StartWatching()
-	
+
 	log.Info("config hot reload enabled")
 	return nil
 }
@@ -458,7 +506,7 @@ func (c *Container) ReloadConfig() error {
 	if c.configManager == nil {
 		return fmt.Errorf("config manager not available")
 	}
-	
+
 	return c.configManager.ReloadConfig()
 }
 
