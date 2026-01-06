@@ -5,11 +5,12 @@ import "time"
 type TaskType string
 
 const (
-	TaskTypeQdrantSync     TaskType = "qdrant_sync"
-	TaskTypeTocExtract     TaskType = "toc_extract"
-	TaskTypeDeleteBook     TaskType = "delete_book"
-	TaskTypeUpdateMetadata TaskType = "update_metadata"
-	TaskTypeCheckMissing   TaskType = "check_missing"
+	TaskTypeQdrantSync       TaskType = "qdrant_sync"
+	TaskTypeTocExtract       TaskType = "toc_extract"
+	TaskTypeDeleteBook       TaskType = "delete_book"
+	TaskTypeUpdateMetadata   TaskType = "update_metadata"
+	TaskTypeCheckMissing     TaskType = "check_missing"
+	TaskTypeCopyrightExtract TaskType = "copyright_extract"
 )
 
 type TaskMode string

@@ -23,9 +23,10 @@ const (
 
 // Manager 任务管理器，负责任务的创建、执行和状态跟踪
 type Manager struct {
-	tasks   map[string]Task
-	history []TaskStatus
-	mu      sync.RWMutex
+	tasks      map[string]Task
+	history    []TaskStatus
+	mu         sync.RWMutex
+	sseManager *SSEManager // SSE 管理器，用于实时推送任务更新
 }
 
 var (
@@ -37,11 +38,38 @@ var (
 func GetManager() *Manager {
 	once.Do(func() {
 		instance = &Manager{
-			tasks:   make(map[string]Task),
-			history: make([]TaskStatus, 0),
+			tasks:      make(map[string]Task),
+			history:    make([]TaskStatus, 0),
+			sseManager: nil, // 将在 SetSSEManager 中设置
 		}
 	})
 	return instance
+}
+
+// SetSSEManager 设置 SSE 管理器
+func (m *Manager) SetSSEManager(sseManager *SSEManager) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sseManager = sseManager
+}
+
+// broadcastTaskUpdate 广播任务更新（内部方法）
+func (m *Manager) broadcastTaskUpdate(status TaskStatus) {
+	if m.sseManager != nil {
+		m.sseManager.BroadcastTaskUpdate(status)
+	}
+}
+
+// BroadcastTaskProgress 广播任务进度更新（供任务实现调用）
+func (m *Manager) BroadcastTaskProgress(taskID string) {
+	m.mu.RLock()
+	task, exists := m.tasks[taskID]
+	m.mu.RUnlock()
+
+	if exists {
+		status := task.GetStatus()
+		m.broadcastTaskUpdate(status)
+	}
 }
 
 // StartTask 启动一个新任务
@@ -68,6 +96,10 @@ func (m *Manager) StartTask(t TaskType, mode TaskMode, factory func(string) Task
 	task := factory(id)
 	m.tasks[id] = task
 
+	// 广播任务启动
+	initialStatus := task.GetStatus()
+	m.broadcastTaskUpdate(initialStatus)
+
 	go func() {
 		err := task.Run()
 		m.mu.Lock()
@@ -82,6 +114,9 @@ func (m *Manager) StartTask(t TaskType, mode TaskMode, factory func(string) Task
 			status.State = TaskStateCompleted
 			status.Progress = ProgressComplete
 		}
+
+		// 广播任务完成/失败状态
+		m.broadcastTaskUpdate(status)
 
 		// Move to history
 		m.history = append([]TaskStatus{status}, m.history...)
@@ -108,6 +143,27 @@ func (m *Manager) StopTask(id string) error {
 	return nil
 }
 
+// GetTask 获取单个任务状态（先查活动任务，再查历史任务）
+func (m *Manager) GetTask(id string) (*TaskStatus, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// 先查活动任务
+	if task, exists := m.tasks[id]; exists {
+		status := task.GetStatus()
+		return &status, nil
+	}
+
+	// 再查历史任务
+	for _, h := range m.history {
+		if h.ID == id {
+			return &h, nil
+		}
+	}
+
+	return nil, fmt.Errorf("task not found: %s", id)
+}
+
 // GetTasks 获取所有任务状态（包括活动任务和历史任务）
 func (m *Manager) GetTasks() []TaskStatus {
 	m.mu.RLock()
@@ -115,12 +171,19 @@ func (m *Manager) GetTasks() []TaskStatus {
 
 	var result []TaskStatus
 
+	fmt.Printf("[TASK DEBUG] GetTasks called: active tasks=%d, history=%d\n", len(m.tasks), len(m.history))
+
 	// Active tasks
-	for _, task := range m.tasks {
-		result = append(result, task.GetStatus())
+	for id, task := range m.tasks {
+		status := task.GetStatus()
+		fmt.Printf("[TASK DEBUG]   Active task: ID=%s, Type=%s, State=%s\n", id, status.Type, status.State)
+		result = append(result, status)
 	}
 
 	// History
+	for i, h := range m.history {
+		fmt.Printf("[TASK DEBUG]   History[%d]: ID=%s, Type=%s, State=%s\n", i, h.ID, h.Type, h.State)
+	}
 	result = append(result, m.history...)
 
 	return result

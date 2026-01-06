@@ -88,15 +88,28 @@ func (c *Api) search(r *gin.Context) {
 
 	log.Infof("Qdrant search query: %s, filter: %s, limit: %d, offset: %d, hasFilter: %v", q, filterType, limit, offset, hasFilter)
 
-	// Check if Qdrant searcher is available
-	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
-	if !ok || searcher == nil {
-		log.Warnf("Qdrant searcher not available")
-		r.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Search service not available",
-			"code":  500,
-		})
-		return
+	// 优先使用带缓存的搜索器
+	var searcher interface {
+		Search(query string, limit int) ([]semantic.SearchResult, error)
+		HybridSearchCombined(query string, limit int) ([]semantic.Book, error)
+		SearchByKeyword(keyword, filterType string, limit, offset int) ([]semantic.Book, int64, error)
+	}
+
+	if c.cachedSearcher != nil {
+		searcher = c.cachedSearcher
+		log.Debugf("Using cached searcher for query: %s", q)
+	} else {
+		// 回退到原始 Qdrant 搜索器
+		qdrantSearcher, ok := c.semanticSearcher.(*qdrant.Searcher)
+		if !ok || qdrantSearcher == nil {
+			log.Warnf("Qdrant searcher not available")
+			r.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Search service not available",
+				"code":  500,
+			})
+			return
+		}
+		searcher = qdrantSearcher
 	}
 
 	mode := r.Query("mode")

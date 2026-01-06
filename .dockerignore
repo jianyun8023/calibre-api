@@ -1,0 +1,61 @@
+# Git
+.git
+.gitignore
+.github
+
+# Node.js
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+.pnpm-store
+
+# Next.js
+web-next/.next
+web-next/out
+web-next/node_modules
+web-next/.pnpm-store
+
+# Build artifacts
+dist
+build
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage
+*.test
+*_test.go
+__tests__
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Specs
+specs
+.lean-spec
+.kiro
+
+# Cache
+.cache
+*.cache
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Old frontend (已废弃)
+app/calibre-pages

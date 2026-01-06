@@ -2,12 +2,142 @@ package calibre
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 	"github.com/mark3labs/mcp-go/mcp"
 )
+
+// CompactBook 精简的书籍信息，用于列表场景（搜索、推荐等）
+// 只包含 LLM 回答问题所需的核心字段，减少 token 消耗
+type CompactBook struct {
+	ID      string   `json:"id"`
+	Title   string   `json:"title"`
+	Authors []string `json:"authors"`
+	Score   float64  `json:"score,omitempty"`  // 仅搜索结果包含
+	Rating  float64  `json:"rating,omitempty"` // 书籍评分
+}
+
+// DetailedBook 详细的书籍信息，用于单本书详情场景
+// 包含更多元数据，但仍然精简不必要的字段
+type DetailedBook struct {
+	ID         string   `json:"id"`
+	Title      string   `json:"title"`
+	Authors    []string `json:"authors"`
+	Publisher  string   `json:"publisher,omitempty"`
+	ISBN       string   `json:"isbn,omitempty"`
+	Comments   string   `json:"comments,omitempty"`    // 限制 500 字符
+	TocSummary string   `json:"toc_summary,omitempty"` // TOC 摘要
+	Rating     float64  `json:"rating,omitempty"`
+}
+
+// toCompactBook 将 Book 转换为 CompactBook
+func toCompactBook(book Book, score float32) CompactBook {
+	return CompactBook{
+		ID:      fmt.Sprintf("%d", book.ID),
+		Title:   book.Title,
+		Authors: book.Authors,
+		Score:   float64(score),
+		Rating:  book.Rating,
+	}
+}
+
+// toDetailedBook 将 Book 转换为 DetailedBook
+func toDetailedBook(book Book, toc interface{}) DetailedBook {
+	return DetailedBook{
+		ID:         fmt.Sprintf("%d", book.ID),
+		Title:      book.Title,
+		Authors:    book.Authors,
+		Publisher:  book.Publisher,
+		ISBN:       book.Isbn,
+		Comments:   truncateComments(book.Comments, 500),
+		TocSummary: generateTocSummary(toc),
+		Rating:     book.Rating,
+	}
+}
+
+// truncateComments 截断评论到指定长度
+func truncateComments(comments string, maxLen int) string {
+	if comments == "" {
+		return ""
+	}
+	
+	// 使用 rune 处理多字节字符
+	runes := []rune(comments)
+	if len(runes) <= maxLen {
+		return comments
+	}
+	return string(runes[:maxLen]) + "..."
+}
+
+// generateTocSummary 生成 TOC 摘要
+func generateTocSummary(toc interface{}) string {
+	if toc == nil {
+		return ""
+	}
+	
+	// 尝试将 TOC 转换为 JSON 并提取章节信息
+	tocBytes, err := json.Marshal(toc)
+	if err != nil {
+		return ""
+	}
+	
+	// 解析 TOC 结构
+	var tocData map[string]interface{}
+	if err := json.Unmarshal(tocBytes, &tocData); err != nil {
+		return ""
+	}
+	
+	// 提取章节数量和前 3 章标题
+	if chapters, ok := tocData["chapters"].([]interface{}); ok {
+		chapterCount := len(chapters)
+		if chapterCount == 0 {
+			return "无目录信息"
+		}
+		
+		summary := fmt.Sprintf("共 %d 章", chapterCount)
+		
+		// 提取前 3 章标题
+		maxChapters := 3
+		if chapterCount < maxChapters {
+			maxChapters = chapterCount
+		}
+		
+		if maxChapters > 0 {
+			summary += "，包括："
+			for i := 0; i < maxChapters; i++ {
+				if chapter, ok := chapters[i].(map[string]interface{}); ok {
+					if title, ok := chapter["title"].(string); ok {
+						summary += fmt.Sprintf(" %d. %s", i+1, title)
+						if i < maxChapters-1 {
+							summary += ","
+						}
+					}
+				}
+			}
+			if chapterCount > maxChapters {
+				summary += "..."
+			}
+		}
+		
+		return summary
+	}
+	
+	// 如果无法解析，返回简单描述
+	return "目录信息可用"
+}
+
+// estimateTokens 估算 JSON 数据的 token 数量
+// 简单估算：1 token ≈ 4 字符
+func estimateTokens(data interface{}) int {
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return 0
+	}
+	return len(jsonBytes) / 4
+}
 
 // registerTools 注册所有 MCP 工具
 func (m *MCPServer) registerTools() {
@@ -85,11 +215,16 @@ func (m *MCPServer) handleSearchBooks(ctx context.Context, request mcp.CallToolR
 		"limit": limit,
 	}
 
+	// 记录 token 估算
+	tokens := estimateTokens(books)
+	log.Debugf("MCP Tool search_books: returned %d books, estimated %d tokens (before optimization: ~%d)", 
+		len(books), tokens, len(books)*75)
+
 	return mcp.NewToolResultText(formatToolResult(result)), nil
 }
 
-// performSemanticSearch 执行语义搜索
-func (m *MCPServer) performSemanticSearch(query string, limit int) ([]Book, error) {
+// performSemanticSearch 执行语义搜索，返回精简的 CompactBook
+func (m *MCPServer) performSemanticSearch(query string, limit int) ([]CompactBook, error) {
 	searcher, ok := m.api.semanticSearcher.(*qdrant.Searcher)
 	if !ok || searcher == nil {
 		return nil, fmt.Errorf("search service not available")
@@ -101,10 +236,11 @@ func (m *MCPServer) performSemanticSearch(query string, limit int) ([]Book, erro
 		return nil, err
 	}
 
-	// 转换结果
-	books := make([]Book, 0, len(results))
+	// 转换结果为精简格式
+	books := make([]CompactBook, 0, len(results))
 	for _, result := range results {
-		books = append(books, convertSemanticToBook(result.Book))
+		book := convertSemanticToBook(result.Book)
+		books = append(books, toCompactBook(book, result.Score))
 	}
 
 	return books, nil
@@ -171,32 +307,15 @@ func (m *MCPServer) handleGetBook(ctx context.Context, request mcp.CallToolReque
 		// TOC 获取失败不影响基本信息返回，仅记录日志
 	}
 
-	// 构建完整响应，包含书籍元数据和目录
-	result := map[string]interface{}{
-		"id":            book.ID,
-		"title":         book.Title,
-		"authors":       book.Authors,
-		"publisher":     book.Publisher,
-		"pubdate":       book.PubDate,
-		"isbn":          book.Isbn,
-		"tags":          book.Tags,
-		"rating":        book.Rating,
-		"series_index":  book.SeriesIndex,
-		"comments":      book.Comments,
-		"languages":     book.Languages,
-		"last_modified": book.LastModified,
-		"cover":         book.Cover,
-		"file_path":     book.FilePath,
-		"identifiers":   book.Identifiers,
-		"size":          book.Size,
-	}
+	// 使用 DetailedBook 格式返回精简数据
+	detailedBook := toDetailedBook(book, toc)
 
-	// 如果成功获取目录，添加到结果中
-	if tocErr == nil && toc != nil {
-		result["toc"] = toc
-	}
+	// 记录 token 估算
+	tokens := estimateTokens(detailedBook)
+	log.Debugf("MCP Tool get_book: id=%s, estimated %d tokens (before optimization: ~350)", 
+		id, tokens)
 
-	return mcp.NewToolResultText(formatToolResult(result)), nil
+	return mcp.NewToolResultText(formatToolResult(detailedBook)), nil
 }
 
 // handleUpdateBookMetadata 和 handleDeleteBook 已移除
@@ -276,15 +395,22 @@ func (m *MCPServer) handleRandomBooks(ctx context.Context, request mcp.CallToolR
 		return mcp.NewToolResultError(fmt.Sprintf("random search failed: %v", err)), nil
 	}
 
-	books := make([]Book, 0, len(semanticBooks))
+	// 转换为精简格式
+	books := make([]CompactBook, 0, len(semanticBooks))
 	for _, sb := range semanticBooks {
-		books = append(books, convertSemanticToBook(sb))
+		book := convertSemanticToBook(sb)
+		books = append(books, toCompactBook(book, 0)) // score = 0 for random
 	}
 
 	result := map[string]interface{}{
 		"books": books,
 		"count": len(books),
 	}
+
+	// 记录 token 估算
+	tokens := estimateTokens(books)
+	log.Debugf("MCP Tool random_books: returned %d books, estimated %d tokens (before optimization: ~%d)", 
+		len(books), tokens, len(books)*75)
 
 	return mcp.NewToolResultText(formatToolResult(result)), nil
 }
@@ -319,9 +445,11 @@ func (m *MCPServer) handleRecentBooks(ctx context.Context, request mcp.CallToolR
 		return mcp.NewToolResultError(fmt.Sprintf("get recent books failed: %v", err)), nil
 	}
 
-	books := make([]Book, 0, len(semanticBooks))
+	// 转换为精简格式
+	books := make([]CompactBook, 0, len(semanticBooks))
 	for _, sb := range semanticBooks {
-		books = append(books, convertSemanticToBook(sb))
+		book := convertSemanticToBook(sb)
+		books = append(books, toCompactBook(book, 0)) // score = 0 for recent
 	}
 
 	result := map[string]interface{}{
@@ -330,6 +458,11 @@ func (m *MCPServer) handleRecentBooks(ctx context.Context, request mcp.CallToolR
 		"limit":  limit,
 		"offset": offset,
 	}
+
+	// 记录 token 估算
+	tokens := estimateTokens(books)
+	log.Debugf("MCP Tool recent_books: returned %d books, estimated %d tokens (before optimization: ~%d)", 
+		len(books), tokens, len(books)*75)
 
 	return mcp.NewToolResultText(formatToolResult(result)), nil
 }

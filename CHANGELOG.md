@@ -7,6 +7,162 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Qdrant 增量同步修复** (2025-01-04):
+  - 修复增量同步无法正确同步缺失书籍的问题
+  - **问题原因**: 旧实现使用 `GetMaxID()` 获取 Qdrant 中最大 ID，然后查询 `id:>maxID` 的书籍。这种方法无法发现 ID < maxID 但不在 Qdrant 中的书籍（如之前同步失败的）
+  - **修复方案**: 新实现通过比较 Calibre 和 Qdrant 的所有 ID 差异，找出真正缺失的书籍进行同步
+  - 新增 `findMissingBooks()` 方法，实现正确的增量同步逻辑
+  - 新增单元测试 `TestFindMissingBooksLogic` 验证修复
+
+### Added
+- **后端架构重构 P2** (Spec 026, 2025-12-12):
+  - **Repository 层**:
+    - 新增 `internal/repository` 包，实现数据抽象层
+    - BookRepository 接口（8 个方法：FindByID, FindRecent, FindRandom, FindAllWithCursor, SearchByKeyword, Update, Delete）
+    - QdrantBookRepository 实现
+    - BookServiceV2 使用 Repository 抽象
+    - 完整的四层架构（Handler → Service → Repository → Client）
+  - **结构化日志**:
+    - 新增 `pkg/logger` 包，基于 zerolog 实现
+    - 支持日志级别配置（Debug, Info, Warn, Error, Fatal）
+    - 实现 Gin 日志中间件（请求日志、恢复中间件、Context 日志器）
+    - 结构化日志字段（request_id, method, path, status, latency 等）
+    - 支持美化输出（开发模式）
+  - **路由优化**:
+    - 设计模块化路由结构（books, search, metadata, tasks, chat）
+    - API 版本管理设计（/api/v1）
+    - 路由文档注释完善
+    - 保持向后兼容性
+  - **单元测试**:
+    - 新增 `pkg/errors/errors_test.go`（5 个测试，37.2% 覆盖率）
+    - 新增 `pkg/response/response_test.go`（4 个测试，59.6% 覆盖率）
+    - 所有测试通过（9/9）
+  - **代码质量**:
+    - 新增约 1,200 行高质量代码（P2）
+    - 新增约 180 行测试代码
+    - 编译测试通过，无 linter 错误
+  - **测试验证**:
+    - 编译测试: 100% 通过
+    - 单元测试: 9/9 通过（100%）
+    - errors 包覆盖率: 37.2%
+    - response 包覆盖率: 59.6%
+    - 创建测试验证报告（TEST_REPORT.md）
+
+- **后端架构重构 P1** (Spec 026, 2025-12-12):
+  - **统一错误处理**:
+    - 新增 `pkg/errors` 包，定义 AppError 类型
+    - 错误码分类（1xxx 通用、2xxx 业务、3xxx 搜索、4xxx 任务、5xxx 聊天、6xxx 验证）
+    - 支持错误链、上下文信息、HTTP 状态码映射
+    - 预定义常见业务错误（BookNotFound, SearchServiceNotAvailable, TaskNotFound 等）
+  - **统一响应格式**:
+    - 新增 `pkg/response` 包，定义 Response 和 PaginatedResponse 结构
+    - 实现 Builder 模式构建响应
+    - 便捷函数（Success, Error, Paginated, BadRequest, NotFound, ServiceUnavailable 等）
+    - 自动集成 AppError，提取错误详情和上下文
+  - **Service 层重构**:
+    - 新增 `internal/service` 包，实现三层架构（Handler → Service → Repository）
+    - BookService 接口和实现，包含 7 个业务方法
+    - ContentAPI 接口抽象，解耦 content.Api 依赖
+    - 业务逻辑从 Handler 分离到 Service 层
+  - **Handler 层重构**:
+    - 新增 BookHandlerV2，使用 Service 层和统一响应格式
+    - Handler 只负责 HTTP 请求/响应转换，不包含业务逻辑
+    - 保持向后兼容，支持优雅降级
+  - **依赖注入增强**:
+    - 容器支持创建 Service 和 Handler
+    - contentAPIAdapter 适配器，桥接 content.Api 和 service.ContentAPI
+    - 统一管理所有组件依赖关系
+  - **代码质量**:
+    - 新增约 1,400 行高质量代码
+    - 重构约 500 行代码
+    - 编译测试通过，无 linter 错误
+
+### Added
+- **元数据编辑功能** (Spec 010, 2025-12-10):
+  - 单本书籍元数据编辑对话框
+  - 批量元数据管理页面（含侧边栏导航入口）
+  - **元数据网络搜索功能**：
+    - 从豆瓣搜索书籍元数据（支持 ISBN/书名/作者）
+    - 搜索结果展示（封面、标题、作者、出版社等）
+    - 新旧元数据对比与选择
+    - 每个字段独立选择"新"或"旧"数据
+    - 作者和标签多选支持
+  - 支持编辑：标题、作者、出版社、ISBN、标签、评分、描述
+  - 保存后自动刷新数据
+
+### Fixed
+- **Spec 010 Bug 修复** (2025-12-10):
+  - 修复批量元数据管理页面缺少导航入口
+  - 修复搜索 API 参数错误（`query` → `q`）
+  - 修复元数据搜索 API 响应格式处理（豆瓣 API 格式）
+  
+- **Spec 018 Chat 功能修复** (2025-12-11):
+  - 修复 React Markdown 组件 className 属性错误
+  - 添加 `/api/chat/stream` 路由以支持 AI SDK
+  - 实现 ChatStream 处理器，兼容 Vercel AI SDK v5 SSE 格式
+  - 修复 CGO 编译问题（SQLite 依赖）
+  - 修复 chat.Message ID 类型错误
+  - 修复 SSE 响应格式（`data: ` 前缀）
+  - 添加工具调用支持（书籍搜索和推荐）
+  - 修复聊天窗口布局（固定高度+内容滚动）
+  - 移除发送按钮的 `disabled` 属性（依赖内部逻辑判断）
+  - **测试验证**：
+    - ✅ 后端 API 测试通过（curl）
+    - ✅ 书籍推荐功能正常（返回24本科幻书籍）
+    - ✅ SSE 流式响应正常
+    - ✅ AI 生成回复质量良好
+
+- **前端 UI/UX 优化** (2025-12-10):
+  - **数据展示修复**: 修复 Discover 区域不显示数据的问题
+  - **布局优化**: 从 6 列改为 5 列布局，减少拥挤感，防止图片变形
+  - **动画优化**: 优化刷新 Skeleton 高度（从 320px 到 192px），添加淡入淡出动画
+  - **分页优化**: 
+    - 首页 Recently Added: 10 本 → 15 本（3行满）
+    - All Books 页面: 12 本 → 20 本（4行满）
+    - 优化原则：在主要屏幕尺寸下尽可能满行
+  - **功能修复**:
+    - Settings 页面路由（/setting → /settings）
+    - 书籍详情页编辑/刷新按钮
+    - 下载文件自动添加文件扩展名
+  - **代码质量**: 修复所有 linter 错误，优化 React Hooks 使用
+  - 详见: [specs/009-frontend-migration/OPTIMIZATION_SUMMARY.md](specs/009-frontend-migration/OPTIMIZATION_SUMMARY.md)
+
+- **前端重构**: 从 Vue 3 + Element Plus 迁移到 Next.js 15 + Shadcn/UI
+  - **新目录**: `web-next/` 完整的 Next.js 应用
+  - **技术栈升级**:
+    - Next.js 16 (App Router, Static Export)
+    - React 19 + TypeScript 5
+    - Shadcn/UI (20+ 组件)
+    - Tailwind CSS 4 (Glassmorphism 样式系统)
+  - **核心页面** (6/10 完成):
+    - ✅ Home - 随机推荐 + 最近添加
+    - ✅ Books - 基于游标的分页列表
+    - ✅ Detail - 完整元数据展示和操作
+    - ✅ Read - react-reader EPUB 阅读器
+    - ✅ Search - 关键词/语义/混合三种模式
+    - ✅ Chat - Vercel AI SDK 流式对话
+  - **新增页面** (4/10 新完成):
+    - ✅ Settings - 主题切换、API 配置、阅读器设置、搜索偏好
+    - ✅ Tasks - 任务管理、实时状态更新、进度显示
+    - ✅ Publisher - 出版社列表、统计信息、书籍筛选
+    - ✅ Metadata Manager - 批量元数据编辑、预览变更
+  - **功能亮点**:
+    - Vercel AI SDK 无缝处理 SSE 流式响应
+    - react-reader 集成 (epub.js)，支持阅读进度保存
+    - Glassmorphism 样式系统（暗黑模式适配）
+    - 响应式布局（桌面侧边栏 + 移动端 Sheet 抽屉）
+    - 完整的 Zustand 状态管理
+    - next-themes 主题切换支持
+  - **Shadcn/UI 组件**: 新增 25+ 组件
+    - Button, Card, Input, Label, Textarea
+    - Select, Checkbox, Switch, Progress
+    - Badge, Tabs, Dialog, Sheet
+    - Skeleton, ScrollArea, NavigationMenu
+    - Sonner (Toast 通知)
+  - **静态导出配置**: 支持 Go 后端托管
+  - 详见规格文档: [specs/009-frontend-migration/README.md](specs/009-frontend-migration/README.md)
+
 ### Changed
 - **MCP 搜索优化**: `search_books` 工具改用纯语义搜索
   - 从关键词搜索 (`SearchByKeyword`) 切换到语义搜索 (`Search`)

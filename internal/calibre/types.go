@@ -56,7 +56,6 @@ type Metadata struct {
 type Config struct {
 	Address   string             `mapstructure:"address"`
 	Debug     bool               `mapstructure:"debug"`
-	StaticDir string             `mapstructure:"staticDir"`
 	TmpDir    string             `mapstructure:"tmpdir"`
 	Content   Content            `mapstructure:"content"`
 	Metadata  Metadata           `mapstructure:"metadata"`

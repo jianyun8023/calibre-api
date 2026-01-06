@@ -21,6 +21,7 @@ type QdrantSyncTask struct {
 	status       TaskStatus
 	mu           sync.RWMutex
 	cancel       context.CancelFunc
+	errors       []string // 记录同步过程中的错误
 }
 
 func NewQdrantSyncTask(id string, mode TaskMode, contentApi *content.Api, qdrantClient *qdrant.Client, searcher *qdrant.Searcher) *QdrantSyncTask {
@@ -30,6 +31,7 @@ func NewQdrantSyncTask(id string, mode TaskMode, contentApi *content.Api, qdrant
 		contentApi:   contentApi,
 		qdrantClient: qdrantClient,
 		searcher:     searcher,
+		errors:       make([]string, 0),
 		status: TaskStatus{
 			ID:        id,
 			Type:      TaskTypeQdrantSync,
@@ -66,45 +68,29 @@ func (t *QdrantSyncTask) Run() error {
 	t.status.State = "running"
 	t.status.Message = "Starting Qdrant sync..."
 	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
 
-	// Determine query based on mode
-	query := ""
-	if t.mode == TaskModeIncremental {
-		// Get max book ID from Qdrant
-		// Since Qdrant points have integer IDs (uint64), we can try to find the max ID
-		// But Qdrant doesn't support "max" aggregation easily on IDs directly via API unless we scroll/sort
-		// For now, let's assume full sync or implement a way to get max ID if needed.
-		// Or we can use a simple "scroll" with sort by ID desc limit 1
+	var ids []int64
 
-		// For simplicity in this migration, let's just do full sync if incremental is requested but we can't determine offset easily
-		// Or we can implement GetMaxID in searcher
-
-		// Let's try to get max ID using searcher if available
-		// Assuming searcher has a method for this or we add one.
-		// For now, let's just log that we are doing full sync or implement a basic check
-
-		t.mu.Lock()
-		t.status.Message = "Incremental sync requested. Checking Qdrant state..."
-		t.mu.Unlock()
-
-		if t.searcher != nil {
-			maxID, err := t.searcher.GetMaxID()
+	if t.mode == TaskModeIncremental && t.searcher != nil {
+		// 增量同步：比较 Calibre 和 Qdrant 的 ID 差异，同步缺失的书籍
+		var err error
+		ids, err = t.findMissingBooks(ctx)
+		if err != nil {
+			log.Printf("Failed to find missing books: %v. Falling back to full sync.", err)
+			// 回退到全量同步
+			ids, err = t.contentApi.GetAllBooksIds("")
 			if err != nil {
-				log.Printf("Failed to get max ID from Qdrant: %v. Falling back to full sync.", err)
-			} else {
-				if maxID > 0 {
-					query = fmt.Sprintf("id:>%d", maxID)
-					t.mu.Lock()
-					t.status.Message = fmt.Sprintf("Incremental sync: fetching books with ID > %d", maxID)
-					t.mu.Unlock()
-				}
+				return fmt.Errorf("failed to get all book IDs: %w", err)
 			}
 		}
-	}
-
-	ids, err := t.contentApi.GetAllBooksIds(query)
-	if err != nil {
-		return err
+	} else {
+		// 全量同步
+		var err error
+		ids, err = t.contentApi.GetAllBooksIds("")
+		if err != nil {
+			return fmt.Errorf("failed to get all book IDs: %w", err)
+		}
 	}
 
 	t.mu.Lock()
@@ -112,6 +98,11 @@ func (t *QdrantSyncTask) Run() error {
 	t.mu.Unlock()
 
 	if len(ids) == 0 {
+		t.mu.Lock()
+		t.status.Progress = 100
+		t.status.State = "completed"
+		t.status.Message = "No books to sync"
+		t.mu.Unlock()
 		return nil
 	}
 
@@ -173,17 +164,108 @@ func (t *QdrantSyncTask) Run() error {
 			}
 
 			if err := t.searcher.IndexBooks(ctx, semBooks); err != nil {
+				errMsg := fmt.Sprintf("Batch %d-%d failed: %v", i, end, err)
 				log.Printf("Error indexing batch: %v", err)
+				t.mu.Lock()
+				t.errors = append(t.errors, errMsg)
+				t.status.Message = fmt.Sprintf("Processing batch %d-%d (errors: %d)", i, end, len(t.errors))
+				t.mu.Unlock()
+				// 广播任务进度更新
+				GetManager().BroadcastTaskProgress(t.id)
 				continue
 			}
+
+			// 成功处理一批，更新进度
+			GetManager().BroadcastTaskProgress(t.id)
 		}
 	}
 
 	t.mu.Lock()
 	t.status.Progress = 100
-	t.status.State = "completed"
-	t.status.Message = "Sync completed"
+	if len(t.errors) > 0 {
+		t.status.State = "completed"
+		t.status.Message = fmt.Sprintf("Sync completed with %d errors", len(t.errors))
+		// 将错误信息放入 Error 字段，方便前端显示
+		t.status.Error = fmt.Sprintf("%d batches failed. Last error: %s", len(t.errors), t.errors[len(t.errors)-1])
+	} else {
+		t.status.State = "completed"
+		t.status.Message = "Sync completed successfully"
+	}
 	t.mu.Unlock()
+	// 完成时最后广播一次
+	GetManager().BroadcastTaskProgress(t.id)
 
 	return nil
+}
+
+// findMissingBooks 比较 Calibre 和 Qdrant 的 ID，返回 Qdrant 中缺失的书籍 ID
+func (t *QdrantSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) {
+	t.mu.Lock()
+	t.status.Message = "Incremental sync: fetching Calibre book IDs..."
+	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
+
+	// 1. 获取 Calibre 中所有书籍 ID
+	calibreIDs, err := t.contentApi.GetAllBooksIds("")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get calibre IDs: %w", err)
+	}
+
+	t.mu.Lock()
+	t.status.Message = fmt.Sprintf("Found %d books in Calibre. Fetching Qdrant IDs...", len(calibreIDs))
+	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
+
+	// 2. 获取 Qdrant 中所有书籍 ID
+	qdrantIDMap := make(map[int64]bool)
+	cursor := ""
+	limit := 1000
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		books, _, nextCursor, err := t.searcher.GetAllWithCursor(limit, cursor)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch from Qdrant: %w", err)
+		}
+
+		addedNew := false
+		for _, b := range books {
+			if !qdrantIDMap[b.ID] {
+				qdrantIDMap[b.ID] = true
+				addedNew = true
+			}
+		}
+
+		if nextCursor == "" || len(books) == 0 {
+			break
+		}
+
+		// 防止死循环：如果 cursor 没有变化，或者没有读到新数据（说明一直在读重复数据）
+		if nextCursor == cursor || !addedNew {
+			break
+		}
+		cursor = nextCursor
+	}
+
+	t.mu.Lock()
+	t.status.Message = fmt.Sprintf("Comparing %d Calibre books with %d Qdrant vectors...", len(calibreIDs), len(qdrantIDMap))
+	t.mu.Unlock()
+	GetManager().BroadcastTaskProgress(t.id)
+
+	// 3. 找出 Qdrant 中缺失的 ID
+	var missingIDs []int64
+	for _, id := range calibreIDs {
+		if !qdrantIDMap[id] {
+			missingIDs = append(missingIDs, id)
+		}
+	}
+
+	log.Printf("Incremental sync: found %d missing books out of %d total", len(missingIDs), len(calibreIDs))
+
+	return missingIDs, nil
 }

@@ -29,4 +29,6 @@ app/calibre-pages/node_modules
 calibre-pages/.vscode
 calibre-api
 *.log
+nohup.out
 .cursor/mcp.json
+config.yaml

@@ -1,0 +1,104 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { BookGrid } from "@/components/book-grid"
+import { Pagination } from "@/components/pagination"
+import { fetchAllBooks } from "@/lib/api/books"
+import type { Book } from "@/types/book"
+
+export default function BooksClient({ locale }: { locale: string }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  const [books, setBooks] = useState<Book[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  
+  // State from URL or defaults
+  const cursor = searchParams.get('cursor') || ''
+  const page = parseInt(searchParams.get('page') || '1', 10)
+  // 优化分页数量：20 在 5列(4行), 4列(5行), 2列(10行) 下都是满行
+  const limit = 20
+
+  // Internal state for next cursor
+  const [nextCursor, setNextCursor] = useState('')
+  // History stack for previous cursors to enable "Previous" button
+  const [cursorHistory, setCursorStack] = useState<string[]>([])
+
+  useEffect(() => {
+    const loadBooks = async () => {
+      setLoading(true)
+      try {
+        const data = await fetchAllBooks(limit, cursor)
+        setBooks(data.records || [])
+        setTotal(data.total)
+        setNextCursor(data.next_cursor || '')
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadBooks()
+  }, [cursor, limit])
+
+  const handleNext = () => {
+    if (nextCursor) {
+      setCursorStack([...cursorHistory, cursor])
+      updateUrl(nextCursor, page + 1)
+    }
+  }
+
+  const handlePrev = () => {
+    if (page > 1) {
+      const prevCursor = cursorHistory[cursorHistory.length - 1] || ''
+      setCursorStack(cursorHistory.slice(0, -1))
+      updateUrl(prevCursor, page - 1)
+    }
+  }
+
+  const updateUrl = (newCursor: string, newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (newCursor) params.set('cursor', newCursor)
+    else params.delete('cursor')
+    params.set('page', newPage.toString())
+    
+    router.push(`/${locale}/books?${params.toString()}`)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">All Books</h1>
+        <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-1 rounded-md">
+          Total: {total}
+        </div>
+      </div>
+
+      <div className="min-h-[500px]">
+        <BookGrid
+          books={books}
+          loading={loading}
+          skeletonCount={limit}
+          moreInfo
+          emptyMessage="No books found."
+        />
+      </div>
+
+      {/* Pagination */}
+      {!loading && books.length > 0 && (
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(total / limit)}
+          hasNext={!!nextCursor}
+          hasPrev={page > 1}
+          onNext={handleNext}
+          onPrev={handlePrev}
+          loading={loading}
+        />
+      )}
+    </div>
+  )
+}

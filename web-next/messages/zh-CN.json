@@ -1,0 +1,95 @@
+{
+  "common": {
+    "search": "搜索",
+    "loading": "加载中...",
+    "error": "错误",
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "close": "关闭",
+    "confirm": "确认",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步",
+    "submit": "提交",
+    "reset": "重置"
+  },
+  "nav": {
+    "home": "首页",
+    "allBooks": "所有书籍",
+    "search": "搜索",
+    "metadataManager": "元数据管理",
+    "chatAgent": "智能对话",
+    "tasks": "任务",
+    "publishers": "出版社",
+    "settings": "设置"
+  },
+  "books": {
+    "title": "书籍列表",
+    "author": "作者",
+    "publisher": "出版社",
+    "rating": "评分",
+    "tags": "标签",
+    "series": "系列",
+    "language": "语言",
+    "publishDate": "出版日期",
+    "addedDate": "添加日期",
+    "size": "大小",
+    "format": "格式",
+    "noBooks": "暂无书籍",
+    "loadMore": "加载更多",
+    "viewDetails": "查看详情",
+    "download": "下载",
+    "read": "阅读"
+  },
+  "search": {
+    "placeholder": "搜索书籍、作者、出版社...",
+    "filters": "筛选",
+    "sortBy": "排序方式",
+    "results": "搜索结果",
+    "noResults": "未找到结果",
+    "searching": "搜索中..."
+  },
+  "chat": {
+    "title": "智能对话",
+    "placeholder": "输入您的问题...",
+    "send": "发送",
+    "newChat": "新对话",
+    "history": "历史记录",
+    "clearHistory": "清空历史"
+  },
+  "settings": {
+    "title": "设置",
+    "general": "通用",
+    "appearance": "外观",
+    "language": "语言",
+    "theme": "主题",
+    "lightMode": "浅色模式",
+    "darkMode": "深色模式",
+    "systemMode": "跟随系统"
+  },
+  "tasks": {
+    "title": "任务",
+    "status": "状态",
+    "progress": "进度",
+    "pending": "等待中",
+    "running": "运行中",
+    "completed": "已完成",
+    "failed": "失败",
+    "cancel": "取消任务"
+  },
+  "metadata": {
+    "title": "元数据管理",
+    "edit": "编辑元数据",
+    "update": "更新",
+    "fetch": "获取元数据",
+    "manual": "手动编辑"
+  },
+  "publisher": {
+    "title": "出版社",
+    "name": "名称",
+    "bookCount": "书籍数量",
+    "viewBooks": "查看书籍"
+  }
+}

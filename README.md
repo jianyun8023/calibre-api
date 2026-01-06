@@ -18,39 +18,44 @@
 - **双模式部署** - 支持集成模式和独立模式
 - **详细参数说明** - 为所有 API 接口提供完整的参数文档
 
+### 🎨 现代化前端
+- **两套前端实现**:
+  - **Next.js 15 + Shadcn/UI** (推荐，现代化设计)
+    - React 19 + TypeScript 5
+    - Tailwind CSS 4 + Glassmorphism
+    - Vercel AI SDK 流式对话
+    - react-reader EPUB 阅读器
+    - 10 个完整页面（首页、书籍列表、详情、阅读器、搜索、对话、设置、任务、出版社、元数据管理）
+  - **Vue.js 3 + Element Plus** (旧版，稳定维护)
+- **响应式设计** - 支持桌面端和移动端
+- **暗黑模式** - 自动适配系统主题
+
 ### 🔧 开发特性
 - RESTful API 接口
 - Docker 容器化部署
 - 多平台二进制发布
 - 完整的 CI/CD 流程
+- 静态文件托管（支持 Vue/Next.js）
 
 
 ## 📚 文档导航
 
 **开发指南**:
-- [AGENTS.md](./AGENTS.md) - AI 助手快速参考（LeanSpec 工作流）
-- [CLAUDE.md](./CLAUDE.md) - 完整的开发指南（架构、代码规范、开发流程）
+- [AGENTS.md](./AGENTS.md) - AI 助手快速参考
 - [CHANGELOG.md](./CHANGELOG.md) - 版本变更历史
-
-**功能规格** (`specs/` 目录):
-- [项目概览](./specs/007-000-project-overview/) - 系统架构和技术栈
-- [书籍管理](./specs/001-book-management/) - CRUD 操作和文件处理
-- [搜索功能](./specs/002-search-functionality/) - 混合搜索策略（语义 + 关键词）
-- [MCP 集成](./specs/003-mcp-integration/) - AI 助手协议支持
-- [智能问答](./specs/004-chat-agent/) - LLM 对话和工具调用
-- [向量搜索](./specs/005-qdrant-vector-search/) - Qdrant 语义搜索
-- [任务管理](./specs/006-task-management/) - 异步任务和性能优化
 
 **用户文档** (`docs/` 目录):
 - [快速开始](./docs/QUICK_START.md) - 部署和配置指南
 - [API 文档](./docs/API_DOCUMENTATION.md) - RESTful API 参考
+- [系统架构](./docs/ARCHITECTURE.md) - 系统架构设计
+- [开发指南](./docs/DEVELOPMENT_GUIDE.md) - 代码规范和开发流程
 - [代码结构](./docs/CODE_STRUCTURE.md) - 项目目录说明
 - [MCP 指南](./docs/MCP_README.md) - MCP 协议集成和使用
 - [MCP Inspector](./docs/features/MCP_INSPECTOR_GUIDE.md) - MCP 工具测试指南
 - [Qdrant 配置](./docs/QDRANT_COLLECTION_SETUP.md) - 向量数据库设置
 
 **前端开发**:
-- [前端指南](./app/AGENTS.md) - Vue.js 3 开发规范
+- [Next.js 前端](./web-next/README.md) - Next.js 15 + Shadcn/UI (推荐)
 
 ## 🚀 快速开始
 
@@ -155,7 +160,7 @@ POST   /api/index/switch             --> 切换搜索索引
 2. 在 MCP 客户端（如 Cursor）中连接到 `http://localhost:8080/mcp`
 3. 所有 API 工具都会包含详细的参数说明
 
-详细文档请参考：[MCP 参数说明改进方案](docs/MCP_SCHEMA_IMPROVEMENT.md)
+详细文档请参考：[MCP 指南](docs/MCP_README.md)
 
 ## 🔨 构建和部署
 
@@ -176,20 +181,62 @@ go build -o calibre-mcp-server ./cmd/mcp-server
 ```
 
 ### Docker 部署
+
+#### 使用 Docker Compose（推荐）
+
+项目提供了完整的 Docker Compose 配置，支持前后端分离部署：
+
 ```bash
-# 构建 Docker 镜像
-docker build -t calibre-api:latest .
+# 1. 基础部署（前端 + 后端）
+docker-compose up -d
 
-# 运行容器（HTTP 模式）
+# 2. 完整部署（包含 Qdrant 向量数据库）
+docker-compose --profile qdrant up -d
+
+# 3. 查看服务状态
+docker-compose ps
+
+# 4. 查看日志
+docker-compose logs -f
+
+# 5. 停止服务
+docker-compose down
+```
+
+**服务访问**:
+- 前端 (Next.js): http://localhost:3000
+- 后端 API (Go): http://localhost:8080
+- Qdrant 管理界面: http://localhost:6333/dashboard (使用 --profile qdrant 时)
+
+**架构说明**:
+- `calibre-api`: Go 后端服务，提供 RESTful API
+- `calibre-web`: Next.js 前端服务，提供现代化 UI
+- `qdrant`: 可选的向量数据库服务（使用 profile 启用）
+
+前端通过 Docker 内部网络访问后端，环境变量 `API_BASE_URL=http://calibre-api:8080` 配置了服务间通信（代理会自动拼接 `/api/:path*` 路径）。
+
+详细的部署指南请参考：[快速开始](./docs/QUICK_START.md)
+
+#### 手动 Docker 部署
+
+```bash
+# 构建后端镜像
+docker build -t calibre-api:latest -f Dockerfile .
+
+# 构建前端镜像
+docker build -t calibre-web:latest -f web-next/Dockerfile ./web-next
+
+# 运行后端容器
 docker run -d -p 8080:8080 \
-  -v $(pwd)/config.yaml:/app/config.yaml \
+  -e CALIBRE_CONTENT_SERVER=https://lib.pve.icu \
+  -v calibre_data:/data \
   calibre-api:latest
 
-# 运行容器（MCP 模式）
-docker run -d \
-  -e MCP_MODE=true \
-  -v $(pwd)/config.yaml:/app/config.yaml \
-  calibre-api:latest
+# 运行前端容器
+docker run -d -p 3000:3000 \
+  -e API_BASE_URL=http://calibre-api:8080 \
+  --link calibre-api \
+  calibre-web:latest
 ```
 
 ### 预构建二进制
@@ -242,30 +289,55 @@ mcp:
 
 环境变量优先于配置文件，可以使用环境变量覆盖配置文件中的参数
 
-```text
+#### 后端环境变量 (calibre-api)
+
+```bash
 # 基础配置
 CALIBRE_ADDRESS=:8080
 CALIBRE_DEBUG=false
-CALIBRE_STATICDIR=/app/static
-CALIBRE_TMP_DIR=.files
+CALIBRE_TMPDIR=/tmp
+CALIBRE_SEARCH_INDEX=books
 
-# Calibre Content Server
+# Calibre Content Server（必需）
 CALIBRE_CONTENT_SERVER=https://your-calibre-server.com
 
-# Qdrant 配置
-CALIBRE_QDRANT_URL=http://localhost:6333
-CALIBRE_QDRANT_COLLECTION=books
-CALIBRE_QDRANT_TIMEOUT=30
+# Qdrant 配置（可选，启用向量搜索时配置）
+CALIBRE_QDRANT_URL=http://qdrant:6333
+CALIBRE_QDRANT_API_KEY=your-api-key
+
+# OpenAI 配置（可选，启用 AI 功能时配置）
+OPENAI_API_KEY=sk-your-api-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4
 
 # 元数据服务
-CALIBRE_METADATA_DOUBANURL=https://api.douban.com
+CALIBRE_METADATA_DOUBANURL=http://your-douban-api
 
 # MCP 配置
 CALIBRE_MCP_ENABLED=false
-CALIBRE_MCP_BASE_URL=http://localhost:8080
 MCP_MODE=true                    # 快速启用 MCP 模式
-CALIBRE_MCP_MODE=true           # 快速启用 MCP 模式
 ```
+
+#### 前端环境变量 (calibre-web)
+
+```bash
+# API 配置（必需）
+# Docker Compose 环境使用服务名（基础 URL，不包含路径）
+API_BASE_URL=http://calibre-api:8080
+
+# 本地开发环境使用 localhost
+# API_BASE_URL=http://localhost:8080
+
+# Node.js 配置
+NODE_ENV=production
+PORT=3000
+TZ=Asia/Shanghai
+```
+
+**重要提示**:
+- Docker Compose 环境中，前端使用 `http://calibre-api:8080` 访问后端（Docker 服务名）
+- 本地开发环境中，前端使用 `http://localhost:8080` 访问后端
+- 详细配置说明请参考 [快速开始](./docs/QUICK_START.md)
 
 ## 适配阅读书源
 
@@ -322,7 +394,7 @@ CALIBRE_MCP_MODE=true           # 快速启用 MCP 模式
 
 - **[快速开始指南](docs/QUICK_START.md)** - 详细的设置和部署指南
 - **[MCP 使用文档](docs/MCP_README.md)** - AI 助手集成的完整说明
-- **[API 参考](docs/API.md)** - RESTful API 接口文档
+- **[API 参考](docs/API_DOCUMENTATION.md)** - RESTful API 接口文档
 
 ## 🎯 使用场景
 

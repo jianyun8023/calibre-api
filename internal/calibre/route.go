@@ -13,6 +13,7 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/chat"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
+	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/client"
 	"github.com/jianyun8023/calibre-api/pkg/content"
 	"github.com/jianyun8023/calibre-api/pkg/log"
@@ -25,24 +26,89 @@ type Api struct {
 	baseDir          string
 	http             *client.Client
 	qdrantClient     *qdrant.Client
-	semanticSearcher interface{} // *qdrant.Searcher
+	semanticSearcher interface{}           // *qdrant.Searcher
+	cachedSearcher   *cache.CachedSearcher // 带缓存的搜索器
 	cacheManager     *cache.Manager
 	chatDB           *chat.DB
 	chatAgent        *chat.Agent
+	sseManager       *tasks.SSEManager
+	bookHandler      *BookHandlerV2  // 新的 Handler（使用 Service 层）
+	metricsHandler   *MetricsHandler // 性能指标处理器
+}
+
+// InjectDependencies 注入依赖（用于依赖注入容器）
+func (a *Api) InjectDependencies(
+	config *Config,
+	contentApi *content.Api,
+	qdrantClient *qdrant.Client,
+	qdrantSearcher *qdrant.Searcher,
+	cachedSearcher *cache.CachedSearcher,
+	cacheManager *cache.Manager,
+	chatDB *chat.DB,
+	sseManager *tasks.SSEManager,
+	bookHandler *BookHandlerV2,
+) error {
+	a.config = config
+	a.contentApi = contentApi
+	a.baseDir = config.TmpDir
+	a.http = contentApi.Client
+	a.qdrantClient = qdrantClient
+	a.semanticSearcher = qdrantSearcher
+	a.cachedSearcher = cachedSearcher
+	a.cacheManager = cacheManager
+	a.chatDB = chatDB
+	a.sseManager = sseManager
+	a.bookHandler = bookHandler
+
+	// 创建性能指标处理器
+	if cachedSearcher != nil {
+		a.metricsHandler = NewMetricsHandler(cachedSearcher)
+	}
+
+	// 确保 baseDir 存在
+	if !Exists(a.baseDir) {
+		if err := os.MkdirAll(a.baseDir, fs.ModePerm); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// InjectChatAgent 注入聊天 Agent（需要在 API 实例创建后）
+func (a *Api) InjectChatAgent(agent *chat.Agent) error {
+	a.chatAgent = agent
+	return nil
+}
+
+// CreateTocFetcher 创建 TOC 获取函数（用于 Chat Agent）
+func (a *Api) CreateTocFetcher() func(ctx context.Context, bookID int64) (string, error) {
+	return func(ctx context.Context, bookID int64) (string, error) {
+		tocData, err := a.GetBookTocData(strconv.FormatInt(bookID, 10))
+		if err != nil {
+			return "", err
+		}
+		// 将 tocData 转换为 JSON 字符串
+		bytes, err := json.MarshalIndent(tocData, "", "  ")
+		if err != nil {
+			return "", err
+		}
+		return string(bytes), nil
+	}
 }
 
 // SetupRouter 设置路由
 func (c *Api) SetupRouter(r *gin.Engine) {
 	base := r.Group("/api")
 
-	// 书籍基本操作
-	base.GET("/book/:id", c.getBook)
-	base.POST("/book/:id/delete", c.deleteBook)
-	base.POST("/book/:id/update", c.updateMetadata)
-	base.GET("/recently", c.recently)
-	base.GET("/random", c.random)
-	base.GET("/books/all", c.getAllBooks)
-	base.GET("/publisher", c.listPublisher)
+	// 书籍基本操作（使用新的 Service 层）
+	base.GET("/book/:id", c.getBookV2)
+	base.POST("/book/:id/delete", c.deleteBookV2)
+	base.POST("/book/:id/update", c.updateMetadataV2)
+	base.GET("/recently", c.recentlyV2)
+	base.GET("/random", c.randomV2)
+	base.GET("/books/all", c.getAllBooksV2)
+	base.GET("/publisher", c.listPublisherV2)
 
 	// 书籍内容相关
 	base.GET("/get/cover/:id", c.getCover)
@@ -51,6 +117,7 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.GET("/read/:id/toc", c.getBookToc)
 	base.GET("/read/:id/file/*path", c.getBookContent)
 	base.GET("/book/content", c.getBookContentByQuery)
+	base.POST("/book/:id/extract-metadata", c.extractMetadata)
 
 	// 搜索相关
 	base.GET("/search", c.search)
@@ -63,8 +130,10 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 
 	// 任务管理
 	base.GET("/tasks", c.listTasks)
+	base.GET("/tasks/:id", c.getTask)
 	base.POST("/tasks/start", c.startTask)
 	base.POST("/tasks/:id/stop", c.stopTask)
+	base.GET("/tasks/stream", c.streamTasks) // SSE 任务流
 
 	// Chat routes (智能问答)
 	base.POST("/chat/conversations", c.CreateConversation)
@@ -74,6 +143,16 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.DELETE("/chat/conversations/:id", c.DeleteConversation)
 	base.DELETE("/chat/messages/:id", c.DeleteMessage)
 	base.POST("/chat/conversations/:id/messages", c.SendMessage)
+	base.POST("/chat/stream", c.ChatStream) // AI SDK stream endpoint
+
+	// 性能监控和指标
+	if c.metricsHandler != nil {
+		base.GET("/metrics", c.metricsHandler.GetMetrics)
+		base.GET("/metrics/cache", c.metricsHandler.GetCacheStats)
+		base.POST("/metrics/cache/clear", c.metricsHandler.ClearCache)
+		base.POST("/metrics/cache/clean", c.metricsHandler.CleanExpiredCache)
+		base.GET("/health", c.metricsHandler.GetHealthCheck)
+	}
 }
 
 // NewClient 创建 Calibre API 客户端
@@ -197,6 +276,12 @@ func NewClient(config *Config) *Api {
 		baseURL = "http://localhost:8080"
 	}
 	log.Infof("SSE MCP Server initialized with base URL: %s", baseURL)
+
+	// 初始化 SSE 管理器并连接到任务管理器
+	taskManager := tasks.GetManager()
+	api.sseManager = tasks.NewSSEManager(taskManager, 100) // 最大 100 个并发连接
+	taskManager.SetSSEManager(api.sseManager)              // 双向连接
+	log.Info("SSE Manager initialized and connected to Task Manager for real-time updates")
 
 	return &api
 }
