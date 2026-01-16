@@ -128,7 +128,7 @@ export function MetadataSearchDialog({ open, onOpenChange, book, onSelect }: Met
                     onClick={() => setSelectedIndex(index)}
                     className={`
                       flex gap-4 p-4 cursor-pointer transition-colors border-b last:border-b-0
-                      ${selectedIndex === index ? "bg-accent" : "hover:bg-accent/50"}
+                      ${selectedIndex === index ? "bg-secondary" : "hover:bg-secondary/50"}
                     `}
                   >
                     {/* Cover */}

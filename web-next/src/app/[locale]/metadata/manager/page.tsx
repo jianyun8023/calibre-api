@@ -345,7 +345,7 @@ export default function MetadataManagerPage() {
                     Object.entries(batchUpdate).map(([key, value]) => {
                       if (!value || (Array.isArray(value) && value.length === 0)) return null
                       return (
-                        <div key={key} className="flex items-center gap-2 p-2 bg-accent/50 rounded">
+                        <div key={key} className="flex items-center gap-2 p-2 bg-muted rounded">
                           <Badge variant="outline">{key}</Badge>
                           <span className="text-sm">
                             {Array.isArray(value) ? value.join(", ") : String(value)}

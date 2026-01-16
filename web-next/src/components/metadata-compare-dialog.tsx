@@ -151,7 +151,7 @@ export function MetadataCompareDialog({ open, onOpenChange, book, doubanMetadata
                 </div>
               </RadioGroup>
             </div>
-            <div className="p-3 bg-accent rounded text-sm">
+            <div className="p-3 bg-muted rounded text-sm">
               {getTitle()}
             </div>
             {selection.title === "new" && doubanMetadata.sub_title && (
@@ -230,7 +230,7 @@ export function MetadataCompareDialog({ open, onOpenChange, book, doubanMetadata
                 </div>
               </RadioGroup>
             </div>
-            <div className="p-3 bg-accent rounded text-sm">
+            <div className="p-3 bg-muted rounded text-sm">
               {selection.publisher === "new" ? doubanMetadata.publisher : book.publisher || "-"}
             </div>
           </div>
@@ -257,7 +257,7 @@ export function MetadataCompareDialog({ open, onOpenChange, book, doubanMetadata
                   </div>
                 </RadioGroup>
               </div>
-              <div className="p-3 bg-accent rounded text-sm">
+              <div className="p-3 bg-muted rounded text-sm">
                 {selection.pubdate === "new" ? doubanMetadata.pubdate : (book.pubdate ? new Date(book.pubdate).toLocaleDateString() : "-")}
               </div>
             </div>
@@ -280,7 +280,7 @@ export function MetadataCompareDialog({ open, onOpenChange, book, doubanMetadata
                   </div>
                 </RadioGroup>
               </div>
-              <div className="p-3 bg-accent rounded text-sm">
+              <div className="p-3 bg-muted rounded text-sm">
                 {selection.isbn === "new" ? doubanMetadata.isbn13 : book.isbn || "-"}
               </div>
             </div>
@@ -307,7 +307,7 @@ export function MetadataCompareDialog({ open, onOpenChange, book, doubanMetadata
                 </div>
               </RadioGroup>
             </div>
-            <div className="p-3 bg-accent rounded text-sm">
+            <div className="p-3 bg-muted rounded text-sm">
               {selection.rating === "new"
                 ? `${doubanMetadata.rating?.average || 0} / 5 (${doubanMetadata.rating?.numRaters || 0} 人评价)`
                 : `${book.rating ? book.rating / 2 : 0} / 5`}
@@ -378,7 +378,7 @@ export function MetadataCompareDialog({ open, onOpenChange, book, doubanMetadata
                 </div>
               </RadioGroup>
             </div>
-            <div className="p-3 bg-accent rounded text-sm max-h-40 overflow-y-auto">
+            <div className="p-3 bg-muted rounded text-sm max-h-40 overflow-y-auto">
               {selection.comments === "new"
                 ? doubanMetadata.summary?.replace(/class=".*?"/g, '') || "-"
                 : book.comments || "-"}

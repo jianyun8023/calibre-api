@@ -25,17 +25,17 @@ const MemoizedMarkdown = dynamic(
 )
 
 interface Conversation {
-    id: string
-    title: string
-    updated_at: string
+  id: string
+  title: string
+  updated_at: string
 }
 
 interface ChatMessage {
-    id: string
-    role: 'user' | 'assistant'
-    content: string
-    thinking?: string
-    books?: Book[]
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  thinking?: string
+  books?: Book[]
 }
 
 export default function ChatPage() {
@@ -49,23 +49,23 @@ export default function ChatPage() {
   const [deleteDialog, setDeleteDialog] = useState<{ type: 'conversation' | 'message', id: string } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
-  
+
   const scrollRef = useRef<HTMLDivElement>(null)
-  
+
   const scrollToBottom = useCallback(() => {
-      if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-      }
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
   }, [])
-  
+
   useEffect(() => {
-      scrollToBottom()
+    scrollToBottom()
   }, [chatMessages, scrollToBottom])
 
   // Load conversations on mount
   useEffect(() => {
     loadConversations()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Handle URL parameter for pre-filled message (from book card summary button)
@@ -85,14 +85,14 @@ export default function ChatPage() {
     } else {
       setChatMessages([])
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentConversation])
 
   const loadConversations = async () => {
     try {
       const convs = await chatService.getConversations()
       setConversations(convs)
-      
+
       // Select first conversation if none selected
       if (!currentConversation && convs.length > 0) {
         setCurrentConversation(convs[0])
@@ -110,7 +110,7 @@ export default function ChatPage() {
   const loadMessages = async (conversationId: string) => {
     try {
       const msgs = await chatService.getMessages(conversationId)
-      
+
       // Convert to ChatMessage format
       const chatMsgs: ChatMessage[] = msgs.map((msg) => {
         const chatMsg: ChatMessage = {
@@ -118,12 +118,12 @@ export default function ChatPage() {
           role: msg.role,
           content: msg.content,
         }
-        
+
         // Parse metadata for books and thinking
         if (msg.metadata) {
           try {
-            const meta = typeof msg.metadata === 'string' 
-              ? JSON.parse(msg.metadata) 
+            const meta = typeof msg.metadata === 'string'
+              ? JSON.parse(msg.metadata)
               : msg.metadata
             if (meta.books) {
               chatMsg.books = meta.books as Book[]
@@ -135,10 +135,10 @@ export default function ChatPage() {
             console.error('Parse metadata error:', e)
           }
         }
-        
+
         return chatMsg
       })
-      
+
       setChatMessages(chatMsgs)
     } catch (error) {
       console.error('Load messages error:', error)
@@ -153,16 +153,16 @@ export default function ChatPage() {
   const createNewConversation = async () => {
     try {
       const newConv = await chatService.createConversation({ title: '新对话' })
-      
+
       setConversations([newConv, ...conversations])
       setCurrentConversation(newConv)
       setChatMessages([])
-      
+
       toast({
         title: '创建成功',
         description: '已创建新对话'
       })
-      
+
       return newConv
     } catch (error) {
       console.error('Create conversation error:', error)
@@ -178,14 +178,14 @@ export default function ChatPage() {
   const deleteConversation = async (id: string) => {
     try {
       await chatService.deleteConversation(id)
-      
+
       setConversations(conversations.filter(c => c.id !== id))
-      
+
       if (currentConversation?.id === id) {
         const remaining = conversations.filter(c => c.id !== id)
         setCurrentConversation(remaining.length > 0 ? remaining[0] : null)
       }
-      
+
       toast({
         title: '删除成功'
       })
@@ -202,9 +202,9 @@ export default function ChatPage() {
   const deleteMessage = async (id: string) => {
     try {
       await chatService.deleteMessage(id)
-      
+
       setChatMessages(chatMessages.filter(m => m.id !== id))
-      
+
       toast({
         title: '删除成功'
       })
@@ -220,9 +220,9 @@ export default function ChatPage() {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
-    
+
     let conv = currentConversation
-    
+
     // If no conversation, create one first
     if (!conv) {
       const newConv = await createNewConversation()
@@ -230,11 +230,11 @@ export default function ChatPage() {
       conv = newConv
       setCurrentConversation(newConv)
     }
-    
+
     const userMessage = input
     setInput('')
     setIsLoading(true)
-    
+
     // Add user message to UI
     const userMsg: ChatMessage = {
       id: `temp-${Date.now()}`,
@@ -242,7 +242,7 @@ export default function ChatPage() {
       content: userMessage
     }
     setChatMessages(prev => [...prev, userMsg])
-    
+
     // Prepare AI message
     const aiMsg: ChatMessage = {
       id: `ai-${Date.now()}`,
@@ -250,43 +250,43 @@ export default function ChatPage() {
       content: ''
     }
     setChatMessages(prev => [...prev, aiMsg])
-    
+
     try {
       // Create AbortController for cancellation
       const controller = new AbortController()
       abortControllerRef.current = controller
-      
+
       if (!conv) {
         throw new Error('No conversation available')
       }
-      
+
       // Use chatService to stream chat
       const stream = await chatService.streamChat({
         conversationId: conv.id,
         messages: [{ role: 'user', content: userMessage }]
       }, controller.signal)
-      
+
       const reader = stream.getReader()
-      
+
       const decoder = new TextDecoder()
       let buffer = ''
-      
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        
+
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
-        
+
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
           const data = line.substring(6)
           if (data === '[DONE]') continue
-          
+
           try {
             const event = JSON.parse(data)
-            
+
             if (event.type === 'conversation') {
               // Update conversation ID
               setCurrentConversation(prev => prev ? { ...prev, id: event.conversationId } : null)
@@ -323,11 +323,11 @@ export default function ChatPage() {
           }
         }
       }
-      
+
       // Reload conversations to update title
       await loadConversations()
     } catch (error: unknown) {
-      if ((error as {name?: string}).name === 'AbortError') {
+      if ((error as { name?: string }).name === 'AbortError') {
         toast({ title: '已停止生成' })
       } else {
         console.error('Send message error:', error)
@@ -373,7 +373,7 @@ export default function ChatPage() {
     const date = new Date(timeStr)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
-    
+
     if (diff < 60000) return '刚刚'
     if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
@@ -384,22 +384,22 @@ export default function ChatPage() {
     <div className="h-full flex gap-4 overflow-hidden max-w-7xl mx-auto w-full">
       {/* Sidebar: Conversations (fixed width, scrollable) */}
       <div className="w-64 flex flex-col gap-2 border-r pr-4 hidden md:flex overflow-hidden">
-        <Button 
-          className="w-full justify-start gap-2 shrink-0" 
+        <Button
+          className="w-full justify-start gap-2 shrink-0"
           variant="secondary"
           onClick={createNewConversation}
         >
-            <Plus className="h-4 w-4" /> 新建对话
+          <Plus className="h-4 w-4" /> 新建对话
         </Button>
-        
+
         <ScrollArea className="flex-1 overflow-auto">
           <div className="space-y-2 pr-4">
             {conversations.map((conv) => (
               <div
                 key={conv.id}
                 className={cn(
-                  "w-full flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors hover:bg-accent",
-                  currentConversation?.id === conv.id && "bg-accent border-l-4 border-primary"
+                  "w-full flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors hover:bg-secondary",
+                  currentConversation?.id === conv.id && "bg-secondary border-l-4 border-primary"
                 )}
                 onClick={() => setCurrentConversation(conv)}
               >
@@ -418,14 +418,14 @@ export default function ChatPage() {
                     }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                  </Button>
                 )}
               </div>
-                ))}
-            </div>
+            ))}
+          </div>
         </ScrollArea>
       </div>
-      
+
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 bg-background/50 rounded-lg border shadow-sm overflow-hidden">
         {!currentConversation && chatMessages.length === 0 ? (
@@ -435,17 +435,17 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-        <ScrollArea className="flex-1 overflow-auto p-4" ref={scrollRef}>
-          <div className="space-y-6 max-w-3xl mx-auto pb-4">
+            <ScrollArea className="flex-1 overflow-auto p-4" ref={scrollRef}>
+              <div className="space-y-6 max-w-3xl mx-auto pb-4">
                 {chatMessages.map((msg) => (
                   <div key={msg.id} className={cn("flex gap-3", msg.role === 'user' && "flex-row-reverse")}>
-                <div className={cn(
+                    <div className={cn(
                       "shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
                       msg.role === 'user' ? "bg-primary text-primary-foreground" : "bg-muted"
                     )}>
                       {msg.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                     </div>
-                    
+
                     <div className="flex-1 space-y-2">
                       {/* Thinking process (collapsible) */}
                       {msg.thinking && (
@@ -462,14 +462,14 @@ export default function ChatPage() {
                           </CollapsibleContent>
                         </Collapsible>
                       )}
-                      
+
                       {/* Message content */}
                       <Card className={cn(
                         "p-4 group relative",
                         msg.role === 'user' ? "bg-primary text-primary-foreground" : "bg-muted/50"
                       )}>
                         <MemoizedMarkdown content={msg.content} />
-                        
+
                         {/* Delete button */}
                         <Button
                           variant="ghost"
@@ -480,7 +480,7 @@ export default function ChatPage() {
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </Card>
-                      
+
                       {/* Book cards */}
                       {msg.books && msg.books.length > 0 && (
                         <div className="space-y-4">
@@ -491,7 +491,7 @@ export default function ChatPage() {
                             autoFetchCompleteData={true}
                             columns={{ base: 2, sm: 3, md: 3, lg: 4, xl: 4 }}
                           />
-                          
+
                           {/* Change books button */}
                           {msg.books.length > 8 && (
                             <div className="flex justify-center">
@@ -506,12 +506,12 @@ export default function ChatPage() {
                           )}
                         </div>
                       )}
-                </div>
-              </div>
-            ))}
-            
+                    </div>
+                  </div>
+                ))}
+
                 {/* Loading state */}
-            {isLoading && (
+                {isLoading && (
                   <div className="flex gap-3">
                     <div className="shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                       <Bot className="h-4 w-4" />
@@ -523,47 +523,47 @@ export default function ChatPage() {
                         <StopCircle className="h-4 w-4 mr-2" /> 停止生成
                       </Button>
                     </Card>
-                </div>
-            )}
-          </div>
-        </ScrollArea>
-        
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+
             {/* Input area */}
             <div className="border-t p-4 bg-background shrink-0">
               <div className="flex gap-2 max-w-3xl mx-auto">
-                <Input 
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="输入消息... (Shift+Enter 换行，Enter 发送)"
                   disabled={isLoading}
-                    className="flex-1"
+                  className="flex-1"
                 />
                 {isLoading ? (
                   <Button onClick={stopGeneration} variant="destructive" className="shrink-0">
                     <StopCircle className="h-4 w-4 mr-2" /> 停止
-                    </Button>
+                  </Button>
                 ) : (
                   <Button onClick={handleSend} className="shrink-0">
                     <Send className="h-4 w-4 mr-2" /> 发送
-                    </Button>
+                  </Button>
                 )}
               </div>
               <div className="text-xs text-muted-foreground text-center mt-2">
                 Shift+Enter 换行，Enter 发送
               </div>
-        </div>
+            </div>
           </>
         )}
       </div>
-      
+
       {/* Delete confirmation dialog */}
       <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteDialog?.type === 'conversation' 
+              {deleteDialog?.type === 'conversation'
                 ? '确定要删除这个对话吗？此操作不可撤销。'
                 : '确定要删除这条消息吗？此操作不可撤销。'}
             </AlertDialogDescription>

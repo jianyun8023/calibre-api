@@ -111,7 +111,7 @@ export class BookService extends BaseApiService {
     return this.handleRequest(async () => {
       const url = this.buildUrl('/api/recently', this.buildPaginationParams(pagination))
       const response = await this.client.request<Book[]>({ url, method: 'GET' })
-      
+
       // Adapt response to PaginatedResponse format
       return this.adaptToPaginatedResponse(response.data, response.code, response.message)
     })
@@ -131,7 +131,7 @@ export class BookService extends BaseApiService {
   async getRandomBooks(limit: number = 5): Promise<Book[]> {
     return this.handleRequest(async () => {
       const url = this.buildUrl('/api/random', { limit })
-      return this.client.get<Book[]>(url)
+      return this.client.get<Book[]>(url, { cache: 'no-store' })
     })
   }
 
@@ -155,7 +155,7 @@ export class BookService extends BaseApiService {
     return this.handleRequest(async () => {
       const url = this.buildUrl('/api/books/all', this.buildCursorPaginationParams(pagination))
       const response = await this.client.request<Book[]>({ url, method: 'GET' })
-      
+
       // Adapt response to CursorPaginatedResponse format
       return this.adaptToCursorPaginatedResponse(response.data, response.code, response.message)
     })
@@ -245,7 +245,7 @@ export class BookService extends BaseApiService {
       const { q, mode = 'hybrid', filters = [], sort = [], pagination } = query
 
       const url = this.buildUrl('/api/search', { q, mode })
-      
+
       const requestBody = {
         Filter: filters,
         Sort: sort,
@@ -277,13 +277,13 @@ export class BookService extends BaseApiService {
    */
   async searchSemantic(query: string, limit: number = 12): Promise<PaginatedResponse<Book>> {
     return this.handleRequest(async () => {
-      const url = this.buildUrl('/api/search/semantic', { 
-        q: query, 
-        limit 
+      const url = this.buildUrl('/api/search/semantic', {
+        q: query,
+        limit
       })
-      
+
       const response = await this.client.request<Book[]>({ url, method: 'GET' })
-      
+
       // Adapt response to PaginatedResponse format
       return this.adaptToPaginatedResponse(response.data, response.code, response.message)
     })
@@ -308,11 +308,11 @@ export class BookService extends BaseApiService {
     return this.handleRequest(async () => {
       // TOC API may not follow standard response format, handle specially
       const response = await fetch(`/api/read/${id}/toc`)
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch TOC: ${response.status} ${response.statusText}`)
       }
-      
+
       return response.json()
     })
   }
@@ -334,11 +334,11 @@ export class BookService extends BaseApiService {
       // Remove the /read/{id}/file/ prefix if present
       const cleanPath = filePath.replace(`/read/${bookId}/file/`, '')
       const response = await fetch(`/api/read/${bookId}/file/${cleanPath}`)
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch chapter content: ${response.status} ${response.statusText}`)
       }
-      
+
       return response.text()
     })
   }
@@ -359,11 +359,11 @@ export class BookService extends BaseApiService {
   async downloadBook(id: string | number): Promise<Blob> {
     return this.handleRequest(async () => {
       const response = await fetch(`/api/book/${id}/download`)
-      
+
       if (!response.ok) {
         throw new Error(`Failed to download book: ${response.status} ${response.statusText}`)
       }
-      
+
       return response.blob()
     })
   }
