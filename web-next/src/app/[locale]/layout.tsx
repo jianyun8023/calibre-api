@@ -35,7 +35,7 @@ export default async function LocaleLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  
+
   // Validate that the incoming `locale` parameter is valid
   const isValidLocale = locales.some(l => l === locale);
   if (!isValidLocale) {
@@ -51,30 +51,30 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.variable}>
-      <body className="antialiased min-h-screen bg-background font-sans">
+      <body className="antialiased min-h-screen bg-aurora font-sans">
         <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <SettingsProvider>
-              <NextIntlClientProvider messages={messages}>
-                <div className="flex h-screen flex-col md:flex-row overflow-hidden">
-                  {/* Desktop Sidebar */}
-                  <AppSidebar className="hidden md:block h-full sticky top-0 shrink-0" />
-                  
-                  <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                    <AppHeader className="shrink-0" />
-                    <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
-                      {children}
-                    </main>
-                  </div>
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SettingsProvider>
+            <NextIntlClientProvider messages={messages}>
+              <div className="flex h-screen flex-col md:flex-row overflow-hidden">
+                {/* Desktop Sidebar */}
+                <AppSidebar className="hidden md:block h-full sticky top-0 shrink-0" />
+
+                <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                  <AppHeader className="shrink-0" />
+                  <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+                    {children}
+                  </main>
                 </div>
-                <Toaster />
-              </NextIntlClientProvider>
-            </SettingsProvider>
-          </ThemeProvider>
+              </div>
+              <Toaster />
+            </NextIntlClientProvider>
+          </SettingsProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

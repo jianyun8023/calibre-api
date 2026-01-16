@@ -8,6 +8,7 @@ import type { Book } from "@/types/book"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, RefreshCcw } from "lucide-react"
 import Link from "next/link"
+import { cn } from "@/lib/utils"
 
 const RANDOM_BOOKS_COUNT = 5  // 与 API limit 保持一致
 const RECENT_BOOKS_COUNT = 15  // 优化分页：15 在 5列(3行), 3列(5行), 2列(7.5行) 下接近满行
@@ -25,7 +26,7 @@ export default function HomeClient({ locale }: { locale: string }) {
     setFadeIn(false)
     // 等待淡出动画完成
     await new Promise(resolve => setTimeout(resolve, 150))
-    
+
     setLoadingRandom(true)
     try {
       const data = await fetchRandomBooks()
@@ -55,7 +56,7 @@ export default function HomeClient({ locale }: { locale: string }) {
     loadRandomBooks()
     loadRecentBooks()
   }, [loadRandomBooks, loadRecentBooks])
-  
+
   // 初始加载完成后淡入
   useEffect(() => {
     if (!loadingRandom) {
@@ -68,14 +69,23 @@ export default function HomeClient({ locale }: { locale: string }) {
       {/* Hero / Random Section */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">Discover</h2>
-          <Button variant="ghost" size="sm" onClick={loadRandomBooks} disabled={loadingRandom}>
-            <RefreshCcw className={`h-4 w-4 mr-2 ${loadingRandom ? 'animate-spin' : ''}`} />
+          <h2 className="text-2xl font-bold tracking-tight text-gradient dark:text-foreground">Discover</h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={loadRandomBooks}
+            disabled={loadingRandom}
+            className="group hover:bg-primary/10 transition-all duration-300"
+          >
+            <RefreshCcw className={cn(
+              "h-4 w-4 mr-2 transition-transform duration-500",
+              loadingRandom ? 'animate-spin' : 'group-hover:rotate-180'
+            )} />
             Refresh
           </Button>
         </div>
-        
-        <div 
+
+        <div
           className="transition-opacity duration-300"
           style={{ opacity: loadingRandom || fadeIn ? 1 : 0 }}
         >
@@ -91,10 +101,10 @@ export default function HomeClient({ locale }: { locale: string }) {
       {/* Recent Books Section */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">Recently Added</h2>
-          <Button variant="link" asChild>
-            <Link href={`/${locale}/books`}>
-              View All <ArrowRight className="ml-2 h-4 w-4" />
+          <h2 className="text-2xl font-bold tracking-tight text-gradient dark:text-foreground">Recently Added</h2>
+          <Button variant="link" asChild className="group">
+            <Link href={`/${locale}/books`} className="flex items-center">
+              View All <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </Button>
         </div>

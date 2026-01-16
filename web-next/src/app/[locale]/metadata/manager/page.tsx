@@ -121,7 +121,7 @@ export default function MetadataManagerPage() {
   return (
     <div className="container max-w-6xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Metadata Manager</h1>
+        <h1 className="text-3xl font-bold mb-2 text-gradient dark:text-foreground inline-block">Metadata Manager</h1>
         <p className="text-muted-foreground">
           Batch update metadata for multiple books at once
         </p>
@@ -145,7 +145,7 @@ export default function MetadataManagerPage() {
 
         {/* Search Tab */}
         <TabsContent value="search" className="space-y-4">
-          <Card className="glass">
+          <Card className="glass dark:bg-card dark:border-border/40 card-minimal overflow-hidden">
             <CardHeader>
               <CardTitle>Find Books to Update</CardTitle>
               <CardDescription>
@@ -187,7 +187,7 @@ export default function MetadataManagerPage() {
                     {searchResults.map((book) => (
                       <div
                         key={book.id}
-                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+                        className="flex items-center gap-3 p-3 rounded-lg border border-border/40 hover:bg-primary/5 dark:hover:bg-white/5 transition-all duration-200"
                       >
                         <Checkbox
                           checked={selectedBooks.has(book.id)}
@@ -211,7 +211,7 @@ export default function MetadataManagerPage() {
 
         {/* Edit Tab */}
         <TabsContent value="edit" className="space-y-4">
-          <Card className="glass">
+          <Card className="glass dark:bg-card dark:border-border/40 card-minimal overflow-hidden">
             <CardHeader>
               <CardTitle>Batch Edit Metadata</CardTitle>
               <CardDescription>
@@ -316,7 +316,7 @@ export default function MetadataManagerPage() {
 
         {/* Preview Tab */}
         <TabsContent value="preview" className="space-y-4">
-          <Card className="glass">
+          <Card className="glass dark:bg-card dark:border-border/40 card-minimal overflow-hidden">
             <CardHeader>
               <CardTitle>Preview Changes</CardTitle>
               <CardDescription>

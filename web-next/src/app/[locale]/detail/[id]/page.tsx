@@ -178,19 +178,19 @@ export default function BookDetailPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <Button variant="ghost" onClick={() => router.back()} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+      <Button variant="ghost" onClick={() => router.back()} className="mb-4 group">
+        <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" /> Back
       </Button>
 
       <div className="grid md:grid-cols-12 gap-8">
         {/* Left Column: Cover */}
         <div className="md:col-span-4 flex flex-col items-center">
-          <div className="relative w-full max-w-[300px] aspect-2/3 rounded-lg overflow-hidden shadow-2xl mb-6">
+          <div className="relative w-full max-w-[300px] aspect-2/3 rounded-lg overflow-hidden shadow-aurora-lg dark:shadow-none mb-6 border border-border/20 dark:border-border/10">
             <Image
               src={book.cover}
               alt={book.title}
               fill
-              className="object-cover"
+              className="object-cover transition-transform duration-700 hover:scale-105"
               sizes="(max-width: 768px) 100vw, 300px"
               unoptimized
             />
@@ -199,9 +199,9 @@ export default function BookDetailPage() {
 
         {/* Right Column: Info */}
         <div className="md:col-span-8 space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-4">
             <div className="flex justify-between items-start">
-              <h1 className="text-3xl font-bold">{book.title}</h1>
+              <h1 className="text-3xl font-bold text-gradient dark:text-foreground inline-block">{book.title}</h1>
               <div className="flex gap-2">
                 <Button variant="outline" size="icon" title="Search Metadata" onClick={handleSearch}>
                   <Search className="h-4 w-4" />
@@ -216,7 +216,7 @@ export default function BookDetailPage() {
             </div>
 
             {/* Metadata List */}
-            <Card>
+            <Card className="glass dark:bg-card dark:border-border/40 card-minimal overflow-hidden">
               <CardContent className="p-0 divide-y">
                 <MetaItem icon={Share2} label="ID" value={
                   <Button variant="link" className="h-auto p-0" onClick={() => copyToClipboard(String(book.id))}>
@@ -266,7 +266,7 @@ export default function BookDetailPage() {
 
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-4 pt-4">
-              <Button className="flex-1" onClick={() => router.push(`/read/${book.id}`)}>
+              <Button className="flex-1 shadow-aurora hover:shadow-aurora-lg transition-all" onClick={() => router.push(`/read/${book.id}`)}>
                 <BookOpen className="mr-2 h-4 w-4" /> Read
               </Button>
               <Button variant="secondary" className="flex-1" onClick={handleToc}>

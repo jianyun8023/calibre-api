@@ -7,6 +7,7 @@ import { Menu } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { AppSidebar } from "@/components/app-sidebar"
 import { useState } from "react"
+import { cn } from "@/lib/utils"
 
 interface AppHeaderProps {
   className?: string
@@ -16,7 +17,12 @@ export function AppHeader({ className = '' }: AppHeaderProps = {}) {
   const [open, setOpen] = useState(false)
 
   return (
-    <header className={`sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 ${className}`}>
+    <header className={cn(
+      "sticky top-0 z-50 w-full border-b",
+      "glass-aurora",
+      "transition-all duration-300",
+      className
+    )}>
       <div className="container flex h-14 items-center">
         <div className="mr-4 hidden md:flex">
           {/* Desktop Logo or Breadcrumbs could go here */}
