@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 interface BookGridProps {
   books: Book[]
   loading?: boolean
-  emptyMessage?: string
+  emptyMessage?: React.ReactNode
   moreInfo?: boolean
   proxyImage?: boolean
   showSummaryButton?: boolean

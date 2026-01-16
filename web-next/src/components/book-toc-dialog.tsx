@@ -42,7 +42,6 @@ interface EpubNavPoint {
 interface TocResponse {
   points?: EpubNavPoint[]
   metadata?: any
-  manifest?: any
   baseDir?: string
 }
 
@@ -52,7 +51,7 @@ export function BookTocDialog({ open, onOpenChange, bookId, bookTitle }: BookToc
   const [loading, setLoading] = useState(false)
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [chapterViewerOpen, setChapterViewerOpen] = useState(false)
-  const [selectedChapter, setSelectedChapter] = useState<{title: string, path: string} | null>(null)
+  const [selectedChapter, setSelectedChapter] = useState<{ title: string, path: string } | null>(null)
 
   useEffect(() => {
     if (open && bookId) {
@@ -63,11 +62,13 @@ export function BookTocDialog({ open, onOpenChange, bookId, bookTitle }: BookToc
   const loadToc = async () => {
     setLoading(true)
     try {
-      const data: TocResponse = await fetchBookToc(bookId)
-      
+      const rawData = await fetchBookToc(bookId)
+      // fetchBookToc returns lib/services/TocResponse which is { id, title, chapters }
+      const data = rawData as unknown as TocResponse
+
       // Handle different TOC data formats
       let tocData: TocItem[] = []
-      
+
       if (data && data.points && Array.isArray(data.points)) {
         // Handle EPUB NavPoint format from backend
         tocData = data.points.map((point: EpubNavPoint) => ({
@@ -77,7 +78,7 @@ export function BookTocDialog({ open, onOpenChange, bookId, bookTitle }: BookToc
         }))
       } else if (Array.isArray(data)) {
         // Handle direct array format
-        tocData = data.map((item: any) => ({
+        tocData = (data as any[]).map((item: any) => ({
           title: item.title || item.text || item.Text || item.name || 'Untitled',
           href: item.href || item.src || item.content?.src || item.Content?.Src || undefined,
           level: item.level || 1,
@@ -85,12 +86,11 @@ export function BookTocDialog({ open, onOpenChange, bookId, bookTitle }: BookToc
         }))
       } else if (data && typeof data === 'object') {
         // Handle other object formats
-        if (data.toc && Array.isArray(data.toc)) {
-          tocData = data.toc
-        } else if (data.chapters && Array.isArray(data.chapters)) {
-          tocData = data.chapters
-        } else if (data.contents && Array.isArray(data.contents)) {
-          tocData = data.contents
+        const anyData = data as any
+        if (anyData.toc && Array.isArray(anyData.toc)) {
+          tocData = anyData.toc
+        } else if (anyData.contents && Array.isArray(anyData.contents)) {
+          tocData = anyData.contents
         } else {
           // Convert object to array format
           tocData = Object.entries(data).map(([key, value]) => ({
@@ -100,9 +100,9 @@ export function BookTocDialog({ open, onOpenChange, bookId, bookTitle }: BookToc
           }))
         }
       }
-      
+
       setToc(tocData)
-      
+
       if (tocData.length === 0) {
         toast.info("No table of contents available for this book")
       }
@@ -171,19 +171,19 @@ export function BookTocDialog({ open, onOpenChange, bookId, bookTitle }: BookToc
           ) : (
             <FileText className="w-4 h-4 mr-2 text-muted-foreground" />
           )}
-          
+
           <span className="flex-1 text-sm font-medium truncate" title={item.title}>
             {item.title}
           </span>
-          
+
           {item.href && (
             <Eye className="w-3 h-3 ml-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
           )}
         </div>
-        
+
         {hasChildren && isExpanded && (
           <div className="ml-2">
-            {item.children!.map((child, childIndex) => 
+            {item.children!.map((child, childIndex) =>
               renderTocItem(child, childIndex, level + 1)
             )}
           </div>
@@ -229,8 +229,8 @@ export function BookTocDialog({ open, onOpenChange, bookId, bookTitle }: BookToc
                 This book doesn't have a table of contents available,<br />
                 or it hasn't been extracted yet.
               </p>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="mt-4"
                 onClick={() => {
                   toast.info("TOC extraction can be triggered from the Tasks page")
@@ -257,7 +257,7 @@ export function BookTocDialog({ open, onOpenChange, bookId, bookTitle }: BookToc
           )}
         </div>
       </DialogContent>
-      
+
       {/* Chapter Content Viewer */}
       {selectedChapter && (
         <ChapterContentViewer
@@ -318,7 +318,7 @@ function ChapterContentViewer({ open, onOpenChange, bookId, chapterTitle, chapte
             </div>
           ) : (
             <ScrollArea className="h-full">
-              <div 
+              <div
                 className="prose prose-gray dark:prose-invert max-w-none p-6"
                 dangerouslySetInnerHTML={{ __html: content }}
                 style={{

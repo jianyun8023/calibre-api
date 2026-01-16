@@ -398,16 +398,16 @@ export class BookService extends BaseApiService {
   ): PaginatedResponse<T> {
     // If data is already in the correct format (has records, total, etc.)
     if (data && typeof data === 'object' && 'records' in data) {
-      const legacyData = data as BookListResponse
+      const legacyData = data as unknown as BookListResponse
       return {
         code,
         message,
-        data: legacyData.records,
+        data: legacyData.records as unknown as T[],
         pagination: {
           total: legacyData.total,
           page: 1, // Default, as legacy format doesn't have page
           page_size: legacyData.records.length,
-          total_pages: Math.ceil(legacyData.total / legacyData.records.length),
+          total_pages: Math.ceil(legacyData.total / (legacyData.records.length || 1)),
         },
       }
     }
@@ -451,11 +451,11 @@ export class BookService extends BaseApiService {
   ): CursorPaginatedResponse<T> {
     // If data is already in the correct format
     if (data && typeof data === 'object' && 'records' in data) {
-      const legacyData = data as BookListResponse
+      const legacyData = data as unknown as BookListResponse
       return {
         code,
         message,
-        data: legacyData.records,
+        data: legacyData.records as unknown as T[],
         pagination: {
           total: legacyData.total,
           next_cursor: legacyData.next_cursor,

@@ -18,7 +18,7 @@ import { useSearchHistory } from "./hooks/use-search-history"
 function SearchPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  
+
   const query = searchParams.get('q') || ''
   const mode = searchParams.get('mode') || 'hybrid'
   const author = searchParams.get('author')
@@ -50,21 +50,15 @@ function SearchPageContent() {
   const performSearch = useCallback(async () => {
     setLoading(true)
     try {
-      let data;
-      if (mode === 'semantic') {
-        data = await searchSemantic(query)
-      } else {
-        // 构建过滤器 - 使用后端期望的格式: field = "value"
-        const filters = []
-        if (author) filters.push(`authors = "${author}"`)
-        if (publisher) filters.push(`publisher = "${publisher}"`)
-        if (tag) filters.push(`tags = "${tag}"`)
-        
-        data = await fetchBooks(query, filters, 20, 0, [], mode)
-      }
-      const books = data.records || data || []
+      const filterStrings = []
+      if (author) filterStrings.push(`authors = "${author}"`)
+      if (publisher) filterStrings.push(`publisher = "${publisher}"`)
+      if (tag) filterStrings.push(`tags = "${tag}"`)
+
+      const data = (mode === 'semantic' ? await searchSemantic(query) : await fetchBooks(query, filterStrings, 20, 0, [], mode)) as any
+      const books = (data.records || data || []) as Book[]
       setAllBooks(books)
-      
+
       // Add to search history if there's a query
       if (query) {
         addToHistory(query, mode, books.length)
@@ -110,7 +104,7 @@ function SearchPageContent() {
     const timeoutId = setTimeout(() => {
       updateURL()
     }, 300) // Debounce URL updates
-    
+
     return () => clearTimeout(timeoutId)
   }, [filters, updateURL])
 
@@ -121,10 +115,10 @@ function SearchPageContent() {
         <h1 className="text-3xl font-bold">Search Library</h1>
         <div className="w-full max-w-2xl">
           <form onSubmit={handleSearch} className="flex gap-2">
-            <Input 
-              value={input} 
-              onChange={(e) => setInput(e.target.value)} 
-              placeholder="Search books, authors, publishers..." 
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Search books, authors, publishers..."
               className="h-12 text-lg"
             />
             <Button type="submit" size="lg" className="h-12 px-8">
@@ -142,7 +136,7 @@ function SearchPageContent() {
             </Button>
           </form>
         </div>
-        
+
         <Tabs value={mode} onValueChange={handleModeChange} className="w-full max-w-md">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="keyword">Keyword</TabsTrigger>

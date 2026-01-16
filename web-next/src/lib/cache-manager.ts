@@ -141,7 +141,7 @@ export class CacheManager {
       const data = await this.storage.get(key)
       if (!data) return null
 
-      const entry: CacheEntry<T> = JSON.parse(data)
+      const entry = JSON.parse(data) as CacheEntry<T>
 
       // Check if expired
       if (this.isExpired(entry)) {
@@ -200,7 +200,7 @@ export class CacheManager {
   async delete(key: string): Promise<void> {
     try {
       await this.storage.delete(key)
-      
+
       // Remove from access order
       const index = this.accessOrder.indexOf(key)
       if (index !== -1) {
@@ -257,8 +257,8 @@ export class CacheManager {
   generateKey(request: RequestConfig): string {
     const url = request.url || ''
     const method = request.method || 'GET'
-    const body = request.body ? JSON.stringify(request.body) : ''
-    
+    const body = request.body ? (typeof request.body === 'string' ? request.body : JSON.stringify(request.body)) : ''
+
     // Simple hash function
     const hash = this.simpleHash(`${method}:${url}:${body}`)
     return `req_${hash}`
@@ -287,7 +287,7 @@ export class CacheManager {
    */
   private async evictIfNecessary(): Promise<void> {
     const keys = await this.storage.keys()
-    
+
     if (keys.length >= this.config.maxSize) {
       const keyToEvict = this.selectKeyToEvict(keys)
       if (keyToEvict) {
@@ -437,15 +437,15 @@ export const cacheManager = new CacheManager({
  * 
  * Use this for data that should persist across page reloads.
  */
-export const persistentCacheManager = typeof window !== 'undefined' 
+export const persistentCacheManager = typeof window !== 'undefined'
   ? new CacheManager(
-      {
-        ttl: 3600000, // 1 hour
-        maxSize: 50,
-        strategy: 'lru',
-      },
-      new LocalStorageCacheStorage()
-    )
+    {
+      ttl: 3600000, // 1 hour
+      maxSize: 50,
+      strategy: 'lru',
+    },
+    new LocalStorageCacheStorage()
+  )
   : cacheManager // Fallback to in-memory on server
 
 // ============================================================================

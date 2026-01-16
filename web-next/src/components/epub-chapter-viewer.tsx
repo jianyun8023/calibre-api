@@ -39,8 +39,9 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
   const loadToc = async () => {
     try {
       const data = await fetchBookToc(bookId)
-      if (data && data.points && Array.isArray(data.points)) {
-        setToc(data.points)
+      const anyData = data as any
+      if (anyData && anyData.points && Array.isArray(anyData.points)) {
+        setToc(anyData.points)
       }
     } catch (error) {
       console.error("Failed to load TOC:", error)
@@ -51,14 +52,14 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
 
   const loadChapter = async (chapterIndex: number) => {
     if (!toc[chapterIndex]) return
-    
+
     setContentLoading(true)
     try {
       const chapter = toc[chapterIndex]
       // Extract the file path from the src URL
       const srcPath = chapter.content.src
       const filePath = srcPath.replace(`/read/${bookId}/file/`, '')
-      
+
       const response = await fetch(`/api/read/${bookId}/file/${filePath}`)
       if (response.ok) {
         const content = await response.text()
@@ -133,11 +134,10 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
               <button
                 key={index}
                 onClick={() => setCurrentChapter(index)}
-                className={`w-full text-left p-3 rounded-md mb-1 transition-colors ${
-                  currentChapter === index
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-accent'
-                }`}
+                className={`w-full text-left p-3 rounded-md mb-1 transition-colors ${currentChapter === index
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-accent'
+                  }`}
               >
                 <div className="font-medium text-sm truncate">
                   {chapter.text || `Chapter ${index + 1}`}
@@ -191,7 +191,7 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
                 <p>Loading chapter...</p>
               </div>
             ) : (
-              <div 
+              <div
                 className="prose prose-gray dark:prose-invert max-w-none"
                 dangerouslySetInnerHTML={{ __html: chapterContent }}
               />

@@ -12,11 +12,11 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const nextConfig: NextConfig = {
   // 启用 Standalone 输出模式（最小化镜像）
   output: 'standalone',
-  
+
   // 注意：Standalone 模式下 rewrites 会在构建时固化
   // 因此我们使用 Proxy 实现运行时动态代理
   // 参见：src/proxy.ts
-  
+
   // 图片优化配置
   // 允许从多种来源加载图片（本地开发、Docker、生产环境）
   images: {
@@ -53,7 +53,7 @@ const nextConfig: NextConfig = {
   },
   // 暂时忽略 TypeScript 错误
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 };
 

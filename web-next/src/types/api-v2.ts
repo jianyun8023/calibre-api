@@ -222,6 +222,10 @@ export interface SearchQuery {
  * Extended fetch options with additional configuration.
  */
 export interface RequestConfig extends RequestInit {
+  /** Request URL (relative to baseURL) */
+  url?: string
+  /** Base URL for the request */
+  baseURL?: string
   /** Request timeout in milliseconds */
   timeout?: number
   /** Number of retry attempts */

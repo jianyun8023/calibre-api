@@ -85,7 +85,7 @@ class InterceptorManagerImpl<T> implements InterceptorManager<T> {
 
 export class UnifiedApiClient {
   private config: Required<ApiClientConfig>
-  
+
   /** Request interceptors */
   public interceptors = {
     request: new InterceptorManagerImpl<RequestConfig>(),
@@ -134,7 +134,7 @@ export class UnifiedApiClient {
     }
 
     // Execute request with timeout and retries
-    const response = await this.executeWithRetry(() => 
+    const response = await this.executeWithRetry(() =>
       this.fetchWithTimeout(url, options, processedConfig.timeout || this.config.timeout),
       processedConfig.retryAttempts ?? this.config.retryAttempts
     )
@@ -269,14 +269,14 @@ export class UnifiedApiClient {
       return response
     } catch (error) {
       clearTimeout(timeoutId)
-      
+
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           throw new NetworkError('timeout', `Request timeout after ${timeout}ms`, options)
         }
         throw new NetworkError('connection', error.message, options)
       }
-      
+
       throw error
     }
   }
@@ -328,7 +328,7 @@ export class UnifiedApiClient {
       // Validate V2 format
       if (!this.isValidV2Response(json)) {
         console.warn('Invalid API response format:', json)
-        
+
         // Attempt to adapt legacy format
         return this.adaptLegacyResponse<T>(json, response.status)
       }
@@ -381,8 +381,8 @@ export class UnifiedApiClient {
     if (legacyResponse.error) {
       error = {
         code: 'LEGACY_ERROR',
-        message: typeof legacyResponse.error === 'string' 
-          ? legacyResponse.error 
+        message: typeof legacyResponse.error === 'string'
+          ? legacyResponse.error
           : legacyResponse.error.message || 'Unknown error',
       }
     }
