@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -17,13 +17,13 @@ const (
 // Agent 智能书库 Agent，提供基于 LLM 的智能书籍问答功能
 type Agent struct {
 	llm          llms.Model
-	searcher     *qdrant.Searcher
+	searcher     semantic.Searcher
 	tocFetcher   TocFetcher
 	systemPrompt string
 }
 
 // NewAgent 创建智能书库 Agent
-func NewAgent(llm llms.Model, searcher *qdrant.Searcher, tocFetcher TocFetcher) *Agent {
+func NewAgent(llm llms.Model, searcher semantic.Searcher, tocFetcher TocFetcher) *Agent {
 	systemPrompt := `你是 Calibre 书库的智能助手。你可以帮助用户：
 1. 推荐书籍：根据用户兴趣推荐相关书籍
 2. 搜索书籍：理解自然语言查询，帮助用户找到想要的书

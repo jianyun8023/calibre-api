@@ -7,20 +7,19 @@ import (
 	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/semantic"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 )
 
-// DeleteBookTask handles asynchronous book deletion from Qdrant
+// DeleteBookTask handles asynchronous book deletion from Search Engine
 type DeleteBookTask struct {
 	id       string
 	bookID   int64
-	searcher *qdrant.Searcher
+	searcher semantic.Searcher
 	status   TaskStatus
 	mu       sync.RWMutex
 	stopChan chan struct{}
 }
 
-func NewDeleteBookTask(id string, bookID int64, searcher *qdrant.Searcher) *DeleteBookTask {
+func NewDeleteBookTask(id string, bookID int64, searcher semantic.Searcher) *DeleteBookTask {
 	return &DeleteBookTask{
 		id:       id,
 		bookID:   bookID,
@@ -41,7 +40,7 @@ func NewDeleteBookTask(id string, bookID int64, searcher *qdrant.Searcher) *Dele
 func (t *DeleteBookTask) Run() error {
 	t.mu.Lock()
 	t.status.State = "running"
-	t.status.Message = fmt.Sprintf("Deleting book %d from Qdrant", t.bookID)
+	t.status.Message = fmt.Sprintf("Deleting book %d from search index", t.bookID)
 	t.mu.Unlock()
 
 	// Perform deletion
@@ -75,17 +74,17 @@ func (t *DeleteBookTask) GetStatus() TaskStatus {
 	return t.status
 }
 
-// UpdateMetadataTask handles asynchronous metadata update in Qdrant
+// UpdateMetadataTask handles asynchronous metadata update in Search Engine
 type UpdateMetadataTask struct {
 	id       string
 	book     semantic.Book
-	searcher *qdrant.Searcher
+	searcher semantic.Searcher
 	status   TaskStatus
 	mu       sync.RWMutex
 	stopChan chan struct{}
 }
 
-func NewUpdateMetadataTask(id string, book semantic.Book, searcher *qdrant.Searcher) *UpdateMetadataTask {
+func NewUpdateMetadataTask(id string, book semantic.Book, searcher semantic.Searcher) *UpdateMetadataTask {
 	return &UpdateMetadataTask{
 		id:       id,
 		book:     book,
@@ -106,7 +105,7 @@ func NewUpdateMetadataTask(id string, book semantic.Book, searcher *qdrant.Searc
 func (t *UpdateMetadataTask) Run() error {
 	t.mu.Lock()
 	t.status.State = "running"
-	t.status.Message = fmt.Sprintf("Updating metadata for book %d in Qdrant", t.book.ID)
+	t.status.Message = fmt.Sprintf("Updating metadata for book %d in search index", t.book.ID)
 	t.mu.Unlock()
 	GetManager().BroadcastTaskProgress(t.id)
 

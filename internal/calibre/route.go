@@ -11,7 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/cache"
 	"github.com/jianyun8023/calibre-api/internal/chat"
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
+	"github.com/jianyun8023/calibre-api/internal/semantic/meilisearch"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/client"
@@ -26,7 +28,8 @@ type Api struct {
 	baseDir          string
 	http             *client.Client
 	qdrantClient     *qdrant.Client
-	semanticSearcher interface{}           // *qdrant.Searcher
+	meiliClient      *meilisearch.Client
+	semanticSearcher semantic.Searcher
 	cachedSearcher   *cache.CachedSearcher // 带缓存的搜索器
 	cacheManager     *cache.Manager
 	chatDB           *chat.DB
@@ -41,7 +44,7 @@ func (a *Api) InjectDependencies(
 	config *Config,
 	contentApi *content.Api,
 	qdrantClient *qdrant.Client,
-	qdrantSearcher *qdrant.Searcher,
+	searcher semantic.Searcher,
 	cachedSearcher *cache.CachedSearcher,
 	cacheManager *cache.Manager,
 	chatDB *chat.DB,
@@ -53,7 +56,7 @@ func (a *Api) InjectDependencies(
 	a.baseDir = config.TmpDir
 	a.http = contentApi.Client
 	a.qdrantClient = qdrantClient
-	a.semanticSearcher = qdrantSearcher
+	a.semanticSearcher = searcher
 	a.cachedSearcher = cachedSearcher
 	a.cacheManager = cacheManager
 	a.chatDB = chatDB
@@ -167,11 +170,47 @@ func NewClient(config *Config) *Api {
 		log.Fatal(err)
 	}
 
-	// Initialize Qdrant client and searcher
+	// Initialize Searcher (Qdrant or Meilisearch)
 	var qdrantClient *qdrant.Client
-	var qdrantSearcher *qdrant.Searcher
+	var meiliClient *meilisearch.Client
+	var semanticSearcher semantic.Searcher
 
-	if config.Qdrant.URL != "" {
+	// Initialize embedding provider (generic)
+	// We need this for both Qdrant (required) and Meilisearch (for semantic search feature)
+	qdrantProviderConfig := embedding.ProviderConfig{
+		Provider:    config.Embedding.Provider,
+		Ollama:      config.Embedding.Ollama,
+		SiliconFlow: config.Embedding.SiliconFlow,
+		VectorDim:   4096, // Default to 4096 if model uses it (Qwen/DeepSeek often use 1024-4096)
+	}
+
+	provider, err := embedding.NewProvider(qdrantProviderConfig)
+	if err != nil {
+		log.Warnf("Failed to create embedding provider: %v. Semantic search capabilities will be limited.", err)
+	}
+
+	// Check if Meilisearch is configured
+	if config.Meilisearch.Host != "" {
+		log.Info("Initializing Meilisearch client...")
+		meiliClient = meilisearch.NewClient(
+			config.Meilisearch.Host,
+			config.Meilisearch.APIKey,
+			config.Meilisearch.IndexName,
+		)
+		// Pass provider to Meilisearch searcher
+		semanticSearcher = meilisearch.NewSearcher(meiliClient, provider)
+		log.Info("Meilisearch searcher initialized successfully")
+
+		// Ensure indexes
+		ctx := context.Background()
+		if err := semanticSearcher.EnsureIndexes(ctx); err != nil {
+			log.Warnf("Failed to ensure Meilisearch indexes: %v", err)
+		} else {
+			log.Info("Meilisearch indexes ensured successfully")
+		}
+
+	} else if config.Qdrant.URL != "" {
+		// Fallback to Qdrant
 		qdrantClient = qdrant.NewClient(
 			config.Qdrant.URL,
 			config.Qdrant.Collection,
@@ -179,29 +218,22 @@ func NewClient(config *Config) *Api {
 		)
 		log.Info("Qdrant client initialized successfully")
 
-		// Initialize embedding provider for Qdrant searcher
-		qdrantProviderConfig := embedding.ProviderConfig{
-			Provider:    config.Embedding.Provider,
-			Ollama:      config.Embedding.Ollama,
-			SiliconFlow: config.Embedding.SiliconFlow,
-			VectorDim:   4096, // Qdrant uses 4096 dimensions
-		}
-
-		qdrantProvider, err := embedding.NewProvider(qdrantProviderConfig)
-		if err != nil {
-			log.Warnf("Failed to create Qdrant embedding provider: %v", err)
-		} else {
-			qdrantSearcher = qdrant.NewSearcher(qdrantProvider, qdrantClient)
+		if provider != nil {
+			semanticSearcher = qdrant.NewSearcher(provider, qdrantClient)
 			log.Info("Qdrant searcher initialized successfully")
 
 			// Ensure required payload indexes exist
 			ctx := context.Background()
-			if err := qdrantSearcher.EnsureIndexes(ctx); err != nil {
+			if err := semanticSearcher.EnsureIndexes(ctx); err != nil {
 				log.Warnf("Failed to ensure Qdrant indexes (indexes may already exist): %v", err)
 			} else {
 				log.Info("Qdrant payload indexes ensured successfully")
 			}
+		} else {
+			log.Warn("Qdrant requires embedding provider, but provider initialization failed.")
 		}
+	} else {
+		log.Warn("No search engine configured (Qdrant or Meilisearch)")
 	}
 
 	// Initialize cache manager
@@ -236,13 +268,14 @@ func NewClient(config *Config) *Api {
 		contentApi:       &newClient,
 		http:             newClient.Client,
 		qdrantClient:     qdrantClient,
-		semanticSearcher: qdrantSearcher,
+		meiliClient:      meiliClient,
+		semanticSearcher: semanticSearcher,
 		cacheManager:     cacheManager,
 		chatDB:           chatDB,
 	}
 
 	// Initialize LLM and Agent if chat DB is available and Qdrant searcher exists
-	if chatDB != nil && qdrantSearcher != nil && config.LLM.Provider != "" {
+	if chatDB != nil && semanticSearcher != nil && config.LLM.Provider != "" {
 		llm, err := chat.NewLLM(config.LLM)
 		if err != nil {
 			log.Warnf("Failed to initialize LLM client: %v", err)
@@ -263,7 +296,7 @@ func NewClient(config *Config) *Api {
 				return string(bytes), nil
 			}
 
-			chatAgent = chat.NewAgent(llm, qdrantSearcher, tocFetcher)
+			chatAgent = chat.NewAgent(llm, semanticSearcher, tocFetcher)
 			api.chatAgent = chatAgent // Inject agent back to api
 			log.Infof("Chat agent initialized with provider: %s", config.LLM.Provider)
 		}

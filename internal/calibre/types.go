@@ -54,23 +54,30 @@ type Metadata struct {
 }
 
 type Config struct {
-	Address   string             `mapstructure:"address"`
-	Debug     bool               `mapstructure:"debug"`
-	TmpDir    string             `mapstructure:"tmpdir"`
-	Content   Content            `mapstructure:"content"`
-	Metadata  Metadata           `mapstructure:"metadata"`
-	MCP       MCPConfig          `mapstructure:"mcp"`
-	Embedding semantic.Embedding `mapstructure:"embedding"`
-	Qdrant    QdrantConfig       `mapstructure:"qdrant"`
-	Cache     cache.Config       `mapstructure:"cache"`
-	LLM       chat.LLMConfig     `mapstructure:"llm"`
-	Chat      chat.ChatConfig    `mapstructure:"chat"`
+	Address     string             `mapstructure:"address"`
+	Debug       bool               `mapstructure:"debug"`
+	TmpDir      string             `mapstructure:"tmpdir"`
+	Content     Content            `mapstructure:"content"`
+	Metadata    Metadata           `mapstructure:"metadata"`
+	MCP         MCPConfig          `mapstructure:"mcp"`
+	Embedding   semantic.Embedding `mapstructure:"embedding"`
+	Qdrant      QdrantConfig       `mapstructure:"qdrant"`
+	Meilisearch MeilisearchConfig  `mapstructure:"meilisearch"`
+	Cache       cache.Config       `mapstructure:"cache"`
+	LLM         chat.LLMConfig     `mapstructure:"llm"`
+	Chat        chat.ChatConfig    `mapstructure:"chat"`
 }
 
 type QdrantConfig struct {
 	URL        string `mapstructure:"url"`
 	Collection string `mapstructure:"collection"`
 	Timeout    int    `mapstructure:"timeout"`
+}
+
+type MeilisearchConfig struct {
+	Host      string `mapstructure:"host"`
+	APIKey    string `mapstructure:"api_key"`
+	IndexName string `mapstructure:"index_name"`
 }
 
 type Content struct {

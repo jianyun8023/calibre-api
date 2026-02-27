@@ -7,21 +7,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/pkg/content"
 )
 
-// CheckMissingTask checks for books missing from Qdrant
+// CheckMissingTask checks for books missing from search index
 type CheckMissingTask struct {
 	id         string
 	contentApi *content.Api
-	searcher   *qdrant.Searcher
+	searcher   semantic.Searcher
 	status     TaskStatus
 	mu         sync.RWMutex
 	cancel     context.CancelFunc
 }
 
-func NewCheckMissingTask(id string, contentApi *content.Api, searcher *qdrant.Searcher) *CheckMissingTask {
+func NewCheckMissingTask(id string, contentApi *content.Api, searcher semantic.Searcher) *CheckMissingTask {
 	return &CheckMissingTask{
 		id:         id,
 		contentApi: contentApi,
@@ -54,14 +54,14 @@ func (t *CheckMissingTask) Run() error {
 	}
 
 	t.mu.Lock()
-	t.status.Message = fmt.Sprintf("Found %d books in Calibre. Fetching Qdrant IDs...", len(calibreIDs))
+	t.status.Message = fmt.Sprintf("Found %d books in Calibre. Fetching search index IDs...", len(calibreIDs))
 	t.status.Progress = 10
 	t.mu.Unlock()
 
-	// 2. Fetch all IDs from Qdrant
+	// 2. Fetch all IDs from Search Engine
 	// We use GetAllWithCursor but only need IDs
 	// This might be slow for very large collections, but acceptable for a check task
-	var qdrantIDs []int64
+	var searchIDs []int64
 	cursor := ""
 	limit := 1000
 
@@ -74,7 +74,7 @@ func (t *CheckMissingTask) Run() error {
 
 		books, _, nextCursor, err := t.searcher.GetAllWithCursor(limit, cursor)
 		if err != nil {
-			return fmt.Errorf("failed to fetch from Qdrant: %w", err)
+			return fmt.Errorf("failed to fetch from search engine: %w", err)
 		}
 
 		if len(books) == 0 {
@@ -82,7 +82,7 @@ func (t *CheckMissingTask) Run() error {
 		}
 
 		for _, b := range books {
-			qdrantIDs = append(qdrantIDs, b.ID)
+			searchIDs = append(searchIDs, b.ID)
 		}
 
 		if nextCursor == "" {
@@ -97,26 +97,26 @@ func (t *CheckMissingTask) Run() error {
 		cursor = nextCursor
 
 		t.mu.Lock()
-		t.status.Message = fmt.Sprintf("Fetched %d IDs from Qdrant...", len(qdrantIDs))
+		t.status.Message = fmt.Sprintf("Fetched %d IDs from search index...", len(searchIDs))
 		t.mu.Unlock()
 		GetManager().BroadcastTaskProgress(t.id)
 	}
 
 	t.mu.Lock()
-	t.status.Message = fmt.Sprintf("Comparing %d Calibre books with %d Qdrant vectors...", len(calibreIDs), len(qdrantIDs))
+	t.status.Message = fmt.Sprintf("Comparing %d Calibre books with %d search index items...", len(calibreIDs), len(searchIDs))
 	t.status.Progress = 50
 	t.mu.Unlock()
 
 	// 3. Compare
 	// Use a map for O(1) lookup
-	qdrantMap := make(map[int64]bool)
-	for _, id := range qdrantIDs {
-		qdrantMap[id] = true
+	searchMap := make(map[int64]bool)
+	for _, id := range searchIDs {
+		searchMap[id] = true
 	}
 
 	var missingIDs []int64
 	for _, id := range calibreIDs {
-		if !qdrantMap[id] {
+		if !searchMap[id] {
 			missingIDs = append(missingIDs, id)
 		}
 	}
@@ -133,7 +133,7 @@ func (t *CheckMissingTask) Run() error {
 	t.status.EndTime = time.Now()
 
 	if len(missingIDs) == 0 {
-		t.status.Message = "All books have vectors in Qdrant."
+		t.status.Message = "All books have vectors in search index."
 	} else {
 		// Limit message length
 		msg := fmt.Sprintf("Found %d missing vectors. IDs: %v", len(missingIDs), missingIDs)

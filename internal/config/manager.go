@@ -88,6 +88,11 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("qdrant.collection", "books")
 	v.SetDefault("qdrant.timeout", 30)
 
+	// Meilisearch defaults
+	v.SetDefault("meilisearch.host", "")
+	v.SetDefault("meilisearch.api_key", "")
+	v.SetDefault("meilisearch.index_name", "books")
+
 	// Cache defaults
 	v.SetDefault("cache.dir", "")
 	v.SetDefault("cache.max_size_gb", 10.0)

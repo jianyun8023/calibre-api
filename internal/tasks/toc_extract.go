@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/cache"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/pkg/content"
 	"github.com/kapmahc/epub"
 )
@@ -20,7 +20,7 @@ type TocExtractTask struct {
 	id            string
 	mode          TaskMode
 	contentApi    *content.Api
-	searcher      *qdrant.Searcher
+	searcher      semantic.Searcher
 	cacheManager  *cache.Manager
 	status        TaskStatus
 	mu            sync.RWMutex
@@ -28,10 +28,10 @@ type TocExtractTask struct {
 	progressFile  string
 	progress      *TocExtractProgress
 	numWorkers    int             // Number of parallel workers
-	batchSize     int             // Batch size for Qdrant updates
-	updateBatch   []tocUpdateItem // Batch of TOC updates for Qdrant
+	batchSize     int             // Batch size for progress saves
+	updateBatch   []tocUpdateItem // Batch of TOC updates for Search Engine
 	updateBatchMu sync.Mutex      // Mutex for update batch
-	qdrantBatch   int             // Qdrant batch update size
+	searchBatch   int             // Search Engine batch update size
 }
 
 type tocUpdateItem struct {
@@ -50,7 +50,7 @@ func NewTocExtractTask(
 	id string,
 	mode TaskMode,
 	contentApi *content.Api,
-	searcher *qdrant.Searcher,
+	searcher semantic.Searcher,
 	cacheManager *cache.Manager,
 ) *TocExtractTask {
 	progressFile := fmt.Sprintf(".cache/toc_progress_%s.json", id)
@@ -63,7 +63,7 @@ func NewTocExtractTask(
 		progressFile: progressFile,
 		numWorkers:   10, // Increased parallel workers
 		batchSize:    50, // Batch size for progress saves
-		qdrantBatch:  20, // Batch size for Qdrant updates
+		searchBatch:  20, // Batch size for Search Engine updates
 		updateBatch:  make([]tocUpdateItem, 0, 20),
 		status: TaskStatus{
 			ID:        id,
@@ -163,7 +163,7 @@ func (t *TocExtractTask) Run() error {
 				continue
 			}
 
-			// Check if TOC exists in Qdrant
+			// Check if TOC exists in Search Engine
 			// Note: This might be slow for many books, but it's safe.
 			// Ideally we should have a bulk check or a way to list IDs with TOC.
 			toc, err := t.searcher.GetBookToc(id)
@@ -355,7 +355,7 @@ func (t *TocExtractTask) extractAndUpdateToc(bookID int64) error {
 		bookID: bookID,
 		toc:    toc,
 	})
-	shouldFlush := len(t.updateBatch) >= t.qdrantBatch
+	shouldFlush := len(t.updateBatch) >= t.searchBatch
 	t.updateBatchMu.Unlock()
 
 	// Flush batch if full
@@ -368,7 +368,7 @@ func (t *TocExtractTask) extractAndUpdateToc(bookID int64) error {
 	return nil
 }
 
-// flushUpdateBatch flushes pending TOC updates to Qdrant in batch
+// flushUpdateBatch flushes pending TOC updates to Search Engine in batch
 func (t *TocExtractTask) flushUpdateBatch() error {
 	t.updateBatchMu.Lock()
 	if len(t.updateBatch) == 0 {
@@ -378,7 +378,7 @@ func (t *TocExtractTask) flushUpdateBatch() error {
 
 	// Take current batch and reset
 	batch := t.updateBatch
-	t.updateBatch = make([]tocUpdateItem, 0, t.qdrantBatch)
+	t.updateBatch = make([]tocUpdateItem, 0, t.searchBatch)
 	t.updateBatchMu.Unlock()
 
 	// Update all items in batch
