@@ -334,7 +334,16 @@ func (s *Searcher) UpdateBookMetadata(book semantic.Book, vector []float32) erro
 	if err != nil {
 		return err
 	}
-	_ = task
+
+	// Wait for task completion
+	processedTask, err := s.client.client.WaitForTask(task.TaskUID, 10*time.Second)
+	if err != nil {
+		return fmt.Errorf("failed to wait for task: %w", err)
+	}
+	if processedTask.Status != "succeeded" {
+		return fmt.Errorf("task failed: %s - %v", processedTask.Status, processedTask.Error)
+	}
+
 	return nil
 }
 
@@ -344,7 +353,16 @@ func (s *Searcher) DeleteBook(bookID int64) error {
 	if err != nil {
 		return err
 	}
-	_ = task
+
+	// Wait for task completion
+	processedTask, err := s.client.client.WaitForTask(task.TaskUID, 10*time.Second)
+	if err != nil {
+		return fmt.Errorf("failed to wait for task: %w", err)
+	}
+	if processedTask.Status != "succeeded" {
+		return fmt.Errorf("task failed: %s - %v", processedTask.Status, processedTask.Error)
+	}
+
 	return nil
 }
 
@@ -380,7 +398,15 @@ func (s *Searcher) IndexBooks(ctx context.Context, books []semantic.Book) error 
 		return err
 	}
 
-	_ = task
+	// Wait for task completion
+	processedTask, err := s.client.client.WaitForTask(task.TaskUID, 30*time.Second) // Longer timeout for batch
+	if err != nil {
+		return fmt.Errorf("failed to wait for task: %w", err)
+	}
+	if processedTask.Status != "succeeded" {
+		return fmt.Errorf("task failed: %s - %v", processedTask.Status, processedTask.Error)
+	}
+
 	return nil
 }
 
@@ -407,7 +433,16 @@ func (s *Searcher) UpdateToc(bookID int64, toc interface{}) error {
 	if err != nil {
 		return err
 	}
-	_ = task
+
+	// Wait for task completion
+	processedTask, err := s.client.client.WaitForTask(task.TaskUID, 10*time.Second)
+	if err != nil {
+		return fmt.Errorf("failed to wait for task: %w", err)
+	}
+	if processedTask.Status != "succeeded" {
+		return fmt.Errorf("task failed: %s - %v", processedTask.Status, processedTask.Error)
+	}
+
 	return nil
 }
 
