@@ -124,7 +124,19 @@ func (m *Manager) loadConfig() error {
 	m.config = &conf
 	m.mu.Unlock()
 
-	marshal, _ := json.Marshal(conf)
+	// Mask sensitive info before logging
+	logConf := conf
+	if logConf.Meilisearch.APIKey != "" {
+		logConf.Meilisearch.APIKey = "***"
+	}
+	if logConf.Embedding.SiliconFlow.APIToken != "" {
+		logConf.Embedding.SiliconFlow.APIToken = "***"
+	}
+	if logConf.LLM.OpenAI.APIKey != "" {
+		logConf.LLM.OpenAI.APIKey = "***"
+	}
+
+	marshal, _ := json.Marshal(logConf)
 	log.Infof("loaded config: %s", marshal)
 	return nil
 }
@@ -197,7 +209,19 @@ func (m *Manager) reloadConfig() error {
 	m.config = &conf
 	m.mu.Unlock()
 
-	marshal, _ := json.Marshal(conf)
+	// Mask sensitive info before logging
+	logConf := conf
+	if logConf.Meilisearch.APIKey != "" {
+		logConf.Meilisearch.APIKey = "***"
+	}
+	if logConf.Embedding.SiliconFlow.APIToken != "" {
+		logConf.Embedding.SiliconFlow.APIToken = "***"
+	}
+	if logConf.LLM.OpenAI.APIKey != "" {
+		logConf.LLM.OpenAI.APIKey = "***"
+	}
+
+	marshal, _ := json.Marshal(logConf)
 	log.Infof("reloaded config: %s", marshal)
 	return nil
 }
