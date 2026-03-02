@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/cache"
-	"github.com/jianyun8023/calibre-api/internal/chat"
 	"github.com/jianyun8023/calibre-api/internal/semantic"
 )
 
@@ -64,8 +63,6 @@ type Config struct {
 	Qdrant      QdrantConfig       `mapstructure:"qdrant"`
 	Meilisearch MeilisearchConfig  `mapstructure:"meilisearch"`
 	Cache       cache.Config       `mapstructure:"cache"`
-	LLM         chat.LLMConfig     `mapstructure:"llm"`
-	Chat        chat.ChatConfig    `mapstructure:"chat"`
 }
 
 type QdrantConfig struct {

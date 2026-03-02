@@ -7,7 +7,6 @@ import (
 
 	"github.com/jianyun8023/calibre-api/internal/cache"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
-	"github.com/jianyun8023/calibre-api/internal/chat"
 	"github.com/jianyun8023/calibre-api/internal/config"
 	"github.com/jianyun8023/calibre-api/internal/repository"
 	"github.com/jianyun8023/calibre-api/internal/semantic"
@@ -18,7 +17,6 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/content"
 	"github.com/jianyun8023/calibre-api/pkg/log"
-	"github.com/tmc/langchaingo/llms"
 )
 
 // Container 依赖注入容器
@@ -38,11 +36,6 @@ type Container struct {
 	qdrantSearcher   *qdrant.Searcher
 	semanticSearcher semantic.Searcher // Generic searcher (Qdrant or MeiliSearch)
 	cachedSearcher   *cache.CachedSearcher
-
-	// Chat components
-	chatDB    *chat.DB
-	chatLLM   llms.Model
-	chatAgent *chat.Agent
 
 	// Repository layer
 	bookRepo repository.BookRepository
@@ -72,10 +65,6 @@ func NewContainer(config *calibre.Config) (*Container, error) {
 
 	if err := c.initCache(); err != nil {
 		log.Warnf("Cache initialization failed (optional): %v", err)
-	}
-
-	if err := c.initChat(); err != nil {
-		log.Warnf("Chat initialization failed (optional): %v", err)
 	}
 
 	if err := c.initTasks(); err != nil {
@@ -116,10 +105,6 @@ func NewContainerWithConfigManager() (*Container, error) {
 
 	if err := c.initCache(); err != nil {
 		log.Warnf("Cache initialization failed (optional): %v", err)
-	}
-
-	if err := c.initChat(); err != nil {
-		log.Warnf("Chat initialization failed (optional): %v", err)
 	}
 
 	if err := c.initTasks(); err != nil {
@@ -265,45 +250,6 @@ func (c *Container) initCache() error {
 	return nil
 }
 
-// initChat 初始化聊天相关组件（数据库、LLM、Agent）
-func (c *Container) initChat() error {
-	// 初始化聊天数据库
-	if c.config.Chat.DBPath == "" {
-		return fmt.Errorf("chat database path not configured (skipping)")
-	}
-
-	db, err := chat.NewDB(c.config.Chat.DBPath)
-	if err != nil {
-		return fmt.Errorf("failed to initialize chat database: %w", err)
-	}
-	c.chatDB = db
-	log.Infof("Chat database initialized: %s", c.config.Chat.DBPath)
-
-	// 初始化 LLM（需要搜索器）
-	if c.config.LLM.Provider == "" {
-		log.Info("LLM provider not configured, chat agent will not be available")
-		return nil
-	}
-
-	if c.semanticSearcher == nil {
-		log.Warn("Semantic searcher not available, chat agent will not be initialized")
-		return nil
-	}
-
-	llm, err := chat.NewLLM(c.config.LLM)
-	if err != nil {
-		return fmt.Errorf("failed to initialize LLM: %w", err)
-	}
-	c.chatLLM = llm
-	log.Infof("LLM initialized with provider: %s", c.config.LLM.Provider)
-
-	// 注意：chatAgent 需要在 API 实例创建后初始化
-	// 因为它需要 TocFetcher 函数，该函数依赖于 API 实例
-	// 这将在 BuildAPI() 方法中完成
-
-	return nil
-}
-
 // initTasks 初始化任务管理器和 SSE 管理器
 func (c *Container) initTasks() error {
 	// 获取全局任务管理器实例
@@ -362,27 +308,10 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		c.semanticSearcher,
 		c.cachedSearcher,
 		c.cacheManager,
-		c.chatDB,
 		c.sseManager,
 		c.bookHandler,
 	); err != nil {
 		return nil, fmt.Errorf("failed to inject dependencies: %w", err)
-	}
-
-	// 如果 LLM 和搜索器都可用，初始化 Chat Agent
-	if c.chatLLM != nil && c.semanticSearcher != nil && c.chatDB != nil {
-		// 创建 TocFetcher 函数
-		tocFetcher := api.CreateTocFetcher()
-
-		// 创建 Chat Agent
-		c.chatAgent = chat.NewAgent(c.chatLLM, c.semanticSearcher, tocFetcher)
-
-		// 注入 Chat Agent 到 API
-		if err := api.InjectChatAgent(c.chatAgent); err != nil {
-			return nil, fmt.Errorf("failed to inject chat agent: %w", err)
-		}
-
-		log.Info("Chat agent initialized and injected")
 	}
 
 	c.api = api
@@ -440,16 +369,6 @@ func (c *Container) GetCacheManager() *cache.Manager {
 	return c.cacheManager
 }
 
-// GetChatDB 获取聊天数据库
-func (c *Container) GetChatDB() *chat.DB {
-	return c.chatDB
-}
-
-// GetChatAgent 获取聊天 Agent
-func (c *Container) GetChatAgent() *chat.Agent {
-	return c.chatAgent
-}
-
 // GetTaskManager 获取任务管理器
 func (c *Container) GetTaskManager() *tasks.Manager {
 	return c.taskManager
@@ -479,37 +398,37 @@ func (c *Container) EnableConfigHotReload() error {
 	// 添加配置变更监听器
 	c.configManager.AddWatcherFunc(func(oldConfig, newConfig *calibre.Config) error {
 		log.Infof("config changed, applying updates...")
-		
+
 		// 更新容器中的配置
 		c.config = newConfig
-		
+
 		// 这里可以添加更多的配置变更处理逻辑
 		// 例如：重新初始化某些组件、更新日志级别等
-		
+
 		// 更新日志级别
 		if oldConfig.Debug != newConfig.Debug {
 			log.EnableDebug = newConfig.Debug
 			log.Infof("debug mode changed: %v -> %v", oldConfig.Debug, newConfig.Debug)
 		}
-		
+
 		// 如果 Content Server 地址变更，记录警告
 		if oldConfig.Content.Server != newConfig.Content.Server {
-			log.Warnf("content server changed: %s -> %s (requires restart)", 
+			log.Warnf("content server changed: %s -> %s (requires restart)",
 				oldConfig.Content.Server, newConfig.Content.Server)
 		}
-		
+
 		// 如果 Qdrant 配置变更，记录警告
 		if oldConfig.Qdrant.URL != newConfig.Qdrant.URL {
-			log.Warnf("qdrant URL changed: %s -> %s (requires restart)", 
+			log.Warnf("qdrant URL changed: %s -> %s (requires restart)",
 				oldConfig.Qdrant.URL, newConfig.Qdrant.URL)
 		}
-		
+
 		return nil
 	})
 
 	// 开始监听配置文件变更
 	c.configManager.StartWatching()
-	
+
 	log.Info("config hot reload enabled")
 	return nil
 }
@@ -519,19 +438,13 @@ func (c *Container) ReloadConfig() error {
 	if c.configManager == nil {
 		return fmt.Errorf("config manager not available")
 	}
-	
+
 	return c.configManager.ReloadConfig()
 }
 
 // Close 关闭容器，清理资源
 func (c *Container) Close() error {
 	var errs []error
-
-	if c.chatDB != nil {
-		if err := c.chatDB.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("failed to close chat DB: %w", err))
-		}
-	}
 
 	if c.cacheManager != nil {
 		// Cache manager 可能需要清理资源

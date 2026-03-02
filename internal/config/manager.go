@@ -36,17 +36,17 @@ func (f ConfigWatcherFunc) OnConfigChanged(oldConfig, newConfig *calibre.Config)
 // NewManager 创建配置管理器
 func NewManager() (*Manager, error) {
 	v := viper.New()
-	
+
 	// 配置 viper
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
 	v.AddConfigPath("/etc/calibre-api/")
 	v.AddConfigPath("$HOME/.calibre-api")
 	v.AddConfigPath(".")
-	
+
 	// 设置默认值
 	setDefaults(v)
-	
+
 	// 设置环境变量
 	v.SetEnvPrefix("CALIBRE")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -132,9 +132,6 @@ func (m *Manager) loadConfig() error {
 	if logConf.Embedding.SiliconFlow.APIToken != "" {
 		logConf.Embedding.SiliconFlow.APIToken = "***"
 	}
-	if logConf.LLM.OpenAI.APIKey != "" {
-		logConf.LLM.OpenAI.APIKey = "***"
-	}
 
 	marshal, _ := json.Marshal(logConf)
 	log.Infof("loaded config: %s", marshal)
@@ -153,7 +150,7 @@ func validateConfig(conf *calibre.Config) error {
 func (m *Manager) GetConfig() *calibre.Config {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	// 返回配置的副本，避免并发修改
 	configCopy := *m.config
 	return &configCopy
@@ -176,20 +173,20 @@ func (m *Manager) StartWatching() {
 	m.viper.WatchConfig()
 	m.viper.OnConfigChange(func(e fsnotify.Event) {
 		log.Infof("config file changed: %s", e.Name)
-		
+
 		// 重新加载配置
 		oldConfig := m.GetConfig()
 		if err := m.reloadConfig(); err != nil {
 			log.Infof("ERROR: failed to reload config: %v", err)
 			return
 		}
-		
+
 		newConfig := m.GetConfig()
-		
+
 		// 通知所有监听器
 		m.notifyWatchers(oldConfig, newConfig)
 	})
-	
+
 	log.Info("config hot reload enabled")
 }
 
@@ -217,9 +214,6 @@ func (m *Manager) reloadConfig() error {
 	if logConf.Embedding.SiliconFlow.APIToken != "" {
 		logConf.Embedding.SiliconFlow.APIToken = "***"
 	}
-	if logConf.LLM.OpenAI.APIKey != "" {
-		logConf.LLM.OpenAI.APIKey = "***"
-	}
 
 	marshal, _ := json.Marshal(logConf)
 	log.Infof("reloaded config: %s", marshal)
@@ -243,14 +237,14 @@ func (m *Manager) notifyWatchers(oldConfig, newConfig *calibre.Config) {
 // ReloadConfig 手动重新加载配置
 func (m *Manager) ReloadConfig() error {
 	oldConfig := m.GetConfig()
-	
+
 	if err := m.loadConfig(); err != nil {
 		return err
 	}
-	
+
 	newConfig := m.GetConfig()
 	m.notifyWatchers(oldConfig, newConfig)
-	
+
 	return nil
 }
 
@@ -289,10 +283,10 @@ func (m *Manager) Close() error {
 	// viper 没有显式的关闭方法，但我们可以清理资源
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	m.watchers = nil
 	m.config = nil
-	
+
 	log.Info("config manager closed")
 	return nil
 }
