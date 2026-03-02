@@ -20,7 +20,6 @@
     "allBooks": "All Books",
     "search": "Search",
     "metadataManager": "Metadata Manager",
-    "chatAgent": "Chat Agent",
     "tasks": "Tasks",
     "publishers": "Publishers",
     "settings": "Settings"
@@ -50,14 +49,6 @@
     "results": "Search Results",
     "noResults": "No results found",
     "searching": "Searching..."
-  },
-  "chat": {
-    "title": "Chat Agent",
-    "placeholder": "Type your question...",
-    "send": "Send",
-    "newChat": "New Chat",
-    "history": "History",
-    "clearHistory": "Clear History"
   },
   "settings": {
     "title": "Settings",

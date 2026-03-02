@@ -20,7 +20,6 @@
     "allBooks": "所有书籍",
     "search": "搜索",
     "metadataManager": "元数据管理",
-    "chatAgent": "智能对话",
     "tasks": "任务",
     "publishers": "出版社",
     "settings": "设置"
@@ -50,14 +49,6 @@
     "results": "搜索结果",
     "noResults": "未找到结果",
     "searching": "搜索中..."
-  },
-  "chat": {
-    "title": "智能对话",
-    "placeholder": "输入您的问题...",
-    "send": "发送",
-    "newChat": "新对话",
-    "history": "历史记录",
-    "clearHistory": "清空历史"
   },
   "settings": {
     "title": "设置",
