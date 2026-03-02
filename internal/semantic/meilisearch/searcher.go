@@ -74,6 +74,14 @@ func (s *Searcher) EnsureIndexes(ctx context.Context) error {
 		"last_modified",
 	}
 
+	// Configure embedder for vector search
+	embedders := map[string]meilisearch.Embedder{
+		"default": {
+			Source:     meilisearch.EmbedderSource("userProvided"),
+			Dimensions: 4096, // Must match the embedding dimension (Qwen3-Embedding-8B uses 4096)
+		},
+	}
+
 	settings := &meilisearch.Settings{
 		FilterableAttributes: filterableAttributes,
 		SortableAttributes: []string{
@@ -83,6 +91,7 @@ func (s *Searcher) EnsureIndexes(ctx context.Context) error {
 			"rating",
 			"series_index",
 		},
+		Embedders: embedders,
 	}
 
 	task, err := index.UpdateSettings(settings)
@@ -114,11 +123,17 @@ func (s *Searcher) Search(query string, limit int) ([]semantic.SearchResult, err
 
 	// 2. Search with vector
 	req := &meilisearch.SearchRequest{
-		Limit: int64(limit),
+		Limit:            int64(limit),
+		ShowRankingScore: true, // Enable ranking score in results
 	}
 
 	if len(queryVector) > 0 {
 		req.Vector = queryVector
+		// Meilisearch requires hybrid parameter when using vector search
+		req.Hybrid = &meilisearch.SearchRequestHybrid{
+			Embedder:      "default", // Must match the embedder name in index settings
+			SemanticRatio: 1.0,       // Pure semantic search (1.0 = 100% vector, 0.0 = 100% keyword)
+		}
 	} else {
 		log.Println("Warning: Semantic search called without embedding provider, falling back to text search")
 	}
@@ -138,9 +153,12 @@ func (s *Searcher) Search(query string, limit int) ([]semantic.SearchResult, err
 			continue
 		}
 
+		// Extract ranking score from hit (if available)
+		score := extractRankingScore(hit)
+
 		results[i] = semantic.SearchResult{
 			Book:  book,
-			Score: 0,
+			Score: score,
 			Rank:  i + 1,
 		}
 	}
@@ -572,4 +590,34 @@ func mapToBook(v interface{}) (semantic.Book, error) {
 	}
 
 	return b, nil
+}
+
+// extractRankingScore extracts the _rankingScore field from a Meilisearch hit
+func extractRankingScore(hit interface{}) float32 {
+	// Convert hit to map[string]interface{} via JSON marshal/unmarshal
+	data, err := json.Marshal(hit)
+	if err != nil {
+		return 0
+	}
+
+	var m map[string]interface{}
+	if err := json.Unmarshal(data, &m); err != nil {
+		return 0
+	}
+
+	// Extract _rankingScore field
+	if rankingScore, exists := m["_rankingScore"]; exists {
+		switch v := rankingScore.(type) {
+		case float64:
+			return float32(v)
+		case float32:
+			return v
+		case json.Number:
+			if f64, err := v.Float64(); err == nil {
+				return float32(f64)
+			}
+		}
+	}
+
+	return 0
 }
