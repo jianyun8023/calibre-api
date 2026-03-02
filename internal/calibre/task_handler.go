@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 )
 
@@ -37,26 +36,18 @@ func (c *Api) startTask(r *gin.Context) {
 
 	switch tasks.TaskType(req.Type) {
 	case tasks.TaskTypeQdrantSync:
-		if c.qdrantClient == nil {
+		if c.semanticSearcher == nil {
 			r.JSON(http.StatusServiceUnavailable, gin.H{
 				"code":    503,
-				"message": "Qdrant client is not initialized",
-			})
-			return
-		}
-
-		searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
-		if !ok || searcher == nil {
-			r.JSON(http.StatusServiceUnavailable, gin.H{
-				"code":    503,
-				"message": "Qdrant searcher is not initialized",
+				"message": "Search service is not initialized",
 			})
 			return
 		}
 
 		manager := tasks.GetManager()
 		taskID, err := manager.StartTask(tasks.TaskTypeQdrantSync, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
-			return tasks.NewQdrantSyncTask(id, tasks.TaskMode(req.Mode), c.contentApi, c.qdrantClient, searcher)
+			// Using SearchSyncTask which replaced QdrantSyncTask
+			return tasks.NewSearchSyncTask(id, tasks.TaskMode(req.Mode), c.contentApi, c.semanticSearcher)
 		})
 
 		if err != nil {
@@ -83,18 +74,17 @@ func (c *Api) startTask(r *gin.Context) {
 			return
 		}
 
-		searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
-		if !ok || searcher == nil {
+		if c.semanticSearcher == nil {
 			r.JSON(http.StatusServiceUnavailable, gin.H{
 				"code":    503,
-				"message": "Qdrant searcher is not initialized",
+				"message": "Search service is not initialized",
 			})
 			return
 		}
 
 		manager := tasks.GetManager()
 		taskID, err := manager.StartTask(tasks.TaskTypeTocExtract, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
-			return tasks.NewTocExtractTask(id, tasks.TaskMode(req.Mode), c.contentApi, searcher, c.cacheManager)
+			return tasks.NewTocExtractTask(id, tasks.TaskMode(req.Mode), c.contentApi, c.semanticSearcher, c.cacheManager)
 		})
 
 		if err != nil {
@@ -121,18 +111,17 @@ func (c *Api) startTask(r *gin.Context) {
 			return
 		}
 
-		searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
-		if !ok || searcher == nil {
+		if c.semanticSearcher == nil {
 			r.JSON(http.StatusServiceUnavailable, gin.H{
 				"code":    503,
-				"message": "Qdrant searcher is not initialized",
+				"message": "Search service is not initialized",
 			})
 			return
 		}
 
 		manager := tasks.GetManager()
 		taskID, err := manager.StartTask(tasks.TaskTypeCheckMissing, tasks.TaskModeFull, func(id string) tasks.Task {
-			return tasks.NewCheckMissingTask(id, c.contentApi, searcher)
+			return tasks.NewCheckMissingTask(id, c.contentApi, c.semanticSearcher)
 		})
 
 		if err != nil {

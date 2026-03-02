@@ -2,16 +2,15 @@ package calibre
 
 import (
 	"context"
-	"encoding/json"
 	"io/fs"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/cache"
-	"github.com/jianyun8023/calibre-api/internal/chat"
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
+	"github.com/jianyun8023/calibre-api/internal/semantic/meilisearch"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/client"
@@ -26,11 +25,10 @@ type Api struct {
 	baseDir          string
 	http             *client.Client
 	qdrantClient     *qdrant.Client
-	semanticSearcher interface{}           // *qdrant.Searcher
+	meiliClient      *meilisearch.Client
+	semanticSearcher semantic.Searcher
 	cachedSearcher   *cache.CachedSearcher // 带缓存的搜索器
 	cacheManager     *cache.Manager
-	chatDB           *chat.DB
-	chatAgent        *chat.Agent
 	sseManager       *tasks.SSEManager
 	bookHandler      *BookHandlerV2  // 新的 Handler（使用 Service 层）
 	metricsHandler   *MetricsHandler // 性能指标处理器
@@ -41,10 +39,9 @@ func (a *Api) InjectDependencies(
 	config *Config,
 	contentApi *content.Api,
 	qdrantClient *qdrant.Client,
-	qdrantSearcher *qdrant.Searcher,
+	searcher semantic.Searcher,
 	cachedSearcher *cache.CachedSearcher,
 	cacheManager *cache.Manager,
-	chatDB *chat.DB,
 	sseManager *tasks.SSEManager,
 	bookHandler *BookHandlerV2,
 ) error {
@@ -53,10 +50,9 @@ func (a *Api) InjectDependencies(
 	a.baseDir = config.TmpDir
 	a.http = contentApi.Client
 	a.qdrantClient = qdrantClient
-	a.semanticSearcher = qdrantSearcher
+	a.semanticSearcher = searcher
 	a.cachedSearcher = cachedSearcher
 	a.cacheManager = cacheManager
-	a.chatDB = chatDB
 	a.sseManager = sseManager
 	a.bookHandler = bookHandler
 
@@ -73,28 +69,6 @@ func (a *Api) InjectDependencies(
 	}
 
 	return nil
-}
-
-// InjectChatAgent 注入聊天 Agent（需要在 API 实例创建后）
-func (a *Api) InjectChatAgent(agent *chat.Agent) error {
-	a.chatAgent = agent
-	return nil
-}
-
-// CreateTocFetcher 创建 TOC 获取函数（用于 Chat Agent）
-func (a *Api) CreateTocFetcher() func(ctx context.Context, bookID int64) (string, error) {
-	return func(ctx context.Context, bookID int64) (string, error) {
-		tocData, err := a.GetBookTocData(strconv.FormatInt(bookID, 10))
-		if err != nil {
-			return "", err
-		}
-		// 将 tocData 转换为 JSON 字符串
-		bytes, err := json.MarshalIndent(tocData, "", "  ")
-		if err != nil {
-			return "", err
-		}
-		return string(bytes), nil
-	}
 }
 
 // SetupRouter 设置路由
@@ -135,16 +109,6 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.POST("/tasks/:id/stop", c.stopTask)
 	base.GET("/tasks/stream", c.streamTasks) // SSE 任务流
 
-	// Chat routes (智能问答)
-	base.POST("/chat/conversations", c.CreateConversation)
-	base.GET("/chat/conversations", c.ListConversations)
-	base.GET("/chat/conversations/:id", c.GetConversation)
-	base.GET("/chat/conversations/:id/messages", c.GetConversationMessages)
-	base.DELETE("/chat/conversations/:id", c.DeleteConversation)
-	base.DELETE("/chat/messages/:id", c.DeleteMessage)
-	base.POST("/chat/conversations/:id/messages", c.SendMessage)
-	base.POST("/chat/stream", c.ChatStream) // AI SDK stream endpoint
-
 	// 性能监控和指标
 	if c.metricsHandler != nil {
 		base.GET("/metrics", c.metricsHandler.GetMetrics)
@@ -167,11 +131,47 @@ func NewClient(config *Config) *Api {
 		log.Fatal(err)
 	}
 
-	// Initialize Qdrant client and searcher
+	// Initialize Searcher (Qdrant or Meilisearch)
 	var qdrantClient *qdrant.Client
-	var qdrantSearcher *qdrant.Searcher
+	var meiliClient *meilisearch.Client
+	var semanticSearcher semantic.Searcher
 
-	if config.Qdrant.URL != "" {
+	// Initialize embedding provider (generic)
+	// We need this for both Qdrant (required) and Meilisearch (for semantic search feature)
+	qdrantProviderConfig := embedding.ProviderConfig{
+		Provider:    config.Embedding.Provider,
+		Ollama:      config.Embedding.Ollama,
+		SiliconFlow: config.Embedding.SiliconFlow,
+		VectorDim:   4096, // Default to 4096 if model uses it (Qwen/DeepSeek often use 1024-4096)
+	}
+
+	provider, err := embedding.NewProvider(qdrantProviderConfig)
+	if err != nil {
+		log.Warnf("Failed to create embedding provider: %v. Semantic search capabilities will be limited.", err)
+	}
+
+	// Check if Meilisearch is configured
+	if config.Meilisearch.Host != "" {
+		log.Info("Initializing Meilisearch client...")
+		meiliClient = meilisearch.NewClient(
+			config.Meilisearch.Host,
+			config.Meilisearch.APIKey,
+			config.Meilisearch.IndexName,
+		)
+		// Pass provider to Meilisearch searcher
+		semanticSearcher = meilisearch.NewSearcher(meiliClient, provider)
+		log.Info("Meilisearch searcher initialized successfully")
+
+		// Ensure indexes
+		ctx := context.Background()
+		if err := semanticSearcher.EnsureIndexes(ctx); err != nil {
+			log.Warnf("Failed to ensure Meilisearch indexes: %v", err)
+		} else {
+			log.Info("Meilisearch indexes ensured successfully")
+		}
+
+	} else if config.Qdrant.URL != "" {
+		// Fallback to Qdrant
 		qdrantClient = qdrant.NewClient(
 			config.Qdrant.URL,
 			config.Qdrant.Collection,
@@ -179,29 +179,22 @@ func NewClient(config *Config) *Api {
 		)
 		log.Info("Qdrant client initialized successfully")
 
-		// Initialize embedding provider for Qdrant searcher
-		qdrantProviderConfig := embedding.ProviderConfig{
-			Provider:    config.Embedding.Provider,
-			Ollama:      config.Embedding.Ollama,
-			SiliconFlow: config.Embedding.SiliconFlow,
-			VectorDim:   4096, // Qdrant uses 4096 dimensions
-		}
-
-		qdrantProvider, err := embedding.NewProvider(qdrantProviderConfig)
-		if err != nil {
-			log.Warnf("Failed to create Qdrant embedding provider: %v", err)
-		} else {
-			qdrantSearcher = qdrant.NewSearcher(qdrantProvider, qdrantClient)
+		if provider != nil {
+			semanticSearcher = qdrant.NewSearcher(provider, qdrantClient)
 			log.Info("Qdrant searcher initialized successfully")
 
 			// Ensure required payload indexes exist
 			ctx := context.Background()
-			if err := qdrantSearcher.EnsureIndexes(ctx); err != nil {
+			if err := semanticSearcher.EnsureIndexes(ctx); err != nil {
 				log.Warnf("Failed to ensure Qdrant indexes (indexes may already exist): %v", err)
 			} else {
 				log.Info("Qdrant payload indexes ensured successfully")
 			}
+		} else {
+			log.Warn("Qdrant requires embedding provider, but provider initialization failed.")
 		}
+	} else {
+		log.Warn("No search engine configured (Qdrant or Meilisearch)")
 	}
 
 	// Initialize cache manager
@@ -216,57 +209,16 @@ func NewClient(config *Config) *Api {
 		}
 	}
 
-	// Initialize chat components
-	var chatDB *chat.DB
-	var chatAgent *chat.Agent
-
-	if config.Chat.DBPath != "" {
-		chatDB, err = chat.NewDB(config.Chat.DBPath)
-		if err != nil {
-			log.Warnf("Failed to initialize chat database: %v", err)
-		} else {
-			log.Infof("Chat database initialized: %s", config.Chat.DBPath)
-		}
-	}
-
-	// Create Api instance first (without chatAgent)
+	// Create Api instance
 	api := Api{
 		config:           config,
 		baseDir:          config.TmpDir,
 		contentApi:       &newClient,
 		http:             newClient.Client,
 		qdrantClient:     qdrantClient,
-		semanticSearcher: qdrantSearcher,
+		meiliClient:      meiliClient,
+		semanticSearcher: semanticSearcher,
 		cacheManager:     cacheManager,
-		chatDB:           chatDB,
-	}
-
-	// Initialize LLM and Agent if chat DB is available and Qdrant searcher exists
-	if chatDB != nil && qdrantSearcher != nil && config.LLM.Provider != "" {
-		llm, err := chat.NewLLM(config.LLM)
-		if err != nil {
-			log.Warnf("Failed to initialize LLM client: %v", err)
-		} else {
-			// Define TocFetcher using the api instance
-			tocFetcher := func(ctx context.Context, bookID int64) (string, error) {
-				tocData, err := api.GetBookTocData(strconv.FormatInt(bookID, 10))
-				if err != nil {
-					return "", err
-				}
-				// Convert tocData to string summary
-				// tocData is map[string]interface{} or similar structure
-				// We need to format it nicely for the LLM
-				bytes, err := json.MarshalIndent(tocData, "", "  ")
-				if err != nil {
-					return "", err
-				}
-				return string(bytes), nil
-			}
-
-			chatAgent = chat.NewAgent(llm, qdrantSearcher, tocFetcher)
-			api.chatAgent = chatAgent // Inject agent back to api
-			log.Infof("Chat agent initialized with provider: %s", config.LLM.Provider)
-		}
 	}
 
 	// 初始化 SSE MCP 服务器（在 HTTP 模式下默认启用）

@@ -5,20 +5,19 @@ import (
 	"strconv"
 
 	"github.com/jianyun8023/calibre-api/internal/semantic"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 )
 
 // CachedSearcher 带缓存的搜索器
-// 包装 qdrant.Searcher，为搜索操作添加缓存层
+// 包装 semantic.Searcher，为搜索操作添加缓存层
 type CachedSearcher struct {
-	searcher *qdrant.Searcher
+	searcher semantic.Searcher
 	cache    *SearchCache
 	metrics  *CacheMetrics
 }
 
 // NewCachedSearcher 创建带缓存的搜索器
-func NewCachedSearcher(searcher *qdrant.Searcher, maxSize int, ttl int) *CachedSearcher {
+func NewCachedSearcher(searcher semantic.Searcher, maxSize int, ttl int) *CachedSearcher {
 	return &CachedSearcher{
 		searcher: searcher,
 		cache:    NewSearchCache(maxSize, 0), // ttl 将从参数设置
@@ -151,12 +150,12 @@ func (cs *CachedSearcher) CleanExpiredCache() int {
 }
 
 // GetUnderlyingSearcher 获取底层搜索器（用于直接访问）
-func (cs *CachedSearcher) GetUnderlyingSearcher() *qdrant.Searcher {
+func (cs *CachedSearcher) GetUnderlyingSearcher() semantic.Searcher {
 	return cs.searcher
 }
 
 // WrapSearcher 包装现有搜索器添加缓存功能
-func WrapSearcher(searcher *qdrant.Searcher, maxSize, ttlSeconds int) *CachedSearcher {
+func WrapSearcher(searcher semantic.Searcher, maxSize, ttlSeconds int) *CachedSearcher {
 	if maxSize <= 0 {
 		maxSize = 1000 // 默认缓存 1000 个查询
 	}
@@ -170,8 +169,8 @@ func WrapSearcher(searcher *qdrant.Searcher, maxSize, ttlSeconds int) *CachedSea
 
 // SearchCacheConfig 搜索缓存配置
 type SearchCacheConfig struct {
-	Enabled    bool `yaml:"enabled" json:"enabled"`       // 是否启用缓存
-	MaxSize    int  `yaml:"max_size" json:"max_size"`     // 最大缓存条目数
+	Enabled    bool `yaml:"enabled" json:"enabled"`         // 是否启用缓存
+	MaxSize    int  `yaml:"max_size" json:"max_size"`       // 最大缓存条目数
 	TTLSeconds int  `yaml:"ttl_seconds" json:"ttl_seconds"` // 缓存过期时间（秒）
 }
 
@@ -194,4 +193,3 @@ func (c SearchCacheConfig) Validate() error {
 	}
 	return nil
 }
-

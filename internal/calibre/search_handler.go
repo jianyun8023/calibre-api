@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/semantic"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 )
 
@@ -99,17 +98,16 @@ func (c *Api) search(r *gin.Context) {
 		searcher = c.cachedSearcher
 		log.Debugf("Using cached searcher for query: %s", q)
 	} else {
-		// 回退到原始 Qdrant 搜索器
-		qdrantSearcher, ok := c.semanticSearcher.(*qdrant.Searcher)
-		if !ok || qdrantSearcher == nil {
-			log.Warnf("Qdrant searcher not available")
+		// 回退到原始搜索器（Meilisearch 或 Qdrant）
+		if c.semanticSearcher == nil {
+			log.Warnf("Semantic searcher not available")
 			r.JSON(http.StatusInternalServerError, gin.H{
 				"error": "Search service not available",
 				"code":  500,
 			})
 			return
 		}
-		searcher = qdrantSearcher
+		searcher = c.semanticSearcher
 	}
 
 	mode := r.Query("mode")
@@ -198,18 +196,8 @@ func (c *Api) semanticSearch(r *gin.Context) {
 		}
 	}
 
-	// Use Qdrant for semantic search
-	searcher, ok := c.semanticSearcher.(*qdrant.Searcher)
-	if !ok || searcher == nil {
-		r.JSON(http.StatusServiceUnavailable, gin.H{
-			"code":    503,
-			"message": "Qdrant semantic search service not available",
-		})
-		return
-	}
-
-	// Perform semantic search with Qdrant
-	results, err := searcher.Search(q, limit)
+	// Perform semantic search using configured searcher (Meilisearch or Qdrant)
+	results, err := c.semanticSearcher.Search(q, limit)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,

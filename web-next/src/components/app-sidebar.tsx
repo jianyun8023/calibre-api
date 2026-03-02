@@ -9,7 +9,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { 
   Library, 
   Search, 
-  MessageSquare, 
   Settings, 
   ListTodo, 
   Building2, 
@@ -30,7 +29,6 @@ export function AppSidebar({ className }: { className?: string }) {
     { name: t('allBooks'), href: `/${locale}/books`, icon: Library },
     { name: t('search'), href: `/${locale}/search`, icon: Search },
     { name: t('metadataManager'), href: `/${locale}/metadata/manager`, icon: FileEdit },
-    { name: t('chatAgent'), href: `/${locale}/chat`, icon: MessageSquare },
     { name: t('tasks'), href: `/${locale}/tasks`, icon: ListTodo },
     { name: t('publishers'), href: `/${locale}/publisher`, icon: Building2 },
     { name: t('settings'), href: `/${locale}/settings`, icon: Settings },

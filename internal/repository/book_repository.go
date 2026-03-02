@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/semantic"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	apperrors "github.com/jianyun8023/calibre-api/pkg/errors"
 )
 
@@ -56,11 +55,11 @@ type Book struct {
 
 // qdrantBookRepository Qdrant 实现的 BookRepository
 type qdrantBookRepository struct {
-	searcher *qdrant.Searcher
+	searcher semantic.Searcher
 }
 
 // NewQdrantBookRepository 创建 Qdrant 书籍仓储
-func NewQdrantBookRepository(searcher *qdrant.Searcher) BookRepository {
+func NewQdrantBookRepository(searcher semantic.Searcher) BookRepository {
 	return &qdrantBookRepository{
 		searcher: searcher,
 	}

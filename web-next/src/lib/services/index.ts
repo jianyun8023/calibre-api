@@ -5,7 +5,7 @@
  * 
  * @example
  * ```typescript
- * import { bookService, metadataService, chatService, taskService } from '@/lib/services'
+ * import { bookService, metadataService, taskService } from '@/lib/services'
  * 
  * const book = await bookService.getBook('1')
  * const metadata = await metadataService.searchByISBN('9787111633082')
@@ -16,7 +16,6 @@
 export { BaseApiService } from './base-service'
 export { BookService, bookService } from './book-service'
 export { MetadataService, metadataService } from './metadata-service'
-export { ChatService, chatService } from './chat-service'
 export { TaskService, taskService } from './task-service'
 
 // Export type definitions
@@ -34,15 +33,6 @@ export type {
   MetadataSearchResponse,
   MetadataISBNResponse,
 } from './metadata-service'
-
-export type {
-  // Chat Service
-  Conversation,
-  Message,
-  CreateConversationRequest,
-  ChatStreamRequest,
-  ChatResponse,
-} from './chat-service'
 
 export type {
   // Task Service

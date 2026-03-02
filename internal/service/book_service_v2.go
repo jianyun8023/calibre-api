@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/jianyun8023/calibre-api/internal/repository"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 	apperrors "github.com/jianyun8023/calibre-api/pkg/errors"
 	"github.com/jianyun8023/calibre-api/pkg/log"
@@ -16,7 +16,7 @@ type bookServiceV2 struct {
 	bookRepo    repository.BookRepository
 	contentAPI  ContentAPI
 	taskManager *tasks.Manager
-	searcher    *qdrant.Searcher // 保留用于任务调度
+	searcher    semantic.Searcher // 保留用于任务调度
 }
 
 // NewBookServiceWithRepository 创建使用 Repository 的书籍服务
@@ -24,7 +24,7 @@ func NewBookServiceWithRepository(
 	bookRepo repository.BookRepository,
 	contentAPI ContentAPI,
 	taskManager *tasks.Manager,
-	searcher *qdrant.Searcher,
+	searcher semantic.Searcher,
 ) BookService {
 	return &bookServiceV2{
 		bookRepo:    bookRepo,

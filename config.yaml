@@ -34,6 +34,11 @@ qdrant:
   collection: "books"
   timeout: 30
 
+meilisearch:
+  host: "http://localhost:7700"
+  api_key: ""
+  index_name: "books"
+
 cache:
   dir: ".cache/epub"
   max_size_gb: 30

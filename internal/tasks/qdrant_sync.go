@@ -8,33 +8,30 @@ import (
 	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/semantic"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/pkg/content"
 )
 
-type QdrantSyncTask struct {
-	id           string
-	mode         TaskMode
-	contentApi   *content.Api
-	qdrantClient *qdrant.Client
-	searcher     *qdrant.Searcher
-	status       TaskStatus
-	mu           sync.RWMutex
-	cancel       context.CancelFunc
-	errors       []string // 记录同步过程中的错误
+type SearchSyncTask struct {
+	id         string
+	mode       TaskMode
+	contentApi *content.Api
+	searcher   semantic.Searcher
+	status     TaskStatus
+	mu         sync.RWMutex
+	cancel     context.CancelFunc
+	errors     []string // 记录同步过程中的错误
 }
 
-func NewQdrantSyncTask(id string, mode TaskMode, contentApi *content.Api, qdrantClient *qdrant.Client, searcher *qdrant.Searcher) *QdrantSyncTask {
-	return &QdrantSyncTask{
-		id:           id,
-		mode:         mode,
-		contentApi:   contentApi,
-		qdrantClient: qdrantClient,
-		searcher:     searcher,
-		errors:       make([]string, 0),
+func NewSearchSyncTask(id string, mode TaskMode, contentApi *content.Api, searcher semantic.Searcher) *SearchSyncTask {
+	return &SearchSyncTask{
+		id:         id,
+		mode:       mode,
+		contentApi: contentApi,
+		searcher:   searcher,
+		errors:     make([]string, 0),
 		status: TaskStatus{
 			ID:        id,
-			Type:      TaskTypeQdrantSync,
+			Type:      TaskTypeQdrantSync, // Keep type for now or rename to TaskTypeSearchSync if frontend updated
 			Mode:      mode,
 			State:     "idle",
 			StartTime: time.Now(),
@@ -43,13 +40,13 @@ func NewQdrantSyncTask(id string, mode TaskMode, contentApi *content.Api, qdrant
 	}
 }
 
-func (t *QdrantSyncTask) GetStatus() TaskStatus {
+func (t *SearchSyncTask) GetStatus() TaskStatus {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.status
 }
 
-func (t *QdrantSyncTask) Stop() {
+func (t *SearchSyncTask) Stop() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.cancel != nil {
@@ -61,19 +58,19 @@ func (t *QdrantSyncTask) Stop() {
 	}
 }
 
-func (t *QdrantSyncTask) Run() error {
+func (t *SearchSyncTask) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.mu.Lock()
 	t.cancel = cancel
 	t.status.State = "running"
-	t.status.Message = "Starting Qdrant sync..."
+	t.status.Message = "Starting search index sync..."
 	t.mu.Unlock()
 	GetManager().BroadcastTaskProgress(t.id)
 
 	var ids []int64
 
 	if t.mode == TaskModeIncremental && t.searcher != nil {
-		// 增量同步：比较 Calibre 和 Qdrant 的 ID 差异，同步缺失的书籍
+		// 增量同步：比较 Calibre 和 Search Engine 的 ID 差异，同步缺失的书籍
 		var err error
 		ids, err = t.findMissingBooks(ctx)
 		if err != nil {
@@ -106,7 +103,7 @@ func (t *QdrantSyncTask) Run() error {
 		return nil
 	}
 
-	batchSize := 100 // Qdrant batch size
+	batchSize := 100 // Batch size
 	total := len(ids)
 
 	for i := 0; i < total; i += batchSize {
@@ -198,8 +195,8 @@ func (t *QdrantSyncTask) Run() error {
 	return nil
 }
 
-// findMissingBooks 比较 Calibre 和 Qdrant 的 ID，返回 Qdrant 中缺失的书籍 ID
-func (t *QdrantSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) {
+// findMissingBooks 比较 Calibre 和 Search Engine 的 ID，返回缺失的书籍 ID
+func (t *SearchSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) {
 	t.mu.Lock()
 	t.status.Message = "Incremental sync: fetching Calibre book IDs..."
 	t.mu.Unlock()
@@ -212,12 +209,12 @@ func (t *QdrantSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) 
 	}
 
 	t.mu.Lock()
-	t.status.Message = fmt.Sprintf("Found %d books in Calibre. Fetching Qdrant IDs...", len(calibreIDs))
+	t.status.Message = fmt.Sprintf("Found %d books in Calibre. Fetching search index IDs...", len(calibreIDs))
 	t.mu.Unlock()
 	GetManager().BroadcastTaskProgress(t.id)
 
-	// 2. 获取 Qdrant 中所有书籍 ID
-	qdrantIDMap := make(map[int64]bool)
+	// 2. 获取 Search Engine 中所有书籍 ID
+	searchIDMap := make(map[int64]bool)
 	cursor := ""
 	limit := 1000
 
@@ -230,13 +227,13 @@ func (t *QdrantSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) 
 
 		books, _, nextCursor, err := t.searcher.GetAllWithCursor(limit, cursor)
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch from Qdrant: %w", err)
+			return nil, fmt.Errorf("failed to fetch from search engine: %w", err)
 		}
 
 		addedNew := false
 		for _, b := range books {
-			if !qdrantIDMap[b.ID] {
-				qdrantIDMap[b.ID] = true
+			if !searchIDMap[b.ID] {
+				searchIDMap[b.ID] = true
 				addedNew = true
 			}
 		}
@@ -253,14 +250,14 @@ func (t *QdrantSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) 
 	}
 
 	t.mu.Lock()
-	t.status.Message = fmt.Sprintf("Comparing %d Calibre books with %d Qdrant vectors...", len(calibreIDs), len(qdrantIDMap))
+	t.status.Message = fmt.Sprintf("Comparing %d Calibre books with %d search index items...", len(calibreIDs), len(searchIDMap))
 	t.mu.Unlock()
 	GetManager().BroadcastTaskProgress(t.id)
 
-	// 3. 找出 Qdrant 中缺失的 ID
+	// 3. 找出缺失的 ID
 	var missingIDs []int64
 	for _, id := range calibreIDs {
-		if !qdrantIDMap[id] {
+		if !searchIDMap[id] {
 			missingIDs = append(missingIDs, id)
 		}
 	}

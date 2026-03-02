@@ -7,16 +7,16 @@ import (
 
 	"github.com/jianyun8023/calibre-api/internal/cache"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
-	"github.com/jianyun8023/calibre-api/internal/chat"
 	"github.com/jianyun8023/calibre-api/internal/config"
 	"github.com/jianyun8023/calibre-api/internal/repository"
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
+	"github.com/jianyun8023/calibre-api/internal/semantic/meilisearch"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/internal/service"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/content"
 	"github.com/jianyun8023/calibre-api/pkg/log"
-	"github.com/tmc/langchaingo/llms"
 )
 
 // Container 依赖注入容器
@@ -33,13 +33,9 @@ type Container struct {
 	sseManager   *tasks.SSEManager
 
 	// Search components
-	qdrantSearcher *qdrant.Searcher
-	cachedSearcher *cache.CachedSearcher
-
-	// Chat components
-	chatDB    *chat.DB
-	chatLLM   llms.Model
-	chatAgent *chat.Agent
+	qdrantSearcher   *qdrant.Searcher
+	semanticSearcher semantic.Searcher // Generic searcher (Qdrant or MeiliSearch)
+	cachedSearcher   *cache.CachedSearcher
 
 	// Repository layer
 	bookRepo repository.BookRepository
@@ -71,10 +67,6 @@ func NewContainer(config *calibre.Config) (*Container, error) {
 		log.Warnf("Cache initialization failed (optional): %v", err)
 	}
 
-	if err := c.initChat(); err != nil {
-		log.Warnf("Chat initialization failed (optional): %v", err)
-	}
-
 	if err := c.initTasks(); err != nil {
 		return nil, fmt.Errorf("failed to initialize task manager: %w", err)
 	}
@@ -104,12 +96,15 @@ func NewContainerWithConfigManager() (*Container, error) {
 		log.Warnf("Qdrant initialization failed (optional): %v", err)
 	}
 
-	if err := c.initCache(); err != nil {
-		log.Warnf("Cache initialization failed (optional): %v", err)
+	// 如果 Qdrant 未初始化，尝试 MeiliSearch
+	if c.semanticSearcher == nil {
+		if err := c.initMeilisearch(); err != nil {
+			log.Warnf("Meilisearch initialization failed (optional): %v", err)
+		}
 	}
 
-	if err := c.initChat(); err != nil {
-		log.Warnf("Chat initialization failed (optional): %v", err)
+	if err := c.initCache(); err != nil {
+		log.Warnf("Cache initialization failed (optional): %v", err)
 	}
 
 	if err := c.initTasks(); err != nil {
@@ -164,6 +159,7 @@ func (c *Container) initQdrant() error {
 
 	// 创建搜索器
 	c.qdrantSearcher = qdrant.NewSearcher(provider, c.qdrantClient)
+	c.semanticSearcher = c.qdrantSearcher // 设置通用搜索器
 	log.Infof("Qdrant searcher initialized with provider: %s", c.config.Embedding.Provider)
 
 	// 包装搜索器添加缓存功能
@@ -178,6 +174,56 @@ func (c *Container) initQdrant() error {
 		log.Warnf("Failed to ensure Qdrant indexes (may already exist): %v", err)
 	} else {
 		log.Info("Qdrant payload indexes verified")
+	}
+
+	return nil
+}
+
+// initMeilisearch 初始化 MeiliSearch 搜索引擎
+func (c *Container) initMeilisearch() error {
+	if c.config.Meilisearch.Host == "" {
+		return fmt.Errorf("Meilisearch host not configured (skipping)")
+	}
+
+	// 初始化 Embedding Provider（用于语义搜索）
+	providerConfig := embedding.ProviderConfig{
+		Provider:    c.config.Embedding.Provider,
+		Ollama:      c.config.Embedding.Ollama,
+		SiliconFlow: c.config.Embedding.SiliconFlow,
+		VectorDim:   4096,
+	}
+
+	var provider embedding.Provider
+	var err error
+	provider, err = embedding.NewProvider(providerConfig)
+	if err != nil {
+		log.Warnf("Failed to create embedding provider for MeiliSearch: %v. Semantic search will be limited.", err)
+	}
+
+	// 创建 MeiliSearch 客户端
+	meiliClient := meilisearch.NewClient(
+		c.config.Meilisearch.Host,
+		c.config.Meilisearch.APIKey,
+		c.config.Meilisearch.IndexName,
+	)
+
+	// 创建 MeiliSearch 搜索器
+	meiliSearcher := meilisearch.NewSearcher(meiliClient, provider)
+	c.semanticSearcher = meiliSearcher
+	log.Infof("Meilisearch searcher initialized: %s (index: %s)", c.config.Meilisearch.Host, c.config.Meilisearch.IndexName)
+
+	// 包装搜索器添加缓存功能
+	cacheMaxSize := 1000
+	cacheTTL := 300 // 5 分钟
+	c.cachedSearcher = cache.WrapSearcher(meiliSearcher, cacheMaxSize, cacheTTL)
+	log.Infof("Search cache initialized (MeiliSearch): maxSize=%d, ttl=%ds", cacheMaxSize, cacheTTL)
+
+	// 确保索引存在
+	ctx := context.Background()
+	if err := meiliSearcher.EnsureIndexes(ctx); err != nil {
+		log.Warnf("Failed to ensure MeiliSearch indexes: %v", err)
+	} else {
+		log.Info("MeiliSearch indexes ensured successfully")
 	}
 
 	return nil
@@ -201,45 +247,6 @@ func (c *Container) initCache() error {
 	c.cacheManager = manager
 	log.Infof("Cache manager initialized: dir=%s, max_size=%.1fGB",
 		c.config.Cache.Dir, c.config.Cache.MaxSizeGB)
-	return nil
-}
-
-// initChat 初始化聊天相关组件（数据库、LLM、Agent）
-func (c *Container) initChat() error {
-	// 初始化聊天数据库
-	if c.config.Chat.DBPath == "" {
-		return fmt.Errorf("chat database path not configured (skipping)")
-	}
-
-	db, err := chat.NewDB(c.config.Chat.DBPath)
-	if err != nil {
-		return fmt.Errorf("failed to initialize chat database: %w", err)
-	}
-	c.chatDB = db
-	log.Infof("Chat database initialized: %s", c.config.Chat.DBPath)
-
-	// 初始化 LLM（需要 Qdrant 搜索器）
-	if c.config.LLM.Provider == "" {
-		log.Info("LLM provider not configured, chat agent will not be available")
-		return nil
-	}
-
-	if c.qdrantSearcher == nil {
-		log.Warn("Qdrant searcher not available, chat agent will not be initialized")
-		return nil
-	}
-
-	llm, err := chat.NewLLM(c.config.LLM)
-	if err != nil {
-		return fmt.Errorf("failed to initialize LLM: %w", err)
-	}
-	c.chatLLM = llm
-	log.Infof("LLM initialized with provider: %s", c.config.LLM.Provider)
-
-	// 注意：chatAgent 需要在 API 实例创建后初始化
-	// 因为它需要 TocFetcher 函数，该函数依赖于 API 实例
-	// 这将在 BuildAPI() 方法中完成
-
 	return nil
 }
 
@@ -268,20 +275,20 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		return nil, fmt.Errorf("content API not initialized")
 	}
 
-	// 创建 Repository 和 Service 层（如果 qdrantSearcher 可用）
-	if c.qdrantSearcher != nil {
+	// 创建 Repository 和 Service 层（如果搜索器可用）
+	if c.semanticSearcher != nil {
 		// 创建 ContentAPI 适配器（实现 service.ContentAPI 接口）
 		contentAPIAdapter := &contentAPIAdapter{api: c.contentAPI}
 
 		// 创建 BookRepository
-		c.bookRepo = repository.NewQdrantBookRepository(c.qdrantSearcher)
+		c.bookRepo = repository.NewQdrantBookRepository(c.semanticSearcher)
 
 		// 创建 BookService（使用 Repository）
 		c.bookService = service.NewBookServiceWithRepository(
 			c.bookRepo,
 			contentAPIAdapter,
 			c.taskManager,
-			c.qdrantSearcher, // 保留用于任务调度
+			c.semanticSearcher, // 保留用于任务调度
 		)
 
 		// 创建 BookHandler
@@ -298,30 +305,13 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		c.config,
 		c.contentAPI,
 		c.qdrantClient,
-		c.qdrantSearcher,
+		c.semanticSearcher,
 		c.cachedSearcher,
 		c.cacheManager,
-		c.chatDB,
 		c.sseManager,
 		c.bookHandler,
 	); err != nil {
 		return nil, fmt.Errorf("failed to inject dependencies: %w", err)
-	}
-
-	// 如果 LLM 和 Qdrant 搜索器都可用，初始化 Chat Agent
-	if c.chatLLM != nil && c.qdrantSearcher != nil && c.chatDB != nil {
-		// 创建 TocFetcher 函数
-		tocFetcher := api.CreateTocFetcher()
-
-		// 创建 Chat Agent
-		c.chatAgent = chat.NewAgent(c.chatLLM, c.qdrantSearcher, tocFetcher)
-
-		// 注入 Chat Agent 到 API
-		if err := api.InjectChatAgent(c.chatAgent); err != nil {
-			return nil, fmt.Errorf("failed to inject chat agent: %w", err)
-		}
-
-		log.Info("Chat agent initialized and injected")
 	}
 
 	c.api = api
@@ -379,16 +369,6 @@ func (c *Container) GetCacheManager() *cache.Manager {
 	return c.cacheManager
 }
 
-// GetChatDB 获取聊天数据库
-func (c *Container) GetChatDB() *chat.DB {
-	return c.chatDB
-}
-
-// GetChatAgent 获取聊天 Agent
-func (c *Container) GetChatAgent() *chat.Agent {
-	return c.chatAgent
-}
-
 // GetTaskManager 获取任务管理器
 func (c *Container) GetTaskManager() *tasks.Manager {
 	return c.taskManager
@@ -418,37 +398,37 @@ func (c *Container) EnableConfigHotReload() error {
 	// 添加配置变更监听器
 	c.configManager.AddWatcherFunc(func(oldConfig, newConfig *calibre.Config) error {
 		log.Infof("config changed, applying updates...")
-		
+
 		// 更新容器中的配置
 		c.config = newConfig
-		
+
 		// 这里可以添加更多的配置变更处理逻辑
 		// 例如：重新初始化某些组件、更新日志级别等
-		
+
 		// 更新日志级别
 		if oldConfig.Debug != newConfig.Debug {
 			log.EnableDebug = newConfig.Debug
 			log.Infof("debug mode changed: %v -> %v", oldConfig.Debug, newConfig.Debug)
 		}
-		
+
 		// 如果 Content Server 地址变更，记录警告
 		if oldConfig.Content.Server != newConfig.Content.Server {
-			log.Warnf("content server changed: %s -> %s (requires restart)", 
+			log.Warnf("content server changed: %s -> %s (requires restart)",
 				oldConfig.Content.Server, newConfig.Content.Server)
 		}
-		
+
 		// 如果 Qdrant 配置变更，记录警告
 		if oldConfig.Qdrant.URL != newConfig.Qdrant.URL {
-			log.Warnf("qdrant URL changed: %s -> %s (requires restart)", 
+			log.Warnf("qdrant URL changed: %s -> %s (requires restart)",
 				oldConfig.Qdrant.URL, newConfig.Qdrant.URL)
 		}
-		
+
 		return nil
 	})
 
 	// 开始监听配置文件变更
 	c.configManager.StartWatching()
-	
+
 	log.Info("config hot reload enabled")
 	return nil
 }
@@ -458,19 +438,13 @@ func (c *Container) ReloadConfig() error {
 	if c.configManager == nil {
 		return fmt.Errorf("config manager not available")
 	}
-	
+
 	return c.configManager.ReloadConfig()
 }
 
 // Close 关闭容器，清理资源
 func (c *Container) Close() error {
 	var errs []error
-
-	if c.chatDB != nil {
-		if err := c.chatDB.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("failed to close chat DB: %w", err))
-		}
-	}
 
 	if c.cacheManager != nil {
 		// Cache manager 可能需要清理资源
