@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/semantic"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 	apperrors "github.com/jianyun8023/calibre-api/pkg/errors"
 	"github.com/jianyun8023/calibre-api/pkg/log"
@@ -69,7 +68,7 @@ type BookUpdate struct {
 
 // bookService 书籍业务逻辑实现
 type bookService struct {
-	semanticSearcher *qdrant.Searcher
+	semanticSearcher semantic.Searcher
 	contentAPI       ContentAPI
 	taskManager      *tasks.Manager
 }
@@ -87,7 +86,7 @@ type ContentAPI interface {
 }
 
 // NewBookService 创建书籍服务
-func NewBookService(searcher *qdrant.Searcher, contentAPI ContentAPI, taskManager *tasks.Manager) BookService {
+func NewBookService(searcher semantic.Searcher, contentAPI ContentAPI, taskManager *tasks.Manager) BookService {
 	return &bookService{
 		semanticSearcher: searcher,
 		contentAPI:       contentAPI,

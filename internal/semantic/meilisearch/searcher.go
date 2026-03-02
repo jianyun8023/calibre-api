@@ -321,12 +321,12 @@ func (s *Searcher) GetRandom(limit int) ([]semantic.Book, error) {
 func (s *Searcher) UpdateBookMetadata(book semantic.Book, vector []float32) error {
 	doc := bookToMap(book)
 	if len(vector) > 0 {
-		doc["_vectors"] = vector
+		doc["_vectors"] = map[string]interface{}{"default": vector}
 	} else if s.provider != nil {
 		text := fmt.Sprintf("%s %s %s", book.Title, strings.Join(book.Authors, " "), book.Comments)
 		embeddings, err := s.provider.Embed([]string{text})
 		if err == nil && len(embeddings) > 0 {
-			doc["_vectors"] = embeddings[0]
+			doc["_vectors"] = map[string]interface{}{"default": embeddings[0]}
 		}
 	}
 
@@ -367,6 +367,7 @@ func (s *Searcher) DeleteBook(bookID int64) error {
 }
 
 // IndexBooks indexes a batch of books
+// Documents are submitted asynchronously to MeiliSearch's task queue for faster bulk imports.
 func (s *Searcher) IndexBooks(ctx context.Context, books []semantic.Book) error {
 	docs := make([]map[string]interface{}, len(books))
 
@@ -384,7 +385,7 @@ func (s *Searcher) IndexBooks(ctx context.Context, books []semantic.Book) error 
 		for i, b := range books {
 			docs[i] = bookToMap(b)
 			if err == nil && i < len(embeddings) {
-				docs[i]["_vectors"] = embeddings[i]
+				docs[i]["_vectors"] = map[string]interface{}{"default": embeddings[i]}
 			}
 		}
 	} else {
@@ -393,19 +394,15 @@ func (s *Searcher) IndexBooks(ctx context.Context, books []semantic.Book) error 
 		}
 	}
 
-	task, err := s.client.client.Index(s.client.indexName).AddDocuments(docs, nil)
+	// Submit documents asynchronously — MeiliSearch processes tasks in its internal queue.
+	// We don't wait for completion here, which significantly speeds up bulk imports.
+	taskInfo, err := s.client.client.Index(s.client.indexName).AddDocuments(docs, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to submit documents to MeiliSearch: %w", err)
 	}
 
-	// Wait for task completion
-	processedTask, err := s.client.client.WaitForTask(task.TaskUID, 30*time.Second) // Longer timeout for batch
-	if err != nil {
-		return fmt.Errorf("failed to wait for task: %w", err)
-	}
-	if processedTask.Status != "succeeded" {
-		return fmt.Errorf("task failed: %s - %v", processedTask.Status, processedTask.Error)
-	}
+	log.Printf("MeiliSearch task queued: taskUID=%d, indexUID=%s, batch=%d docs",
+		taskInfo.TaskUID, taskInfo.IndexUID, len(docs))
 
 	return nil
 }
@@ -538,41 +535,41 @@ func mapToBook(v interface{}) (semantic.Book, error) {
 		t, _ := time.Parse(time.RFC3339, v)
 		b.LastModified = t
 	}
-    if v, ok := m["isbn"].(string); ok {
-        b.Isbn = v
-    }
-    if v, ok := m["author_sort"].(string); ok {
-        b.AuthorSort = v
-    }
-    if v, ok := m["series_index"]; ok {
-        b.SeriesIndex = getFloat(v)
-    }
-    if v, ok := m["size"]; ok {
-        b.Size = int64(getFloat(v))
-    }
-    if v, ok := m["cover"].(string); ok {
-        b.Cover = v
-    }
-    if v, ok := m["file_path"].(string); ok {
-        b.FilePath = v
-    }
-    if v, ok := m["tags"].([]interface{}); ok {
-        for _, t := range v {
-            if s, ok := t.(string); ok {
-                b.Tags = append(b.Tags, s)
-            }
-        }
-    }
-    if v, ok := m["languages"].([]interface{}); ok {
-        for _, l := range v {
-            if s, ok := l.(string); ok {
-                b.Languages = append(b.Languages, s)
-            }
-        }
-    }
-    if v, ok := m["toc"]; ok {
-        b.Toc = v
-    }
+	if v, ok := m["isbn"].(string); ok {
+		b.Isbn = v
+	}
+	if v, ok := m["author_sort"].(string); ok {
+		b.AuthorSort = v
+	}
+	if v, ok := m["series_index"]; ok {
+		b.SeriesIndex = getFloat(v)
+	}
+	if v, ok := m["size"]; ok {
+		b.Size = int64(getFloat(v))
+	}
+	if v, ok := m["cover"].(string); ok {
+		b.Cover = v
+	}
+	if v, ok := m["file_path"].(string); ok {
+		b.FilePath = v
+	}
+	if v, ok := m["tags"].([]interface{}); ok {
+		for _, t := range v {
+			if s, ok := t.(string); ok {
+				b.Tags = append(b.Tags, s)
+			}
+		}
+	}
+	if v, ok := m["languages"].([]interface{}); ok {
+		for _, l := range v {
+			if s, ok := l.(string); ok {
+				b.Languages = append(b.Languages, s)
+			}
+		}
+	}
+	if v, ok := m["toc"]; ok {
+		b.Toc = v
+	}
 
 	return b, nil
 }

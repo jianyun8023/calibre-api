@@ -10,7 +10,9 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/chat"
 	"github.com/jianyun8023/calibre-api/internal/config"
 	"github.com/jianyun8023/calibre-api/internal/repository"
+	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
+	"github.com/jianyun8023/calibre-api/internal/semantic/meilisearch"
 	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/internal/service"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
@@ -33,8 +35,9 @@ type Container struct {
 	sseManager   *tasks.SSEManager
 
 	// Search components
-	qdrantSearcher *qdrant.Searcher
-	cachedSearcher *cache.CachedSearcher
+	qdrantSearcher   *qdrant.Searcher
+	semanticSearcher semantic.Searcher // Generic searcher (Qdrant or MeiliSearch)
+	cachedSearcher   *cache.CachedSearcher
 
 	// Chat components
 	chatDB    *chat.DB
@@ -104,6 +107,13 @@ func NewContainerWithConfigManager() (*Container, error) {
 		log.Warnf("Qdrant initialization failed (optional): %v", err)
 	}
 
+	// 如果 Qdrant 未初始化，尝试 MeiliSearch
+	if c.semanticSearcher == nil {
+		if err := c.initMeilisearch(); err != nil {
+			log.Warnf("Meilisearch initialization failed (optional): %v", err)
+		}
+	}
+
 	if err := c.initCache(); err != nil {
 		log.Warnf("Cache initialization failed (optional): %v", err)
 	}
@@ -164,6 +174,7 @@ func (c *Container) initQdrant() error {
 
 	// 创建搜索器
 	c.qdrantSearcher = qdrant.NewSearcher(provider, c.qdrantClient)
+	c.semanticSearcher = c.qdrantSearcher // 设置通用搜索器
 	log.Infof("Qdrant searcher initialized with provider: %s", c.config.Embedding.Provider)
 
 	// 包装搜索器添加缓存功能
@@ -178,6 +189,56 @@ func (c *Container) initQdrant() error {
 		log.Warnf("Failed to ensure Qdrant indexes (may already exist): %v", err)
 	} else {
 		log.Info("Qdrant payload indexes verified")
+	}
+
+	return nil
+}
+
+// initMeilisearch 初始化 MeiliSearch 搜索引擎
+func (c *Container) initMeilisearch() error {
+	if c.config.Meilisearch.Host == "" {
+		return fmt.Errorf("Meilisearch host not configured (skipping)")
+	}
+
+	// 初始化 Embedding Provider（用于语义搜索）
+	providerConfig := embedding.ProviderConfig{
+		Provider:    c.config.Embedding.Provider,
+		Ollama:      c.config.Embedding.Ollama,
+		SiliconFlow: c.config.Embedding.SiliconFlow,
+		VectorDim:   4096,
+	}
+
+	var provider embedding.Provider
+	var err error
+	provider, err = embedding.NewProvider(providerConfig)
+	if err != nil {
+		log.Warnf("Failed to create embedding provider for MeiliSearch: %v. Semantic search will be limited.", err)
+	}
+
+	// 创建 MeiliSearch 客户端
+	meiliClient := meilisearch.NewClient(
+		c.config.Meilisearch.Host,
+		c.config.Meilisearch.APIKey,
+		c.config.Meilisearch.IndexName,
+	)
+
+	// 创建 MeiliSearch 搜索器
+	meiliSearcher := meilisearch.NewSearcher(meiliClient, provider)
+	c.semanticSearcher = meiliSearcher
+	log.Infof("Meilisearch searcher initialized: %s (index: %s)", c.config.Meilisearch.Host, c.config.Meilisearch.IndexName)
+
+	// 包装搜索器添加缓存功能
+	cacheMaxSize := 1000
+	cacheTTL := 300 // 5 分钟
+	c.cachedSearcher = cache.WrapSearcher(meiliSearcher, cacheMaxSize, cacheTTL)
+	log.Infof("Search cache initialized (MeiliSearch): maxSize=%d, ttl=%ds", cacheMaxSize, cacheTTL)
+
+	// 确保索引存在
+	ctx := context.Background()
+	if err := meiliSearcher.EnsureIndexes(ctx); err != nil {
+		log.Warnf("Failed to ensure MeiliSearch indexes: %v", err)
+	} else {
+		log.Info("MeiliSearch indexes ensured successfully")
 	}
 
 	return nil
@@ -218,14 +279,14 @@ func (c *Container) initChat() error {
 	c.chatDB = db
 	log.Infof("Chat database initialized: %s", c.config.Chat.DBPath)
 
-	// 初始化 LLM（需要 Qdrant 搜索器）
+	// 初始化 LLM（需要搜索器）
 	if c.config.LLM.Provider == "" {
 		log.Info("LLM provider not configured, chat agent will not be available")
 		return nil
 	}
 
-	if c.qdrantSearcher == nil {
-		log.Warn("Qdrant searcher not available, chat agent will not be initialized")
+	if c.semanticSearcher == nil {
+		log.Warn("Semantic searcher not available, chat agent will not be initialized")
 		return nil
 	}
 
@@ -268,20 +329,20 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		return nil, fmt.Errorf("content API not initialized")
 	}
 
-	// 创建 Repository 和 Service 层（如果 qdrantSearcher 可用）
-	if c.qdrantSearcher != nil {
+	// 创建 Repository 和 Service 层（如果搜索器可用）
+	if c.semanticSearcher != nil {
 		// 创建 ContentAPI 适配器（实现 service.ContentAPI 接口）
 		contentAPIAdapter := &contentAPIAdapter{api: c.contentAPI}
 
 		// 创建 BookRepository
-		c.bookRepo = repository.NewQdrantBookRepository(c.qdrantSearcher)
+		c.bookRepo = repository.NewQdrantBookRepository(c.semanticSearcher)
 
 		// 创建 BookService（使用 Repository）
 		c.bookService = service.NewBookServiceWithRepository(
 			c.bookRepo,
 			contentAPIAdapter,
 			c.taskManager,
-			c.qdrantSearcher, // 保留用于任务调度
+			c.semanticSearcher, // 保留用于任务调度
 		)
 
 		// 创建 BookHandler
@@ -298,7 +359,7 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		c.config,
 		c.contentAPI,
 		c.qdrantClient,
-		c.qdrantSearcher,
+		c.semanticSearcher,
 		c.cachedSearcher,
 		c.cacheManager,
 		c.chatDB,
@@ -308,13 +369,13 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		return nil, fmt.Errorf("failed to inject dependencies: %w", err)
 	}
 
-	// 如果 LLM 和 Qdrant 搜索器都可用，初始化 Chat Agent
-	if c.chatLLM != nil && c.qdrantSearcher != nil && c.chatDB != nil {
+	// 如果 LLM 和搜索器都可用，初始化 Chat Agent
+	if c.chatLLM != nil && c.semanticSearcher != nil && c.chatDB != nil {
 		// 创建 TocFetcher 函数
 		tocFetcher := api.CreateTocFetcher()
 
 		// 创建 Chat Agent
-		c.chatAgent = chat.NewAgent(c.chatLLM, c.qdrantSearcher, tocFetcher)
+		c.chatAgent = chat.NewAgent(c.chatLLM, c.semanticSearcher, tocFetcher)
 
 		// 注入 Chat Agent 到 API
 		if err := api.InjectChatAgent(c.chatAgent); err != nil {
