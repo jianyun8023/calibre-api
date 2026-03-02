@@ -96,12 +96,6 @@ func setDefaults(v *viper.Viper) {
 	// Cache defaults
 	v.SetDefault("cache.dir", "")
 	v.SetDefault("cache.max_size_gb", 10.0)
-
-	// Chat defaults
-	v.SetDefault("chat.db_path", "")
-
-	// LLM defaults
-	v.SetDefault("llm.provider", "")
 }
 
 // loadConfig 加载配置
