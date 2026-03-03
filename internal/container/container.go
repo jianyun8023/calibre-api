@@ -3,7 +3,6 @@ package container
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/cache"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
@@ -12,7 +11,6 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/meilisearch"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/internal/service"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/content"
@@ -27,14 +25,12 @@ type Container struct {
 
 	// Core components
 	contentAPI   *content.Api
-	qdrantClient *qdrant.Client
 	cacheManager *cache.Manager
 	taskManager  *tasks.Manager
 	sseManager   *tasks.SSEManager
 
 	// Search components
-	qdrantSearcher   *qdrant.Searcher
-	semanticSearcher semantic.Searcher // Generic searcher (Qdrant or MeiliSearch)
+	semanticSearcher semantic.Searcher // MeiliSearch searcher
 	cachedSearcher   *cache.CachedSearcher
 
 	// Repository layer
@@ -59,8 +55,9 @@ func NewContainer(config *calibre.Config) (*Container, error) {
 		return nil, fmt.Errorf("failed to initialize content API: %w", err)
 	}
 
-	if err := c.initQdrant(); err != nil {
-		log.Warnf("Qdrant initialization failed (optional): %v", err)
+	// 初始化 MeiliSearch 搜索引擎
+	if err := c.initMeilisearch(); err != nil {
+		log.Warnf("Meilisearch initialization failed (optional): %v", err)
 	}
 
 	if err := c.initCache(); err != nil {
@@ -92,15 +89,9 @@ func NewContainerWithConfigManager() (*Container, error) {
 		return nil, fmt.Errorf("failed to initialize content API: %w", err)
 	}
 
-	if err := c.initQdrant(); err != nil {
-		log.Warnf("Qdrant initialization failed (optional): %v", err)
-	}
-
-	// 如果 Qdrant 未初始化，尝试 MeiliSearch
-	if c.semanticSearcher == nil {
-		if err := c.initMeilisearch(); err != nil {
-			log.Warnf("Meilisearch initialization failed (optional): %v", err)
-		}
+	// 初始化 MeiliSearch 搜索引擎
+	if err := c.initMeilisearch(); err != nil {
+		log.Warnf("Meilisearch initialization failed (optional): %v", err)
 	}
 
 	if err := c.initCache(); err != nil {
@@ -127,55 +118,6 @@ func (c *Container) initContentAPI() error {
 
 	c.contentAPI = &client
 	log.Infof("Content API initialized: %s", c.config.Content.Server)
-	return nil
-}
-
-// initQdrant 初始化 Qdrant 向量数据库客户端和搜索器
-func (c *Container) initQdrant() error {
-	if c.config.Qdrant.URL == "" {
-		return fmt.Errorf("Qdrant URL not configured (skipping)")
-	}
-
-	// 创建 Qdrant 客户端
-	c.qdrantClient = qdrant.NewClient(
-		c.config.Qdrant.URL,
-		c.config.Qdrant.Collection,
-		time.Duration(c.config.Qdrant.Timeout)*time.Second,
-	)
-	log.Infof("Qdrant client initialized: %s/%s", c.config.Qdrant.URL, c.config.Qdrant.Collection)
-
-	// 初始化 Embedding Provider
-	providerConfig := embedding.ProviderConfig{
-		Provider:    c.config.Embedding.Provider,
-		Ollama:      c.config.Embedding.Ollama,
-		SiliconFlow: c.config.Embedding.SiliconFlow,
-		VectorDim:   4096, // Qdrant 使用 4096 维度
-	}
-
-	provider, err := embedding.NewProvider(providerConfig)
-	if err != nil {
-		return fmt.Errorf("failed to create embedding provider: %w", err)
-	}
-
-	// 创建搜索器
-	c.qdrantSearcher = qdrant.NewSearcher(provider, c.qdrantClient)
-	c.semanticSearcher = c.qdrantSearcher // 设置通用搜索器
-	log.Infof("Qdrant searcher initialized with provider: %s", c.config.Embedding.Provider)
-
-	// 包装搜索器添加缓存功能
-	cacheMaxSize := 1000
-	cacheTTL := 300 // 5 分钟
-	c.cachedSearcher = cache.WrapSearcher(c.qdrantSearcher, cacheMaxSize, cacheTTL)
-	log.Infof("Search cache initialized: maxSize=%d, ttl=%ds", cacheMaxSize, cacheTTL)
-
-	// 确保索引存在
-	ctx := context.Background()
-	if err := c.qdrantSearcher.EnsureIndexes(ctx); err != nil {
-		log.Warnf("Failed to ensure Qdrant indexes (may already exist): %v", err)
-	} else {
-		log.Info("Qdrant payload indexes verified")
-	}
-
 	return nil
 }
 
@@ -304,7 +246,7 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 	if err := api.InjectDependencies(
 		c.config,
 		c.contentAPI,
-		c.qdrantClient,
+		nil, // qdrantClient removed
 		c.semanticSearcher,
 		c.cachedSearcher,
 		c.cacheManager,
@@ -347,16 +289,6 @@ func (c *Container) GetConfig() *calibre.Config {
 // GetContentAPI 获取 Content API 客户端
 func (c *Container) GetContentAPI() *content.Api {
 	return c.contentAPI
-}
-
-// GetQdrantClient 获取 Qdrant 客户端
-func (c *Container) GetQdrantClient() *qdrant.Client {
-	return c.qdrantClient
-}
-
-// GetQdrantSearcher 获取 Qdrant 搜索器
-func (c *Container) GetQdrantSearcher() *qdrant.Searcher {
-	return c.qdrantSearcher
 }
 
 // GetCachedSearcher 获取带缓存的搜索器
@@ -417,10 +349,10 @@ func (c *Container) EnableConfigHotReload() error {
 				oldConfig.Content.Server, newConfig.Content.Server)
 		}
 
-		// 如果 Qdrant 配置变更，记录警告
-		if oldConfig.Qdrant.URL != newConfig.Qdrant.URL {
-			log.Warnf("qdrant URL changed: %s -> %s (requires restart)",
-				oldConfig.Qdrant.URL, newConfig.Qdrant.URL)
+		// 如果 MeiliSearch 配置变更，记录警告
+		if oldConfig.Meilisearch.Host != newConfig.Meilisearch.Host {
+			log.Warnf("meilisearch host changed: %s -> %s (requires restart)",
+				oldConfig.Meilisearch.Host, newConfig.Meilisearch.Host)
 		}
 
 		return nil

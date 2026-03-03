@@ -1,12 +1,12 @@
 # Calibre-API
 
-基于 Qdrant 搭建的 Calibre 书籍管理系统，支持搜索、下载、预览和智能交互。
+基于 MeiliSearch 搭建的 Calibre 书籍管理系统，支持搜索、下载、预览和智能交互。
 
 ## ✨ 核心特性
 
 ### 📚 书籍管理
 - 使用 Calibre Content Server 作为数据来源
-- Qdrant 增强查询响应速度
+- MeiliSearch 提供快速全文搜索和语义搜索
 - 支持书籍元数据的 CRUD 操作
 - 在线元数据获取和补全
 - 封面图片和文件下载
@@ -52,7 +52,6 @@
 - [代码结构](./docs/CODE_STRUCTURE.md) - 项目目录说明
 - [MCP 指南](./docs/MCP_README.md) - MCP 协议集成和使用
 - [MCP Inspector](./docs/features/MCP_INSPECTOR_GUIDE.md) - MCP 工具测试指南
-- [Qdrant 配置](./docs/QDRANT_COLLECTION_SETUP.md) - 向量数据库设置
 
 **前端开发**:
 - [Next.js 前端](./web-next/README.md) - Next.js 15 + Shadcn/UI (推荐)

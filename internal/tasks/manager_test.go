@@ -48,10 +48,10 @@ func TestManagerStartTask(t *testing.T) {
 	manager.history = make([]TaskStatus, 0)
 	manager.mu.Unlock()
 
-	taskID, err := manager.StartTask(TaskTypeQdrantSync, TaskModeFull, func(id string) Task {
+	taskID, err := manager.StartTask(TaskTypeSemanticSync, TaskModeFull, func(id string) Task {
 		return &mockTask{
 			id:       id,
-			taskType: TaskTypeQdrantSync,
+			taskType: TaskTypeSemanticSync,
 			runFunc: func() error {
 				return nil
 			},
@@ -141,10 +141,10 @@ func TestManagerStopTask(t *testing.T) {
 	manager.history = make([]TaskStatus, 0)
 	manager.mu.Unlock()
 
-	taskID, err := manager.StartTask(TaskTypeQdrantSync, TaskModeFull, func(id string) Task {
+	taskID, err := manager.StartTask(TaskTypeSemanticSync, TaskModeFull, func(id string) Task {
 		return &mockTask{
 			id:       id,
-			taskType: TaskTypeQdrantSync,
+			taskType: TaskTypeSemanticSync,
 			runFunc: func() error {
 				time.Sleep(1 * time.Second) // 长时间运行
 				return nil

@@ -10,7 +10,7 @@ Calibre 电子书管理系统的 AI 原生升级版，提供 RESTful + MCP 双�
 |------|------|
 | 后端 | Go 1.24, Gin |
 | 前端 | Next.js 16, React 19, Shadcn/UI ([web-next/](web-next/README.md)) |
-| 数据库 | SQLite (Calibre/Chat), Qdrant (向量) |
+| 数据库 | SQLite (Calibre/Chat), MeiliSearch (搜索) |
 | AI | OpenAI/Ollama, Vercel AI SDK |
 | 协议 | MCP v1.2.0 (SSE) |
 
@@ -32,8 +32,8 @@ Calibre 电子书管理系统的 AI 原生升级版，提供 RESTful + MCP 双�
 ```
 Next.js → Gin Router → Handlers → Services → Storage
                          ↓           ↓          ↓
-                    Book/Search   Qdrant    SQLite/Qdrant
-                    Chat/MCP      LLM       FileCache
+                    Book/Search   MeiliSearch  SQLite
+                    Chat/MCP      LLM          FileCache
                     Task          Cache
 ```
 
@@ -46,8 +46,8 @@ go mod download && make build && ./calibre-api
 # 前端
 cd web-next && pnpm install && pnpm dev
 
-# Qdrant
-docker run -d -p 6333:6333 qdrant/qdrant
+# MeiliSearch
+docker run -d -p 7700:7700 getmeili/meilisearch:latest
 ```
 
 ## 开发任务

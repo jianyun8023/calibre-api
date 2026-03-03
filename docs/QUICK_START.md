@@ -9,7 +9,7 @@
 
 1. **Go 语言环境** (Go 1.19+)
 2. **Calibre Content Server** 正在运行
-3. **Qdrant 向量数据库** 正在运行（用于语义搜索）
+3. **MeiliSearch 搜索引擎** 正在运行（用于全文和语义搜索）
 4. **支持 MCP 的 AI 客户端** (如 Claude Desktop)
 
 ## 方式一: 集成模式（推荐）
@@ -41,10 +41,11 @@ tmpDir: "./.files"
 content:
   server: "http://localhost:8083"  # 您的 Calibre Content Server 地址
 
-# Qdrant 向量数据库配置（用于语义搜索）
-qdrant:
-  url: "http://localhost:6333"
-  collection: "books"
+# MeiliSearch 搜索引擎配置（用于全文和语义搜索）
+meilisearch:
+  host: "http://localhost:7700"
+  api_key: ""
+  index_name: "books"
   timeout: 30
 
 # Embedding 配置
@@ -184,7 +185,7 @@ export CALIBRE_MCP_BASE_URL="http://localhost:8080"
 ### 1. MCP 服务器无法启动
 
 - 检查配置文件路径和格式
-- 确保 Calibre Content Server 和 Qdrant 正在运行
+- 确保 Calibre Content Server 和 MeiliSearch 正在运行
 - 查看服务器日志获取详细错误信息
 
 ### 2. AI 客户端无法连接
@@ -225,7 +226,7 @@ curl "http://localhost:8080/api/search?q=test"
 | `CALIBRE_MCP_BASE_URL` | Calibre API 服务器地址 | `http://localhost:8080` |
 | `CALIBRE_DEBUG` | 启用调试模式 | `false` |
 | `CALIBRE_CONTENT_SERVER` | Calibre Content Server 地址 | 从配置文件读取 |
-| `CALIBRE_QDRANT_URL` | Qdrant 服务器地址 | 从配置文件读取 |
+| `CALIBRE_MEILISEARCH_HOST` | MeiliSearch 服务器地址 | 从配置文件读取 |
 
 ## 下一步
 

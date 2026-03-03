@@ -9,7 +9,7 @@ import (
 
 // StartTaskRequest 启动任务请求
 type StartTaskRequest struct {
-	Type string `json:"type"` // "qdrant_sync"
+	Type string `json:"type"` // "semantic_sync"
 	Mode string `json:"mode"` // "full" or "incremental"
 }
 
@@ -35,7 +35,7 @@ func (c *Api) startTask(r *gin.Context) {
 	}
 
 	switch tasks.TaskType(req.Type) {
-	case tasks.TaskTypeQdrantSync:
+	case tasks.TaskTypeSemanticSync:
 		if c.semanticSearcher == nil {
 			r.JSON(http.StatusServiceUnavailable, gin.H{
 				"code":    503,
@@ -45,8 +45,8 @@ func (c *Api) startTask(r *gin.Context) {
 		}
 
 		manager := tasks.GetManager()
-		taskID, err := manager.StartTask(tasks.TaskTypeQdrantSync, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
-			// Using SearchSyncTask which replaced QdrantSyncTask
+		taskID, err := manager.StartTask(tasks.TaskTypeSemanticSync, tasks.TaskMode(req.Mode), func(id string) tasks.Task {
+			// Using SearchSyncTask for semantic search synchronization
 			return tasks.NewSearchSyncTask(id, tasks.TaskMode(req.Mode), c.contentApi, c.semanticSearcher)
 		})
 

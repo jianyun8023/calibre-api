@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/kapmahc/epub"
 )
 
@@ -85,37 +84,33 @@ func (c *Api) getBookToc(r *gin.Context) {
 
 // GetBookTocData 获取书籍目录数据
 func (c *Api) GetBookTocData(id string) (interface{}, error) {
-	// Try to get TOC from Qdrant first
+	// Try to get TOC from search index first
 	if c.semanticSearcher != nil {
-		if searcher, ok := c.semanticSearcher.(*qdrant.Searcher); ok {
-			bookID := stringToInt64(id)
-			if bookID > 0 {
-				toc, err := searcher.GetBookToc(bookID)
-				if err == nil && toc != nil {
-					// TOC found in Qdrant, return it
-					return toc, nil
-				}
+		bookID := stringToInt64(id)
+		if bookID > 0 {
+			toc, err := c.semanticSearcher.GetBookToc(bookID)
+			if err == nil && toc != nil {
+				// TOC found in search index, return it
+				return toc, nil
 			}
 		}
 	}
 
-	// TOC not found in Qdrant, extract from EPUB file
+	// TOC not found in search index, extract from EPUB file
 	tocData, err := c.extractTocFromEpub(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract TOC: %v", err)
 	}
 
-	// Asynchronously update TOC to Qdrant (don't block response)
+	// Asynchronously update TOC to search index (don't block response)
 	if c.semanticSearcher != nil {
-		if searcher, ok := c.semanticSearcher.(*qdrant.Searcher); ok {
-			bookID := stringToInt64(id)
-			if bookID > 0 {
-				go func() {
-					if err := searcher.UpdateToc(bookID, tocData); err != nil {
-						fmt.Printf("Warning: failed to update TOC in Qdrant for book %s: %v\n", id, err)
-					}
-				}()
-			}
+		bookID := stringToInt64(id)
+		if bookID > 0 {
+			go func() {
+				if err := c.semanticSearcher.UpdateToc(bookID, tocData); err != nil {
+					fmt.Printf("Warning: failed to update TOC in search index for book %s: %v\n", id, err)
+				}
+			}()
 		}
 	}
 

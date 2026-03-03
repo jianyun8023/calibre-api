@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Removed
+- **移除 Qdrant 向量数据库支持** (2026-03-03):
+  - 删除 `internal/semantic/qdrant/` 整个包（client.go, searcher.go）
+  - 删除 `internal/tasks/qdrant_sync.go` 同步任务实现
+  - 删除 `docs/QDRANT_COLLECTION_SETUP.md` 配置文档
+  - 删除 `create_indexes.sh` 索引创建脚本
+  - 移除 `internal/container/container.go` 中的 Qdrant 初始化逻辑
+  - 统一使用 MeiliSearch 作为搜索引擎
+  - 任务类型重命名：`qdrant_sync` → `semantic_sync`
+  - 前端任务显示更新为 "Semantic Sync"
+  - 清理 Docker Compose 中的 Qdrant 服务配置
+  - 更新所有相关文档（README, AGENTS, ARCHITECTURE 等）
+
 - **移除旧版 BookService** (2026-03-02):
   - 删除 `internal/service/book_service.go` 中的旧版 `bookService` 实现
   - 删除 `internal/calibre/book_handler.go` 中的旧版 Handler 方法
