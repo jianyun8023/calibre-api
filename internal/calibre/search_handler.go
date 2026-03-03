@@ -222,6 +222,8 @@ func (c *Api) semanticSearch(r *gin.Context) {
 			"comments":      result.Book.Comments,
 			"languages":     result.Book.Languages,
 			"last_modified": result.Book.LastModified,
+			"cover":         result.Book.Cover,     // 添加封面字段
+			"file_path":     result.Book.FilePath,  // 添加文件路径
 			"score":         result.Score,
 			"rank":          result.Rank,
 		}

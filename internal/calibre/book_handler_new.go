@@ -142,74 +142,106 @@ func (h *BookHandlerV2) ListPublishers(c *gin.Context) {
 	response.Success(c, publishers)
 }
 
-// 保持与旧 Handler 的兼容性，添加适配方法
+// GetBookByIDInternal 内部方法，供其他 Handler 使用
+func (h *BookHandlerV2) GetBookByIDInternal(id string) (*service.Book, error) {
+	return h.bookService.GetBookByID(id)
+}
 
-// getBook 旧版 API 适配
+// API 路由适配方法
+
+// getBookV2 获取书籍信息
 func (c *Api) getBookV2(r *gin.Context) {
-	if c.bookHandler != nil {
-		c.bookHandler.GetBook(r)
+	if c.bookHandler == nil {
+		response.Error(r, ErrSearchServiceNotAvailable)
 		return
 	}
-	// 降级到旧实现
-	c.getBook(r)
+	c.bookHandler.GetBook(r)
 }
 
-// deleteBook 旧版 API 适配
+// deleteBookV2 删除书籍
 func (c *Api) deleteBookV2(r *gin.Context) {
-	if c.bookHandler != nil {
-		c.bookHandler.DeleteBook(r)
+	if c.bookHandler == nil {
+		response.Error(r, ErrSearchServiceNotAvailable)
 		return
 	}
-	// 降级到旧实现
-	c.deleteBook(r)
+	c.bookHandler.DeleteBook(r)
 }
 
-// updateMetadata 旧版 API 适配
+// updateMetadataV2 更新书籍元数据
 func (c *Api) updateMetadataV2(r *gin.Context) {
-	if c.bookHandler != nil {
-		c.bookHandler.UpdateMetadata(r)
+	if c.bookHandler == nil {
+		response.Error(r, ErrSearchServiceNotAvailable)
 		return
 	}
-	// 降级到旧实现
-	c.updateMetadata(r)
+	c.bookHandler.UpdateMetadata(r)
 }
 
-// recently 旧版 API 适配
+// recentlyV2 获取最近更新的书籍
 func (c *Api) recentlyV2(r *gin.Context) {
-	if c.bookHandler != nil {
-		c.bookHandler.GetRecentBooks(r)
+	if c.bookHandler == nil {
+		response.Error(r, ErrSearchServiceNotAvailable)
 		return
 	}
-	// 降级到旧实现
-	c.recently(r)
+	c.bookHandler.GetRecentBooks(r)
 }
 
-// random 旧版 API 适配
+// randomV2 获取随机书籍
 func (c *Api) randomV2(r *gin.Context) {
-	if c.bookHandler != nil {
-		c.bookHandler.GetRandomBooks(r)
+	if c.bookHandler == nil {
+		response.Error(r, ErrSearchServiceNotAvailable)
 		return
 	}
-	// 降级到旧实现
-	c.random(r)
+	c.bookHandler.GetRandomBooks(r)
 }
 
-// getAllBooks 旧版 API 适配
+// getAllBooksV2 获取所有书籍（游标分页）
 func (c *Api) getAllBooksV2(r *gin.Context) {
-	if c.bookHandler != nil {
-		c.bookHandler.GetAllBooks(r)
+	if c.bookHandler == nil {
+		response.Error(r, ErrSearchServiceNotAvailable)
 		return
 	}
-	// 降级到旧实现
-	c.getAllBooks(r)
+	c.bookHandler.GetAllBooks(r)
 }
 
-// listPublisher 旧版 API 适配
+// listPublisherV2 获取所有出版社列表
 func (c *Api) listPublisherV2(r *gin.Context) {
-	if c.bookHandler != nil {
-		c.bookHandler.ListPublishers(r)
+	if c.bookHandler == nil {
+		response.Error(r, ErrSearchServiceNotAvailable)
 		return
 	}
-	// 降级到旧实现
-	c.listPublisher(r)
+	c.bookHandler.ListPublishers(r)
+}
+
+// getBookByIDV2 替代旧的私有方法，供内部使用
+func (c *Api) getBookByIDV2(id string) (*Book, error) {
+	if c.bookHandler == nil {
+		return nil, ErrSearchServiceNotAvailable
+	}
+
+	serviceBook, err := c.bookHandler.GetBookByIDInternal(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换 service.Book 到 calibre.Book
+	book := &Book{
+		ID:           serviceBook.ID,
+		Title:        serviceBook.Title,
+		Authors:      serviceBook.Authors,
+		Publisher:    serviceBook.Publisher,
+		PubDate:      serviceBook.PubDate,
+		Isbn:         serviceBook.Isbn,
+		Tags:         serviceBook.Tags,
+		Rating:       serviceBook.Rating,
+		SeriesIndex:  serviceBook.SeriesIndex,
+		Comments:     serviceBook.Comments,
+		Languages:    serviceBook.Languages,
+		LastModified: serviceBook.LastModified,
+		Cover:        serviceBook.Cover,
+		FilePath:     serviceBook.FilePath,
+		Identifiers:  serviceBook.Identifiers,
+		Size:         serviceBook.Size,
+		AuthorSort:   "", // service.Book 不包含 AuthorSort
+	}
+	return book, nil
 }

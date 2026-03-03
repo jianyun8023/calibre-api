@@ -18,15 +18,26 @@
 ### 处理器文件 (Handlers)
 
 #### `book_handler.go`
-- **职责**: 书籍基本操作
+- **职责**: 数据转换工具函数
 - **主要功能**:
-  - `getBook()` - 获取书籍信息
-  - `deleteBook()` - 删除书籍
-  - `updateMetadata()` - 更新元数据
-  - `recently()` - 最近更新的书籍
-  - `random()` - 随机书籍
-  - `getAllBooks()` - 获取所有书籍（支持游标分页）
-  - `listPublisher()` - 获取出版社列表
+  - `convertSemanticToBook()` - semantic.Book → calibre.Book
+  - `convertSemanticToBooks()` - 批量转换
+  - `convertBookToSemantic()` - calibre.Book → semantic.Book
+  - `parseParams()` - 构建更新参数
+
+#### `book_handler_new.go`
+- **职责**: 书籍基本操作（使用 Service 层）
+- **主要功能**:
+  - `BookHandlerV2` - 新版 Handler 结构
+  - `GetBook()` - 获取书籍信息
+  - `DeleteBook()` - 删除书籍
+  - `UpdateMetadata()` - 更新元数据
+  - `GetRecentBooks()` - 最近更新的书籍
+  - `GetRandomBooks()` - 随机书籍
+  - `GetAllBooks()` - 获取所有书籍（支持游标分页）
+  - `ListPublishers()` - 获取出版社列表
+  - `GetBookByIDInternal()` - 内部方法，供其他 Handler 使用
+  - API 路由适配方法（xxxV2）
 
 #### `book_content_handler.go`
 - **职责**: 书籍内容相关操作
@@ -96,13 +107,13 @@
 
 ### 书籍基本操作
 ```
-GET    /api/book/:id              → book_handler.go: getBook()
-POST   /api/book/:id/delete       → book_handler.go: deleteBook()
-POST   /api/book/:id/update       → book_handler.go: updateMetadata()
-GET    /api/recently              → book_handler.go: recently()
-GET    /api/random                → book_handler.go: random()
-GET    /api/books/all             → book_handler.go: getAllBooks()
-GET    /api/publisher             → book_handler.go: listPublisher()
+GET    /api/book/:id              → book_handler_new.go: getBookV2() → BookHandlerV2.GetBook()
+POST   /api/book/:id/delete       → book_handler_new.go: deleteBookV2() → BookHandlerV2.DeleteBook()
+POST   /api/book/:id/update       → book_handler_new.go: updateMetadataV2() → BookHandlerV2.UpdateMetadata()
+GET    /api/recently              → book_handler_new.go: recentlyV2() → BookHandlerV2.GetRecentBooks()
+GET    /api/random                → book_handler_new.go: randomV2() → BookHandlerV2.GetRandomBooks()
+GET    /api/books/all             → book_handler_new.go: getAllBooksV2() → BookHandlerV2.GetAllBooks()
+GET    /api/publisher             → book_handler_new.go: listPublisherV2() → BookHandlerV2.ListPublishers()
 ```
 
 ### 书籍内容

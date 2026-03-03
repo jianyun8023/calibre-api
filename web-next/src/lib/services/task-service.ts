@@ -35,7 +35,7 @@ export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cance
  * Task Type
  */
 export type TaskType =
-  | 'qdrant_sync'
+  | 'semantic_sync'
   | 'toc_extract'
   | 'check_missing'
   | 'copyright_extract'

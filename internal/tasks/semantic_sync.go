@@ -11,6 +11,8 @@ import (
 	"github.com/jianyun8023/calibre-api/pkg/content"
 )
 
+// SearchSyncTask synchronizes books from Calibre to search index (MeiliSearch)
+// 语义同步任务：将 Calibre 书籍同步到搜索索引
 type SearchSyncTask struct {
 	id         string
 	mode       TaskMode
@@ -22,6 +24,7 @@ type SearchSyncTask struct {
 	errors     []string // 记录同步过程中的错误
 }
 
+// NewSearchSyncTask creates a new semantic synchronization task
 func NewSearchSyncTask(id string, mode TaskMode, contentApi *content.Api, searcher semantic.Searcher) *SearchSyncTask {
 	return &SearchSyncTask{
 		id:         id,
@@ -31,7 +34,7 @@ func NewSearchSyncTask(id string, mode TaskMode, contentApi *content.Api, search
 		errors:     make([]string, 0),
 		status: TaskStatus{
 			ID:        id,
-			Type:      TaskTypeQdrantSync, // Keep type for now or rename to TaskTypeSearchSync if frontend updated
+			Type:      TaskTypeSemanticSync,
 			Mode:      mode,
 			State:     "idle",
 			StartTime: time.Now(),
@@ -70,7 +73,7 @@ func (t *SearchSyncTask) Run() error {
 	var ids []int64
 
 	if t.mode == TaskModeIncremental && t.searcher != nil {
-		// 增量同步：比较 Calibre 和 Search Engine 的 ID 差异，同步缺失的书籍
+		// 增量同步：比较 Calibre 和搜索索引的 ID 差异，同步缺失的书籍
 		var err error
 		ids, err = t.findMissingBooks(ctx)
 		if err != nil {
@@ -195,7 +198,7 @@ func (t *SearchSyncTask) Run() error {
 	return nil
 }
 
-// findMissingBooks 比较 Calibre 和 Search Engine 的 ID，返回缺失的书籍 ID
+// findMissingBooks 比较 Calibre 和搜索索引的 ID，返回缺失的书籍 ID
 func (t *SearchSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) {
 	t.mu.Lock()
 	t.status.Message = "Incremental sync: fetching Calibre book IDs..."
@@ -213,7 +216,7 @@ func (t *SearchSyncTask) findMissingBooks(ctx context.Context) ([]int64, error) 
 	t.mu.Unlock()
 	GetManager().BroadcastTaskProgress(t.id)
 
-	// 2. 获取 Search Engine 中所有书籍 ID
+	// 2. 获取搜索索引中所有书籍 ID
 	searchIDMap := make(map[int64]bool)
 	cursor := ""
 	limit := 1000

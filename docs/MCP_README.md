@@ -62,10 +62,11 @@ tmpDir: ".files"
 content:
   server: https://your-calibre-server.com
 
-# Qdrant 向量数据库配置
-qdrant:
-  url: http://localhost:6333
-  collection: books
+# MeiliSearch 搜索引擎配置
+meilisearch:
+  host: http://localhost:7700
+  api_key: ""
+  index_name: books
   timeout: 30
 
 # Embedding 配置
@@ -254,9 +255,9 @@ AI助手可以分析您的书库和阅读模式，提供个性化推荐。
    - 确认配置文件中的服务器地址正确
 
 2. **搜索不工作**
-   - 确保 Qdrant 服务正常运行
-   - 检查 books collection 是否已创建
-   - 验证书籍数据是否已同步到 Qdrant
+   - 确保 MeiliSearch 服务正常运行
+   - 检查 books 索引是否已创建
+   - 验证书籍数据是否已同步到搜索索引
 
 3. **元数据服务异常**
    - 检查网络连接

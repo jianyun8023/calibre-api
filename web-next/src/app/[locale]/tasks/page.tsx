@@ -22,7 +22,7 @@ interface TaskStatus {
 }
 
 const TASK_TYPES = [
-  { value: "qdrant_sync", label: "Qdrant Sync", description: "Sync books to vector database" },
+  { value: "semantic_sync", label: "Semantic Sync", description: "Sync books to search index" },
   { value: "toc_extract", label: "TOC Extract", description: "Extract table of contents" },
   { value: "check_missing", label: "Check Missing", description: "Check missing vectors" },
   { value: "copyright_extract", label: "Copyright Extract", description: "Extract ISBN and metadata from copyright pages" },
@@ -34,7 +34,7 @@ const TASK_MODES = [
 ]
 
 export default function TasksPage() {
-  const [selectedType, setSelectedType] = useState("qdrant_sync")
+  const [selectedType, setSelectedType] = useState("semantic_sync")
   const [selectedMode, setSelectedMode] = useState("incremental")
 
   // Use the new task stream hook

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/jianyun8023/calibre-api/internal/semantic/qdrant"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -63,7 +62,7 @@ func truncateComments(comments string, maxLen int) string {
 	if comments == "" {
 		return ""
 	}
-	
+
 	// 使用 rune 处理多字节字符
 	runes := []rune(comments)
 	if len(runes) <= maxLen {
@@ -77,34 +76,34 @@ func generateTocSummary(toc interface{}) string {
 	if toc == nil {
 		return ""
 	}
-	
+
 	// 尝试将 TOC 转换为 JSON 并提取章节信息
 	tocBytes, err := json.Marshal(toc)
 	if err != nil {
 		return ""
 	}
-	
+
 	// 解析 TOC 结构
 	var tocData map[string]interface{}
 	if err := json.Unmarshal(tocBytes, &tocData); err != nil {
 		return ""
 	}
-	
+
 	// 提取章节数量和前 3 章标题
 	if chapters, ok := tocData["chapters"].([]interface{}); ok {
 		chapterCount := len(chapters)
 		if chapterCount == 0 {
 			return "无目录信息"
 		}
-		
+
 		summary := fmt.Sprintf("共 %d 章", chapterCount)
-		
+
 		// 提取前 3 章标题
 		maxChapters := 3
 		if chapterCount < maxChapters {
 			maxChapters = chapterCount
 		}
-		
+
 		if maxChapters > 0 {
 			summary += "，包括："
 			for i := 0; i < maxChapters; i++ {
@@ -121,10 +120,10 @@ func generateTocSummary(toc interface{}) string {
 				summary += "..."
 			}
 		}
-		
+
 		return summary
 	}
-	
+
 	// 如果无法解析，返回简单描述
 	return "目录信息可用"
 }
@@ -217,7 +216,7 @@ func (m *MCPServer) handleSearchBooks(ctx context.Context, request mcp.CallToolR
 
 	// 记录 token 估算
 	tokens := estimateTokens(books)
-	log.Debugf("MCP Tool search_books: returned %d books, estimated %d tokens (before optimization: ~%d)", 
+	log.Debugf("MCP Tool search_books: returned %d books, estimated %d tokens (before optimization: ~%d)",
 		len(books), tokens, len(books)*75)
 
 	return mcp.NewToolResultText(formatToolResult(result)), nil
@@ -225,13 +224,12 @@ func (m *MCPServer) handleSearchBooks(ctx context.Context, request mcp.CallToolR
 
 // performSemanticSearch 执行语义搜索，返回精简的 CompactBook
 func (m *MCPServer) performSemanticSearch(query string, limit int) ([]CompactBook, error) {
-	searcher, ok := m.api.semanticSearcher.(*qdrant.Searcher)
-	if !ok || searcher == nil {
+	if m.api.semanticSearcher == nil {
 		return nil, fmt.Errorf("search service not available")
 	}
 
 	// 使用语义搜索
-	results, err := searcher.Search(query, limit)
+	results, err := m.api.semanticSearcher.Search(query, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -287,13 +285,12 @@ func (m *MCPServer) handleGetBook(ctx context.Context, request mcp.CallToolReque
 
 	log.Debugf("MCP Tool get_book: id=%s", id)
 
-	searcher, ok := m.api.semanticSearcher.(*qdrant.Searcher)
-	if !ok || searcher == nil {
+	if m.api.semanticSearcher == nil {
 		return mcp.NewToolResultError("search service not available"), nil
 	}
 
 	// 通过 ID 搜索（只读操作）
-	books, _, err := searcher.SearchByKeyword(id, "id", 1, 0)
+	books, _, err := m.api.semanticSearcher.SearchByKeyword(id, "id", 1, 0)
 	if err != nil || len(books) == 0 {
 		return mcp.NewToolResultError("book not found"), nil
 	}
@@ -312,7 +309,7 @@ func (m *MCPServer) handleGetBook(ctx context.Context, request mcp.CallToolReque
 
 	// 记录 token 估算
 	tokens := estimateTokens(detailedBook)
-	log.Debugf("MCP Tool get_book: id=%s, estimated %d tokens (before optimization: ~350)", 
+	log.Debugf("MCP Tool get_book: id=%s, estimated %d tokens (before optimization: ~350)",
 		id, tokens)
 
 	return mcp.NewToolResultText(formatToolResult(detailedBook)), nil
@@ -383,13 +380,12 @@ func (m *MCPServer) handleRandomBooks(ctx context.Context, request mcp.CallToolR
 
 	log.Debugf("MCP Tool random_books: limit=%d", limit)
 
-	searcher, ok := m.api.semanticSearcher.(*qdrant.Searcher)
-	if !ok || searcher == nil {
+	if m.api.semanticSearcher == nil {
 		return mcp.NewToolResultError("search service not available"), nil
 	}
 
-	// 使用 Qdrant 随机搜索
-	semanticBooks, err := searcher.GetRandom(limit)
+	// 使用随机搜索
+	semanticBooks, err := m.api.semanticSearcher.GetRandom(limit)
 	if err != nil {
 		log.Warnf("Random search failed: %v", err)
 		return mcp.NewToolResultError(fmt.Sprintf("random search failed: %v", err)), nil
@@ -409,7 +405,7 @@ func (m *MCPServer) handleRandomBooks(ctx context.Context, request mcp.CallToolR
 
 	// 记录 token 估算
 	tokens := estimateTokens(books)
-	log.Debugf("MCP Tool random_books: returned %d books, estimated %d tokens (before optimization: ~%d)", 
+	log.Debugf("MCP Tool random_books: returned %d books, estimated %d tokens (before optimization: ~%d)",
 		len(books), tokens, len(books)*75)
 
 	return mcp.NewToolResultText(formatToolResult(result)), nil
@@ -433,13 +429,12 @@ func (m *MCPServer) handleRecentBooks(ctx context.Context, request mcp.CallToolR
 
 	log.Debugf("MCP Tool recent_books: limit=%d, offset=%d", limit, offset)
 
-	searcher, ok := m.api.semanticSearcher.(*qdrant.Searcher)
-	if !ok || searcher == nil {
+	if m.api.semanticSearcher == nil {
 		return mcp.NewToolResultError("search service not available"), nil
 	}
 
 	// 获取最近更新的书籍
-	semanticBooks, total, err := searcher.GetRecent(limit, offset)
+	semanticBooks, total, err := m.api.semanticSearcher.GetRecent(limit, offset)
 	if err != nil {
 		log.Warnf("Get recent books failed: %v", err)
 		return mcp.NewToolResultError(fmt.Sprintf("get recent books failed: %v", err)), nil
@@ -461,7 +456,7 @@ func (m *MCPServer) handleRecentBooks(ctx context.Context, request mcp.CallToolR
 
 	// 记录 token 估算
 	tokens := estimateTokens(books)
-	log.Debugf("MCP Tool recent_books: returned %d books, estimated %d tokens (before optimization: ~%d)", 
+	log.Debugf("MCP Tool recent_books: returned %d books, estimated %d tokens (before optimization: ~%d)",
 		len(books), tokens, len(books)*75)
 
 	return mcp.NewToolResultText(formatToolResult(result)), nil

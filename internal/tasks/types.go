@@ -5,7 +5,7 @@ import "time"
 type TaskType string
 
 const (
-	TaskTypeQdrantSync       TaskType = "qdrant_sync"
+	TaskTypeSemanticSync     TaskType = "semantic_sync"
 	TaskTypeTocExtract       TaskType = "toc_extract"
 	TaskTypeDeleteBook       TaskType = "delete_book"
 	TaskTypeUpdateMetadata   TaskType = "update_metadata"

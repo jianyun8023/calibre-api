@@ -8,7 +8,6 @@
 - 📚 **书籍管理** - 浏览、搜索、查看书籍详情
 - 📖 **EPUB 阅读器** - 基于 react-reader，支持阅读进度保存
 - 🔍 **智能搜索** - 关键词/语义/混合三种搜索模式
-- 💬 **AI 对话** - Vercel AI SDK 流式对话，支持书籍推荐
 - 📊 **出版社统计** - 出版社列表、统计信息、书籍筛选
 - ⚙️ **批量编辑** - 元数据批量更新、预览变更
 - 🔧 **任务管理** - 异步任务监控、实时进度显示
@@ -19,9 +18,9 @@
 - **React 19** - 最新的 React 特性
 - **Shadcn/UI** - 25+ 高质量组件
 - **Tailwind CSS 4** - Glassmorphism 样式系统
-- **Vercel AI SDK** - 无缝处理 SSE 流式响应
 - **TypeScript 5** - 完整的类型安全
 - **Zustand** - 轻量级状态管理
+- **react-reader** - EPUB 阅读器组件
 - **next-themes** - 主题切换支持
 
 ## 🚀 快速开始
@@ -78,7 +77,6 @@ web-next/
 │   │   ├── detail/[id]/       # 书籍详情页
 │   │   ├── read/[id]/         # EPUB 阅读器
 │   │   ├── search/            # 搜索页面
-│   │   ├── chat/              # AI 对话页面
 │   │   ├── settings/          # 设置页面
 │   │   ├── tasks/             # 任务管理
 │   │   ├── publisher/         # 出版社统计
@@ -174,12 +172,6 @@ import { MarkdownRenderer } from "@/components/markdown"
 - 高级过滤（作者、出版社、标签）
 - 实时搜索建议
 
-### AI 对话 (`/chat`)
-- Vercel AI SDK 流式响应
-- Markdown 渲染（代码高亮）
-- 书籍推荐和搜索
-- 对话历史管理
-
 ### 设置 (`/settings`)
 - **外观**: 主题切换（亮色/暗色/系统）
 - **API 配置**: 后端 API 端点设置
@@ -187,7 +179,7 @@ import { MarkdownRenderer } from "@/components/markdown"
 - **搜索**: 默认搜索模式、每页结果数
 
 ### 任务管理 (`/tasks`)
-- 启动新任务（Qdrant 同步、TOC 提取、检查缺失）
+- 启动新任务（语义同步、TOC 提取、版权提取、检查缺失）
 - 实时状态更新（每 2 秒轮询）
 - 进度条显示
 - 任务历史记录
@@ -269,15 +261,15 @@ const { sidebarOpen, setSidebarOpen } = useUIStore()
 ### 功能库
 ```json
 {
-  "ai": "最新版本",                  // Vercel AI SDK
-  "@ai-sdk/react": "最新版本",       // React Hooks
   "react-reader": "最新版本",        // EPUB 阅读器
   "epubjs": "最新版本",              // EPUB 解析库
   "react-markdown": "最新版本",      // Markdown 渲染
   "remark-gfm": "最新版本",          // GitHub Flavored Markdown
   "rehype-highlight": "最新版本",    // 代码高亮
   "zustand": "最新版本",             // 状态管理
-  "sonner": "最新版本"               // Toast 通知
+  "sonner": "最新版本",              // Toast 通知
+  "react-hook-form": "最新版本",     // 表单管理
+  "zod": "最新版本"                  // Schema 验证
 }
 ```
 
@@ -344,8 +336,8 @@ const { sidebarOpen, setSidebarOpen } = useUIStore()
 ### 技术选型理由
 - **Next.js**: React 生态最成熟的框架，SEO 友好
 - **Shadcn/UI**: 高度可定制，组件即代码，无 npm 依赖
-- **Vercel AI SDK**: 一流的 AI 体验，自动处理 SSE
 - **Tailwind CSS**: 快速开发，一致的设计系统
+- **react-reader**: 强大的 EPUB 阅读体验
 
 ## 🤝 贡献指南
 
@@ -371,11 +363,11 @@ MIT License - 详见 [LICENSE](../LICENSE) 文件
 - [Vue.js 前端](../app/calibre-pages)
 - [Next.js 文档](https://nextjs.org/docs)
 - [Shadcn/UI 文档](https://ui.shadcn.com)
-- [Vercel AI SDK](https://sdk.vercel.ai/docs)
+- [Tailwind CSS 文档](https://tailwindcss.com/docs)
 - [react-reader](https://github.com/gerhardsletten/react-reader)
 
 ---
 
 **维护者**: jianyun8023  
 **当前版本**: 2.0.0 (Next.js 重构)  
-**最后更新**: 2025-12-10
+**最后更新**: 2026-03-03

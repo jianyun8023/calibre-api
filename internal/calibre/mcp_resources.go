@@ -51,7 +51,7 @@ func (rm *ResourceManager) ListResources(bookID string) ([]Resource, error) {
 	var resources []Resource
 
 	// 获取书籍信息
-	book, err := rm.api.getBookByID(bookID)
+	book, err := rm.api.getBookByIDV2(bookID)
 	if err != nil {
 		return nil, fmt.Errorf("获取书籍信息失败: %w", err)
 	}
@@ -129,7 +129,7 @@ func (rm *ResourceManager) ReadResource(uri string) (*Resource, error) {
 	resourceType := ResourceType(parts[3])
 
 	// 获取书籍信息
-	book, err := rm.api.getBookByID(bookID)
+	book, err := rm.api.getBookByIDV2(bookID)
 	if err != nil {
 		return nil, fmt.Errorf("获取书籍信息失败: %w", err)
 	}

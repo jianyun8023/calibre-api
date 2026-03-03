@@ -8,11 +8,12 @@ Calibre 电子书管理系统的 AI 原生升级版，提供 RESTful + MCP 双�
 
 | 层级 | 技术 |
 |------|------|
-| 后端 | Go 1.24, Gin |
-| 前端 | Next.js 16, React 19, Shadcn/UI ([web-next/](web-next/README.md)) |
-| 数据库 | SQLite (Calibre/Chat), Qdrant (向量) |
-| AI | OpenAI/Ollama, Vercel AI SDK |
-| 协议 | MCP v1.2.0 (SSE) |
+| 后端 | Go 1.24.4, Gin 1.11 |
+| 前端 | Next.js 16.0, React 19.2, Shadcn/UI ([web-next/](web-next/README.md)) |
+| 数据源 | Calibre Content Server (HTTP API) |
+| 搜索 | MeiliSearch 0.36 (全文+语义搜索) |
+| Embedding | Ollama/SiliconFlow (向量化服务) |
+| 协议 | MCP v1.2.0 (SSE, mark3labs/mcp-go 0.43) |
 
 ## 核心文档
 
@@ -24,16 +25,15 @@ Calibre 电子书管理系统的 AI 原生升级版，提供 RESTful + MCP 双�
 | [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) | REST API |
 | [MCP_README.md](docs/MCP_README.md) | MCP 协议 |
 | [QUICK_START.md](docs/QUICK_START.md) | 部署指南 |
-| [QDRANT_COLLECTION_SETUP.md](docs/QDRANT_COLLECTION_SETUP.md) | Qdrant 配置 |
 | [CHANGELOG.md](CHANGELOG.md) | 变更历史 |
 
 ## 架构分层
 
 ```
-Next.js → Gin Router → Handlers → Services → Storage
+Next.js → Gin Router → Handlers → Services → Data Sources
                          ↓           ↓          ↓
-                    Book/Search   Qdrant    SQLite/Qdrant
-                    Chat/MCP      LLM       FileCache
+                    Book/Search   MeiliSearch  Calibre Server
+                    MCP           Embedding    FileCache
                     Task          Cache
 ```
 
@@ -46,8 +46,8 @@ go mod download && make build && ./calibre-api
 # 前端
 cd web-next && pnpm install && pnpm dev
 
-# Qdrant
-docker run -d -p 6333:6333 qdrant/qdrant
+# MeiliSearch
+docker run -d -p 7700:7700 getmeili/meilisearch:latest
 ```
 
 ## 开发任务
@@ -72,9 +72,10 @@ docker run -d -p 6333:6333 qdrant/qdrant
 ## 关键约定
 
 - 敏感信息用环境变量
-- Embedding 维度 4096（与 Qdrant 一致）
+- Embedding 维度：默认 4096（由提供商决定）
 - MCP 只暴露只读工具
 - 所有变更记录到 `CHANGELOG.md`
+- 搜索引擎：统一使用 MeiliSearch（已移除 Qdrant）
 
 ---
 
