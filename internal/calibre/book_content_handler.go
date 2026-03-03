@@ -171,7 +171,7 @@ func (c *Api) getBookContent(r *gin.Context) {
 	id := strings.TrimSuffix(r.Param("id"), ".epub")
 	path1 := r.Param("path")
 
-	_, err := c.getBookByID(id)
+	_, err := c.getBookByIDV2(id)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, err)
 		return
@@ -218,7 +218,7 @@ func (c *Api) getBookContentByQuery(r *gin.Context) {
 		filePath = "OEBPS/content.opf" // 默认返回 OPF 文件
 	}
 
-	_, err := c.getBookByID(id)
+	_, err := c.getBookByIDV2(id)
 	if err != nil {
 		r.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,

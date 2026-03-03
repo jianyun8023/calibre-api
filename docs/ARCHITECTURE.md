@@ -73,14 +73,23 @@
 
 ### 2. 处理器层 (Handlers)
 
-#### `book_handler.go` - 书籍操作
-- `getBook()` - 获取单本书籍详情
-- `getAllBooks()` - 游标分页获取书籍列表
-- `deleteBook()` - 删除书籍
-- `updateMetadata()` - 更新元数据
-- `recently()` - 最近更新书籍
-- `random()` - 随机推荐
-- `listPublisher()` - 出版社列表
+#### `book_handler_new.go` - 书籍操作 (使用 Service 层)
+- `BookHandlerV2` - 新版 Handler 结构
+  - `GetBook()` - 获取单本书籍详情
+  - `GetAllBooks()` - 游标分页获取书籍列表
+  - `DeleteBook()` - 删除书籍
+  - `UpdateMetadata()` - 更新元数据
+  - `GetRecentBooks()` - 最近更新书籍
+  - `GetRandomBooks()` - 随机推荐
+  - `ListPublishers()` - 出版社列表
+  - `GetBookByIDInternal()` - 内部方法
+- API 路由适配方法 (xxxV2)
+
+#### `book_handler.go` - 数据转换工具
+- `convertSemanticToBook()` - semantic.Book → calibre.Book
+- `convertSemanticToBooks()` - 批量转换
+- `convertBookToSemantic()` - calibre.Book → semantic.Book
+- `parseParams()` - 构建更新参数
 
 #### `book_content_handler.go` - 内容处理
 - `getCover()` - 获取封面图片

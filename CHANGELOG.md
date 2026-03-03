@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **移除旧版 BookService** (2026-03-02):
+  - 删除 `internal/service/book_service.go` 中的旧版 `bookService` 实现
+  - 删除 `internal/calibre/book_handler.go` 中的旧版 Handler 方法
+  - 简化适配器逻辑，移除降级机制
+  - 统一使用 Repository 模式的新架构
+  - 减少代码约 300 行，提升代码清晰度
+  - 保留转换函数供其他模块使用
+  - 所有功能通过 `BookHandlerV2` 和 `bookServiceV2` 实现
+
 ### Fixed
 - **Qdrant 增量同步修复** (2025-01-04):
   - 修复增量同步无法正确同步缺失书籍的问题

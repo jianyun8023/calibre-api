@@ -1,13 +1,9 @@
 package service
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/semantic"
-	"github.com/jianyun8023/calibre-api/internal/tasks"
-	apperrors "github.com/jianyun8023/calibre-api/pkg/errors"
-	"github.com/jianyun8023/calibre-api/pkg/log"
 )
 
 // BookService 书籍业务逻辑接口
@@ -66,13 +62,6 @@ type BookUpdate struct {
 	Comments  string    `json:"comments"`
 }
 
-// bookService 书籍业务逻辑实现
-type bookService struct {
-	semanticSearcher semantic.Searcher
-	contentAPI       ContentAPI
-	taskManager      *tasks.Manager
-}
-
 // ContentAPI 内容服务接口（用于与 Calibre Content Server 交互）
 type ContentAPI interface {
 	// DeleteBooks 删除书籍
@@ -83,168 +72,6 @@ type ContentAPI interface {
 
 	// GetAllPublisher 获取所有出版社
 	GetAllPublisher() ([]string, error)
-}
-
-// NewBookService 创建书籍服务
-func NewBookService(searcher semantic.Searcher, contentAPI ContentAPI, taskManager *tasks.Manager) BookService {
-	return &bookService{
-		semanticSearcher: searcher,
-		contentAPI:       contentAPI,
-		taskManager:      taskManager,
-	}
-}
-
-// GetBookByID 根据 ID 获取书籍
-func (s *bookService) GetBookByID(id string) (*Book, error) {
-	if s.semanticSearcher == nil {
-		return nil, apperrors.NewSearchServiceNotAvailableError()
-	}
-
-	// 搜索书籍
-	books, _, err := s.semanticSearcher.SearchByKeyword(id, "id", 1, 0)
-	if err != nil {
-		return nil, apperrors.WrapWithDetails(err, apperrors.CodeSearchFailed, "failed to search book", err.Error(), 500)
-	}
-	if len(books) == 0 {
-		return nil, apperrors.NewBookNotFoundError(id)
-	}
-
-	book := convertSemanticToBook(books[0])
-	return &book, nil
-}
-
-// DeleteBook 删除书籍
-func (s *bookService) DeleteBook(id string) error {
-	// 删除 Calibre 中的书籍
-	err := s.contentAPI.DeleteBooks([]string{id}, "")
-	if err != nil {
-		log.Infof("Failed to delete book %s: %v", id, err)
-		return apperrors.WrapWithDetails(err, apperrors.CodeDeleteFailed, "failed to delete book", err.Error(), 500)
-	}
-
-	// 异步删除 Qdrant 中的向量
-	if s.semanticSearcher != nil {
-		bookID, _ := strconv.ParseInt(id, 10, 64)
-		_, err := s.taskManager.StartTask(tasks.TaskTypeDeleteBook, tasks.TaskModeFull, func(taskID string) tasks.Task {
-			return tasks.NewDeleteBookTask(taskID, bookID, s.semanticSearcher)
-		})
-		if err != nil {
-			log.Warnf("Failed to start delete task for book %d: %v", bookID, err)
-		} else {
-			log.Infof("Started delete task for book %d", bookID)
-		}
-	}
-
-	return nil
-}
-
-// UpdateMetadata 更新书籍元数据
-func (s *bookService) UpdateMetadata(id string, updates *BookUpdate) error {
-	// 获取旧书籍信息
-	oldBook, err := s.GetBookByID(id)
-	if err != nil {
-		return err
-	}
-
-	// 构建更新参数
-	metadata := buildUpdateParams(updates, oldBook)
-
-	// 更新 Calibre 中的元数据
-	_, err = s.contentAPI.UpdateMetaData(id, metadata, "")
-	if err != nil {
-		return apperrors.WrapWithDetails(err, apperrors.CodeInternalError, "failed to update metadata", err.Error(), 500)
-	}
-
-	// 合并更新到旧书籍
-	mergedBook := mergeBookUpdates(oldBook, updates)
-
-	// 异步更新 Qdrant 中的向量
-	if s.semanticSearcher != nil {
-		semanticBook := convertBookToSemantic(mergedBook)
-		_, err := s.taskManager.StartTask(tasks.TaskTypeUpdateMetadata, tasks.TaskModeFull, func(taskID string) tasks.Task {
-			return tasks.NewUpdateMetadataTask(taskID, semanticBook, s.semanticSearcher)
-		})
-		if err != nil {
-			log.Warnf("Failed to start update task for book %d: %v", oldBook.ID, err)
-		} else {
-			log.Infof("Started update task for book %d", oldBook.ID)
-		}
-	}
-
-	return nil
-}
-
-// GetRecentBooks 获取最近更新的书籍
-func (s *bookService) GetRecentBooks(limit, offset int) ([]Book, int64, error) {
-	// 验证参数
-	if limit <= 0 {
-		return nil, 0, apperrors.NewValidationError("limit", "must be positive")
-	}
-	if offset < 0 {
-		return nil, 0, apperrors.NewValidationError("offset", "must be non-negative")
-	}
-
-	if s.semanticSearcher == nil {
-		return nil, 0, apperrors.NewSearchServiceNotAvailableError()
-	}
-
-	semanticBooks, total, err := s.semanticSearcher.GetRecent(limit, offset)
-	if err != nil {
-		return nil, 0, apperrors.WrapWithDetails(err, apperrors.CodeSearchFailed, "failed to get recent books", err.Error(), 500)
-	}
-
-	books := convertSemanticToBooks(semanticBooks)
-	return books, total, nil
-}
-
-// GetRandomBooks 获取随机书籍
-func (s *bookService) GetRandomBooks(limit int) ([]Book, error) {
-	// 验证参数
-	if limit <= 0 {
-		return nil, apperrors.NewValidationError("limit", "must be positive")
-	}
-
-	if s.semanticSearcher == nil {
-		return nil, apperrors.NewSearchServiceNotAvailableError()
-	}
-
-	semanticBooks, err := s.semanticSearcher.GetRandom(limit)
-	if err != nil {
-		return nil, apperrors.WrapWithDetails(err, apperrors.CodeSearchFailed, "failed to get random books", err.Error(), 500)
-	}
-
-	books := convertSemanticToBooks(semanticBooks)
-	return books, nil
-}
-
-// GetAllBooks 获取所有书籍（游标分页）
-func (s *bookService) GetAllBooks(limit int, cursor string) ([]Book, int64, string, error) {
-	// 验证参数
-	if limit <= 0 {
-		return nil, 0, "", apperrors.NewValidationError("limit", "must be positive")
-	}
-
-	if s.semanticSearcher == nil {
-		return nil, 0, "", apperrors.NewSearchServiceNotAvailableError()
-	}
-
-	semanticBooks, total, nextCursor, err := s.semanticSearcher.GetAllWithCursor(limit, cursor)
-	if err != nil {
-		log.Warnf("GetAllWithCursor failed: %v", err)
-		return nil, 0, "", apperrors.WrapWithDetails(err, apperrors.CodeSearchFailed, "failed to get all books", err.Error(), 500)
-	}
-
-	books := convertSemanticToBooks(semanticBooks)
-	return books, total, nextCursor, nil
-}
-
-// ListPublishers 获取所有出版社列表
-func (s *bookService) ListPublishers() ([]string, error) {
-	publishers, err := s.contentAPI.GetAllPublisher()
-	if err != nil {
-		return nil, apperrors.WrapWithDetails(err, apperrors.CodeInternalError, "failed to list publishers", err.Error(), 500)
-	}
-	return publishers, nil
 }
 
 // 辅助函数
