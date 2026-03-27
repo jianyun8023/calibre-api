@@ -18,10 +18,11 @@ const (
 type DraftStatus string
 
 const (
-	DraftStatusPending  DraftStatus = "pending"
-	DraftStatusApplied  DraftStatus = "applied"
-	DraftStatusRejected DraftStatus = "rejected"
-	DraftStatusExpired  DraftStatus = "expired"
+	DraftStatusPending   DraftStatus = "pending"
+	DraftStatusProcessing DraftStatus = "processing"
+	DraftStatusApplied   DraftStatus = "applied"
+	DraftStatusRejected  DraftStatus = "rejected"
+	DraftStatusExpired   DraftStatus = "expired"
 )
 
 // BookDraft represents a pending draft change for a book
@@ -58,7 +59,8 @@ type DraftRepository interface {
 	DeleteDraft(ctx context.Context, id int64) error
 
 	// Atomic Operations
-	ApplyDraftAtomically(ctx context.Context, id int64, newStatus DraftStatus, actionFunc func() error) error
+	UpdateDraftStatusIfPending(ctx context.Context, id int64, newStatus DraftStatus) (bool, error)
+	ApplyDraftSuccess(ctx context.Context, draft *BookDraft, newStatus DraftStatus) error
 
 	// History
 	CreateHistory(ctx context.Context, history *BookDraftHistory) (int64, error)
@@ -179,40 +181,33 @@ func (r *sqliteDraftRepository) DeleteDraft(ctx context.Context, id int64) error
 	return err
 }
 
-func (r *sqliteDraftRepository) ApplyDraftAtomically(ctx context.Context, id int64, newStatus DraftStatus, actionFunc func() error) error {
+func (r *sqliteDraftRepository) UpdateDraftStatusIfPending(ctx context.Context, id int64, newStatus DraftStatus) (bool, error) {
+	query := `UPDATE book_drafts SET status = ? WHERE id = ? AND status = ?`
+	res, err := r.db.ExecContext(ctx, query, newStatus, id, DraftStatusPending)
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rowsAffected > 0, nil
+}
+
+func (r *sqliteDraftRepository) ApplyDraftSuccess(ctx context.Context, draft *BookDraft, newStatus DraftStatus) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// 1. Lock and check the row
-	query := `SELECT book_id, action, data, status FROM book_drafts WHERE id = ? AND status = ?`
-	// Note: SQLite doesn't strictly support SELECT ... FOR UPDATE, but the transaction will lock the DB for writes
-	row := tx.QueryRowContext(ctx, query, id, DraftStatusPending)
-
-	var draft BookDraft
-	draft.ID = id
-	err = row.Scan(&draft.BookID, &draft.Action, &draft.Data, &draft.Status)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil // Already processed or doesn't exist, we consider this a successful no-op to prevent race conditions
-		}
-		return err
-	}
-
-	// 2. Perform external action (e.g. update Calibre)
-	if err := actionFunc(); err != nil {
-		return err // Rollback
-	}
-
-	// 3. Update Draft Status
+	// 1. Update Draft Status (from processing to applied/rejected)
 	updateQuery := `UPDATE book_drafts SET status = ? WHERE id = ?`
-	if _, err := tx.ExecContext(ctx, updateQuery, newStatus, id); err != nil {
+	if _, err := tx.ExecContext(ctx, updateQuery, newStatus, draft.ID); err != nil {
 		return err // Rollback
 	}
 
-	// 4. Record History
+	// 2. Record History
 	historyQuery := `INSERT INTO book_draft_history (draft_id, book_id, action, data, status) VALUES (?, ?, ?, ?, ?)`
 	if _, err := tx.ExecContext(ctx, historyQuery, draft.ID, draft.BookID, draft.Action, draft.Data, newStatus); err != nil {
 		return err // Rollback

@@ -17,9 +17,15 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create db directory: %v", err)
 	}
 
-	db, err := sql.Open("sqlite3", dbPath)
+	// Connect to SQLite with busy_timeout parameter
+	db, err := sql.Open("sqlite3", dbPath+"?_timeout=5000")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite db: %v", err)
+	}
+
+	// Set WAL mode for better concurrency
+	if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
+		log.Warnf("Failed to enable WAL mode for drafts db: %v", err)
 	}
 
 	// Create tables if not exist
@@ -54,11 +60,24 @@ func createTables(db *sql.DB) error {
 		processed_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
 
+	draftsIndex := `CREATE INDEX IF NOT EXISTS idx_book_drafts_status ON book_drafts(status, created_at);`
+	draftsLookupIndex := `CREATE INDEX IF NOT EXISTS idx_book_drafts_lookup ON book_drafts(book_id, action, status);`
+	historyIndex := `CREATE INDEX IF NOT EXISTS idx_book_draft_history_time ON book_draft_history(processed_at DESC);`
+
 	if _, err := db.Exec(draftsTable); err != nil {
 		return err
 	}
 	if _, err := db.Exec(historyTable); err != nil {
 		return err
+	}
+	if _, err := db.Exec(draftsIndex); err != nil {
+		log.Warnf("Failed to create index idx_book_drafts_status: %v", err)
+	}
+	if _, err := db.Exec(draftsLookupIndex); err != nil {
+		log.Warnf("Failed to create index idx_book_drafts_lookup: %v", err)
+	}
+	if _, err := db.Exec(historyIndex); err != nil {
+		log.Warnf("Failed to create index idx_book_draft_history_time: %v", err)
 	}
 
 	return nil

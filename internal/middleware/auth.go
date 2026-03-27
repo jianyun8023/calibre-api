@@ -12,9 +12,11 @@ import (
 // APIKeyAuth 验证请求是否带有正确的 API Key
 func APIKeyAuth(expectedKey string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 如果配置中没有设置 key，则直接放行 (为了兼容性)
+		// 1. 鉴权绕过漏洞修复：如果未配置 API Key，直接拒绝服务，强制要求配置
 		if expectedKey == "" {
-			c.Next()
+			err := errors.New(errors.CodeUnauthorized, "API Key is not configured on the server", http.StatusUnauthorized)
+			response.Error(c, err)
+			c.Abort()
 			return
 		}
 

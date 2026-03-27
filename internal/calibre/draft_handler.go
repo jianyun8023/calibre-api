@@ -87,8 +87,16 @@ func (h *DraftHandler) ApplyDrafts(c *gin.Context) {
 		return
 	}
 
-	if err := h.draftService.ApplyDrafts(c.Request.Context(), req.IDs); err != nil {
-		response.Error(c, err)
+	errs := h.draftService.ApplyDrafts(c.Request.Context(), req.IDs)
+	if len(errs) > 0 {
+		var errorMsgs []string
+		for _, err := range errs {
+			errorMsgs = append(errorMsgs, err.Error())
+		}
+		response.SuccessWithMessage(c, "drafts processed with some errors", gin.H{
+			"total":  len(req.IDs),
+			"errors": errorMsgs,
+		})
 		return
 	}
 
@@ -104,8 +112,16 @@ func (h *DraftHandler) RejectDrafts(c *gin.Context) {
 		return
 	}
 
-	if err := h.draftService.RejectDrafts(c.Request.Context(), req.IDs); err != nil {
-		response.Error(c, err)
+	errs := h.draftService.RejectDrafts(c.Request.Context(), req.IDs)
+	if len(errs) > 0 {
+		var errorMsgs []string
+		for _, err := range errs {
+			errorMsgs = append(errorMsgs, err.Error())
+		}
+		response.SuccessWithMessage(c, "drafts processed with some errors", gin.H{
+			"total":  len(req.IDs),
+			"errors": errorMsgs,
+		})
 		return
 	}
 

@@ -15,8 +15,8 @@ type DraftService interface {
 	ReceiveDeletes(ctx context.Context, ids []string) error
 	ReceiveUpdates(ctx context.Context, updates []BookDraftUpdate) error
 	GetPendingDrafts(ctx context.Context, limit, offset int) ([]repository.BookDraft, int64, error)
-	ApplyDrafts(ctx context.Context, ids []int64) error
-	RejectDrafts(ctx context.Context, ids []int64) error
+	ApplyDrafts(ctx context.Context, ids []int64) ([]error)
+	RejectDrafts(ctx context.Context, ids []int64) ([]error)
 	CleanupExpiredDrafts(ctx context.Context, days int) (int, error)
 	GetHistory(ctx context.Context, limit, offset int) ([]repository.BookDraftHistory, int64, error)
 }
@@ -155,7 +155,7 @@ func (s *draftService) GetPendingDrafts(ctx context.Context, limit, offset int) 
 	return s.draftRepo.GetPendingDrafts(ctx, limit, offset)
 }
 
-func (s *draftService) ApplyDrafts(ctx context.Context, ids []int64) error {
+func (s *draftService) ApplyDrafts(ctx context.Context, ids []int64) []error {
 	var errs []error
 	for _, draftID := range ids {
 		// Fetch draft first to know the action needed
@@ -168,44 +168,72 @@ func (s *draftService) ApplyDrafts(ctx context.Context, ids []int64) error {
 			continue // Skip non-existent or already processed drafts
 		}
 
-		// Perform atomical application and status update
-		actionFunc := func() error {
-			if draft.Action == repository.DraftActionDelete {
-				return s.bookService.DeleteBook(draft.BookID)
-			} else if draft.Action == repository.DraftActionUpdate {
-				var updateData BookUpdate
-				if errUnmarshal := json.Unmarshal([]byte(draft.Data), &updateData); errUnmarshal != nil {
-					return fmt.Errorf("failed to unmarshal update data for draft %d: %v", draftID, errUnmarshal)
-				}
-				return s.bookService.UpdateMetadata(draft.BookID, &updateData)
+		// 1. Mark as Processing (Atomic)
+		updated, err := s.draftRepo.UpdateDraftStatusIfPending(ctx, draftID, repository.DraftStatusProcessing)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to mark draft %d as processing: %v", draftID, err))
+			continue
+		}
+		if !updated {
+			continue // Another process got it
+		}
+
+		// 2. Perform External Action
+		var actionErr error
+		if draft.Action == repository.DraftActionDelete {
+			actionErr = s.bookService.DeleteBook(draft.BookID)
+		} else if draft.Action == repository.DraftActionUpdate {
+			var updateData BookUpdate
+			if errUnmarshal := json.Unmarshal([]byte(draft.Data), &updateData); errUnmarshal != nil {
+				actionErr = fmt.Errorf("failed to unmarshal update data for draft %d: %v", draftID, errUnmarshal)
+			} else {
+				actionErr = s.bookService.UpdateMetadata(draft.BookID, &updateData)
 			}
-			return nil
 		}
 
-		if err := s.draftRepo.ApplyDraftAtomically(ctx, draftID, repository.DraftStatusApplied, actionFunc); err != nil {
-			errs = append(errs, fmt.Errorf("failed to apply draft %d atomically: %v", draftID, err))
+		// 3. Finalize
+		if actionErr != nil {
+			// Revert to pending
+			if revertErr := s.draftRepo.UpdateDraftStatus(ctx, draftID, repository.DraftStatusPending); revertErr != nil {
+				log.Warnf("Failed to revert draft %d back to pending after failure: %v", draftID, revertErr)
+			}
+			errs = append(errs, fmt.Errorf("failed to apply external action for draft %d: %v", draftID, actionErr))
+		} else {
+			// Success: update to applied and create history (transactionally)
+			if finalizeErr := s.draftRepo.ApplyDraftSuccess(ctx, draft, repository.DraftStatusApplied); finalizeErr != nil {
+				errs = append(errs, fmt.Errorf("failed to finalize draft %d: %v", draftID, finalizeErr))
+			}
 		}
 	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("encountered errors applying some drafts: %v", errs)
-	}
-	return nil
+	return errs
 }
 
-func (s *draftService) RejectDrafts(ctx context.Context, ids []int64) error {
+func (s *draftService) RejectDrafts(ctx context.Context, ids []int64) []error {
 	var errs []error
 	for _, draftID := range ids {
-		// We can use the atomic approach with a no-op function for reject
-		noOpAction := func() error { return nil }
+		draft, err := s.draftRepo.GetDraftByID(ctx, draftID)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to get draft %d: %v", draftID, err))
+			continue
+		}
+		if draft == nil || draft.Status != repository.DraftStatusPending {
+			continue
+		}
 
-		if err := s.draftRepo.ApplyDraftAtomically(ctx, draftID, repository.DraftStatusRejected, noOpAction); err != nil {
+		updated, err := s.draftRepo.UpdateDraftStatusIfPending(ctx, draftID, repository.DraftStatusProcessing)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to mark draft %d as processing: %v", draftID, err))
+			continue
+		}
+		if !updated {
+			continue
+		}
+
+		if err := s.draftRepo.ApplyDraftSuccess(ctx, draft, repository.DraftStatusRejected); err != nil {
 			errs = append(errs, fmt.Errorf("failed to reject draft %d atomically: %v", draftID, err))
 		}
 	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("encountered errors rejecting some drafts: %v", errs)
-	}
-	return nil
+	return errs
 }
