@@ -21,6 +21,7 @@ const (
 	DraftStatusPending  DraftStatus = "pending"
 	DraftStatusApplied  DraftStatus = "applied"
 	DraftStatusRejected DraftStatus = "rejected"
+	DraftStatusExpired  DraftStatus = "expired"
 )
 
 // BookDraft represents a pending draft change for a book
@@ -50,6 +51,7 @@ type DraftRepository interface {
 	CreateDraft(ctx context.Context, draft *BookDraft) (int64, error)
 	GetPendingDrafts(ctx context.Context) ([]BookDraft, error)
 	GetDraftByID(ctx context.Context, id int64) (*BookDraft, error)
+	GetPendingDraftsBefore(ctx context.Context, before time.Time) ([]BookDraft, error)
 	UpdateDraftStatus(ctx context.Context, id int64, status DraftStatus) error
 	DeleteDraft(ctx context.Context, id int64) error
 
@@ -110,6 +112,25 @@ func (r *sqliteDraftRepository) GetDraftByID(ctx context.Context, id int64) (*Bo
 		return nil, err
 	}
 	return &draft, nil
+}
+
+func (r *sqliteDraftRepository) GetPendingDraftsBefore(ctx context.Context, before time.Time) ([]BookDraft, error) {
+	query := `SELECT id, book_id, action, data, status, created_at FROM book_drafts WHERE status = ? AND created_at < ?`
+	rows, err := r.db.QueryContext(ctx, query, DraftStatusPending, before)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var drafts []BookDraft
+	for rows.Next() {
+		var draft BookDraft
+		if err := rows.Scan(&draft.ID, &draft.BookID, &draft.Action, &draft.Data, &draft.Status, &draft.CreatedAt); err != nil {
+			return nil, err
+		}
+		drafts = append(drafts, draft)
+	}
+	return drafts, nil
 }
 
 func (r *sqliteDraftRepository) UpdateDraftStatus(ctx context.Context, id int64, status DraftStatus) error {

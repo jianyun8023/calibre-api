@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/cache"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
@@ -271,6 +272,29 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 			c.draftService = service.NewDraftService(c.draftRepo, c.bookService)
 			c.draftHandler = calibre.NewDraftHandler(c.draftService)
 			log.Info("Drafts service and handler initialized")
+
+			// Start background cleanup task
+			expireDays := c.config.Drafts.ExpireDays
+			if expireDays <= 0 {
+				expireDays = 30 // Default 30 days
+			}
+			go func() {
+				ticker := time.NewTicker(24 * time.Hour)
+				defer ticker.Stop()
+
+				// Run once immediately on startup
+				if count, err := c.draftService.CleanupExpiredDrafts(context.Background(), expireDays); err == nil && count > 0 {
+					log.Infof("Cleaned up %d expired drafts on startup", count)
+				}
+
+				for range ticker.C {
+					if count, err := c.draftService.CleanupExpiredDrafts(context.Background(), expireDays); err != nil {
+						log.Warnf("Failed to cleanup expired drafts: %v", err)
+					} else if count > 0 {
+						log.Infof("Cleaned up %d expired drafts", count)
+					}
+				}
+			}()
 		}
 
 		log.Info("Book repository, service and handler initialized")

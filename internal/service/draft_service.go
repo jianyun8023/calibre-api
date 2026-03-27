@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/repository"
+	"github.com/jianyun8023/calibre-api/pkg/log"
 )
 
 // DraftService defines the logic for handling book drafts
@@ -15,6 +17,7 @@ type DraftService interface {
 	GetPendingDrafts(ctx context.Context) ([]repository.BookDraft, error)
 	ApplyDrafts(ctx context.Context, ids []int64) error
 	RejectDrafts(ctx context.Context, ids []int64) error
+	CleanupExpiredDrafts(ctx context.Context, days int) (int, error)
 }
 
 type BookDraftUpdate struct {
@@ -48,6 +51,43 @@ func (s *draftService) ReceiveDeletes(ctx context.Context, ids []string) error {
 		}
 	}
 	return nil
+}
+
+func (s *draftService) CleanupExpiredDrafts(ctx context.Context, days int) (int, error) {
+	if days <= 0 {
+		return 0, fmt.Errorf("expiration days must be greater than 0")
+	}
+
+	before := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
+	drafts, err := s.draftRepo.GetPendingDraftsBefore(ctx, before)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get expired drafts: %v", err)
+	}
+
+	count := 0
+	for _, draft := range drafts {
+		// Mark as expired
+		if err := s.draftRepo.UpdateDraftStatus(ctx, draft.ID, repository.DraftStatusExpired); err != nil {
+			log.Warnf("Failed to update status for expired draft %d: %v", draft.ID, err)
+			continue
+		}
+
+		// Save to history
+		history := &repository.BookDraftHistory{
+			DraftID: draft.ID,
+			BookID:  draft.BookID,
+			Action:  draft.Action,
+			Data:    draft.Data,
+			Status:  repository.DraftStatusExpired,
+		}
+		if _, err := s.draftRepo.CreateHistory(ctx, history); err != nil {
+			log.Warnf("Failed to create history for expired draft %d: %v", draft.ID, err)
+		} else {
+			count++
+		}
+	}
+
+	return count, nil
 }
 
 func (s *draftService) ReceiveUpdates(ctx context.Context, updates []BookDraftUpdate) error {

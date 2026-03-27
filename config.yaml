@@ -62,3 +62,4 @@ chat:
 # 变更草稿数据库
 drafts:
   db_path: ".cache/drafts.db"
+  expire_days: 30

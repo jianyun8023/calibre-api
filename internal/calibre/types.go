@@ -53,7 +53,8 @@ type Metadata struct {
 }
 
 type DraftsConfig struct {
-	DBPath string `mapstructure:"db_path"`
+	DBPath     string `mapstructure:"db_path"`
+	ExpireDays int    `mapstructure:"expire_days"`
 }
 
 type Config struct {
