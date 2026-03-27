@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/repository"
@@ -40,13 +41,23 @@ func NewDraftService(draftRepo repository.DraftRepository, bookService BookServi
 }
 
 func (s *draftService) ReceiveDeletes(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	// Bulk check for existing pending deletes
+	existingDrafts, err := s.draftRepo.GetPendingDraftsByBookIDsAndAction(ctx, ids, repository.DraftActionDelete)
+	if err != nil {
+		return fmt.Errorf("failed to check existing drafts: %v", err)
+	}
+
+	existingMap := make(map[string]bool)
+	for _, d := range existingDrafts {
+		existingMap[d.BookID] = true
+	}
+
 	for _, id := range ids {
-		// Check for existing pending delete to ensure idempotency
-		existing, err := s.draftRepo.GetPendingDraftByBookIDAndAction(ctx, id, repository.DraftActionDelete)
-		if err != nil {
-			return fmt.Errorf("failed to check existing draft for book %s: %v", id, err)
-		}
-		if existing != nil {
+		if existingMap[id] {
 			log.Infof("Pending delete draft already exists for book %s, ignoring duplicate", id)
 			continue
 		}
@@ -75,6 +86,15 @@ func (s *draftService) GetHistory(ctx context.Context, limit, offset int) ([]rep
 }
 
 func (s *draftService) CleanupExpiredDrafts(ctx context.Context, days int) (int, error) {
+	// 1. Reset stuck processing drafts (e.g. from app crashes)
+	stuckThreshold := time.Now().Add(-1 * time.Hour) // If processing for > 1 hour, assume crashed
+	if resetCount, err := s.draftRepo.ResetStuckProcessingDrafts(ctx, stuckThreshold); err != nil {
+		log.Warnf("Failed to reset stuck processing drafts: %v", err)
+	} else if resetCount > 0 {
+		log.Infof("Reset %d stuck processing drafts back to pending", resetCount)
+	}
+
+	// 2. Expire old pending drafts
 	if days <= 0 {
 		return 0, fmt.Errorf("expiration days must be greater than 0")
 	}
@@ -87,44 +107,46 @@ func (s *draftService) CleanupExpiredDrafts(ctx context.Context, days int) (int,
 
 	count := 0
 	for _, draft := range drafts {
-		// Mark as expired
-		if err := s.draftRepo.UpdateDraftStatus(ctx, draft.ID, repository.DraftStatusExpired); err != nil {
-			log.Warnf("Failed to update status for expired draft %d: %v", draft.ID, err)
+		// Expire atomically (status + history)
+		if err := s.draftRepo.ExpireDraftAtomically(ctx, &draft); err != nil {
+			log.Warnf("Failed to atomically expire draft %d: %v", draft.ID, err)
 			continue
 		}
-
-		// Save to history
-		history := &repository.BookDraftHistory{
-			DraftID: draft.ID,
-			BookID:  draft.BookID,
-			Action:  draft.Action,
-			Data:    draft.Data,
-			Status:  repository.DraftStatusExpired,
-		}
-		if _, err := s.draftRepo.CreateHistory(ctx, history); err != nil {
-			log.Warnf("Failed to create history for expired draft %d: %v", draft.ID, err)
-		} else {
-			count++
-		}
+		count++
 	}
 
 	return count, nil
 }
 
 func (s *draftService) ReceiveUpdates(ctx context.Context, updates []BookDraftUpdate) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	ids := make([]string, len(updates))
+	for i, u := range updates {
+		ids[i] = u.ID
+	}
+
+	// Bulk check for existing pending updates
+	existingDrafts, err := s.draftRepo.GetPendingDraftsByBookIDsAndAction(ctx, ids, repository.DraftActionUpdate)
+	if err != nil {
+		return fmt.Errorf("failed to check existing drafts: %v", err)
+	}
+
+	existingMap := make(map[string]*repository.BookDraft)
+	for i := range existingDrafts {
+		d := &existingDrafts[i]
+		existingMap[d.BookID] = d
+	}
+
 	for _, u := range updates {
 		dataBytes, err := json.Marshal(u.Data)
 		if err != nil {
 			return fmt.Errorf("failed to serialize update data for book %s: %v", u.ID, err)
 		}
 
-		// Check for existing pending update to ensure idempotency
-		existing, err := s.draftRepo.GetPendingDraftByBookIDAndAction(ctx, u.ID, repository.DraftActionUpdate)
-		if err != nil {
-			return fmt.Errorf("failed to check existing draft for book %s: %v", u.ID, err)
-		}
-
-		if existing != nil {
+		if existing := existingMap[u.ID]; existing != nil {
 			// Update the existing draft's data
 			if err := s.draftRepo.UpdateDraftData(ctx, existing.ID, string(dataBytes)); err != nil {
 				return fmt.Errorf("failed to update existing draft data for book %s: %v", u.ID, err)
@@ -157,55 +179,77 @@ func (s *draftService) GetPendingDrafts(ctx context.Context, limit, offset int) 
 
 func (s *draftService) ApplyDrafts(ctx context.Context, ids []int64) []error {
 	var errs []error
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	// Concurrency control: limit to 5 concurrent external API calls
+	sem := make(chan struct{}, 5)
+
 	for _, draftID := range ids {
-		// Fetch draft first to know the action needed
-		draft, err := s.draftRepo.GetDraftByID(ctx, draftID)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to get draft %d: %v", draftID, err))
-			continue
-		}
-		if draft == nil || draft.Status != repository.DraftStatusPending {
-			continue // Skip non-existent or already processed drafts
-		}
+		wg.Add(1)
+		sem <- struct{}{} // Block if limit reached
 
-		// 1. Mark as Processing (Atomic)
-		updated, err := s.draftRepo.UpdateDraftStatusIfPending(ctx, draftID, repository.DraftStatusProcessing)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to mark draft %d as processing: %v", draftID, err))
-			continue
-		}
-		if !updated {
-			continue // Another process got it
-		}
+		go func(id int64) {
+			defer wg.Done()
+			defer func() { <-sem }() // Release token
 
-		// 2. Perform External Action
-		var actionErr error
-		if draft.Action == repository.DraftActionDelete {
-			actionErr = s.bookService.DeleteBook(draft.BookID)
-		} else if draft.Action == repository.DraftActionUpdate {
-			var updateData BookUpdate
-			if errUnmarshal := json.Unmarshal([]byte(draft.Data), &updateData); errUnmarshal != nil {
-				actionErr = fmt.Errorf("failed to unmarshal update data for draft %d: %v", draftID, errUnmarshal)
+			draft, err := s.draftRepo.GetDraftByID(ctx, id)
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("failed to get draft %d: %v", id, err))
+				mu.Unlock()
+				return
+			}
+			if draft == nil || draft.Status != repository.DraftStatusPending {
+				return // Skip non-existent or already processed drafts
+			}
+
+			// 1. Mark as Processing (Atomic)
+			updated, err := s.draftRepo.UpdateDraftStatusIfPending(ctx, id, repository.DraftStatusProcessing)
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("failed to mark draft %d as processing: %v", id, err))
+				mu.Unlock()
+				return
+			}
+			if !updated {
+				return // Another process got it
+			}
+
+			// 2. Perform External Action
+			var actionErr error
+			if draft.Action == repository.DraftActionDelete {
+				actionErr = s.bookService.DeleteBook(draft.BookID)
+			} else if draft.Action == repository.DraftActionUpdate {
+				var updateData BookUpdate
+				if errUnmarshal := json.Unmarshal([]byte(draft.Data), &updateData); errUnmarshal != nil {
+					actionErr = fmt.Errorf("failed to unmarshal update data for draft %d: %v", id, errUnmarshal)
+				} else {
+					actionErr = s.bookService.UpdateMetadata(draft.BookID, &updateData)
+				}
+			}
+
+			// 3. Finalize
+			if actionErr != nil {
+				// Revert to pending
+				if revertErr := s.draftRepo.UpdateDraftStatus(ctx, id, repository.DraftStatusPending); revertErr != nil {
+					log.Warnf("Failed to revert draft %d back to pending after failure: %v", id, revertErr)
+				}
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("failed to apply external action for draft %d: %v", id, actionErr))
+				mu.Unlock()
 			} else {
-				actionErr = s.bookService.UpdateMetadata(draft.BookID, &updateData)
+				// Success: update to applied and create history (transactionally)
+				if finalizeErr := s.draftRepo.ApplyDraftSuccess(ctx, draft, repository.DraftStatusApplied); finalizeErr != nil {
+					mu.Lock()
+					errs = append(errs, fmt.Errorf("failed to finalize draft %d: %v", id, finalizeErr))
+					mu.Unlock()
+				}
 			}
-		}
-
-		// 3. Finalize
-		if actionErr != nil {
-			// Revert to pending
-			if revertErr := s.draftRepo.UpdateDraftStatus(ctx, draftID, repository.DraftStatusPending); revertErr != nil {
-				log.Warnf("Failed to revert draft %d back to pending after failure: %v", draftID, revertErr)
-			}
-			errs = append(errs, fmt.Errorf("failed to apply external action for draft %d: %v", draftID, actionErr))
-		} else {
-			// Success: update to applied and create history (transactionally)
-			if finalizeErr := s.draftRepo.ApplyDraftSuccess(ctx, draft, repository.DraftStatusApplied); finalizeErr != nil {
-				errs = append(errs, fmt.Errorf("failed to finalize draft %d: %v", draftID, finalizeErr))
-			}
-		}
+		}(draftID)
 	}
 
+	wg.Wait()
 	return errs
 }
 

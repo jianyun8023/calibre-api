@@ -109,9 +109,29 @@ export default function DraftsPage() {
     if (action === "delete") return <span className="text-muted-foreground">This book will be deleted</span>
     try {
       const parsed = JSON.parse(dataStr)
+
+      // Mask potentially sensitive keys
+      const sensitiveKeys = ['token', 'password', 'secret', 'key', 'auth']
+      const maskData = (obj: any): any => {
+        if (typeof obj !== 'object' || obj === null) return obj;
+        if (Array.isArray(obj)) return obj.map(maskData);
+
+        const newObj: any = {};
+        for (const [k, v] of Object.entries(obj)) {
+          if (sensitiveKeys.some(sk => k.toLowerCase().includes(sk))) {
+            newObj[k] = '********';
+          } else {
+            newObj[k] = maskData(v);
+          }
+        }
+        return newObj;
+      }
+
+      const safeParsed = maskData(parsed);
+
       return (
         <pre className="text-sm bg-muted p-2 rounded-md overflow-x-auto">
-          {JSON.stringify(parsed, null, 2)}
+          {JSON.stringify(safeParsed, null, 2)}
         </pre>
       )
     } catch {

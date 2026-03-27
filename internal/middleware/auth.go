@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"strings"
 
@@ -31,8 +32,17 @@ func APIKeyAuth(expectedKey string) gin.HandlerFunc {
 			token = strings.TrimPrefix(authHeader, "Bearer ")
 		}
 
-		if token == "" || token != expectedKey {
-			err := errors.New(errors.CodeUnauthorized, "Invalid or missing API Key", http.StatusUnauthorized)
+		if token == "" {
+			err := errors.New(errors.CodeUnauthorized, "Missing API Key", http.StatusUnauthorized)
+			response.Error(c, err)
+			c.Abort()
+			return
+		}
+
+		// Use constant-time comparison to prevent timing attacks
+		match := subtle.ConstantTimeCompare([]byte(token), []byte(expectedKey)) == 1
+		if !match {
+			err := errors.New(errors.CodeUnauthorized, "Invalid API Key", http.StatusUnauthorized)
 			response.Error(c, err)
 			c.Abort()
 			return
