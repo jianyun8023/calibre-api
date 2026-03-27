@@ -58,3 +58,7 @@ llm:
 # 聊天数据库
 chat:
   db_path: ".cache/chat.db"
+
+# 变更草稿数据库
+drafts:
+  db_path: ".cache/drafts.db"

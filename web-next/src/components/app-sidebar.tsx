@@ -14,7 +14,8 @@ import {
   Building2, 
   Home,
   BookOpen,
-  FileEdit
+  FileEdit,
+  FileBox
 } from "lucide-react"
 
 export function AppSidebar({ className }: { className?: string }) {
@@ -29,6 +30,7 @@ export function AppSidebar({ className }: { className?: string }) {
     { name: t('allBooks'), href: `/${locale}/books`, icon: Library },
     { name: t('search'), href: `/${locale}/search`, icon: Search },
     { name: t('metadataManager'), href: `/${locale}/metadata/manager`, icon: FileEdit },
+    { name: t('drafts'), href: `/${locale}/drafts`, icon: FileBox },
     { name: t('tasks'), href: `/${locale}/tasks`, icon: ListTodo },
     { name: t('publishers'), href: `/${locale}/publisher`, icon: Building2 },
     { name: t('settings'), href: `/${locale}/settings`, icon: Settings },

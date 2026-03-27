@@ -18,6 +18,7 @@
   "nav": {
     "home": "首页",
     "allBooks": "所有书籍",
+    "drafts": "变更草稿",
     "search": "搜索",
     "metadataManager": "元数据管理",
     "tasks": "任务",
@@ -41,6 +42,19 @@
     "viewDetails": "查看详情",
     "download": "下载",
     "read": "阅读"
+  },
+  "drafts": {
+    "title": "变更草稿",
+    "description": "审查和管理来自外部系统的待处理书籍变更。",
+    "selected": "已选择",
+    "apply": "应用所选",
+    "reject": "放弃所选",
+    "noDrafts": "没有待处理的草稿。",
+    "fetchError": "获取草稿失败",
+    "applySuccess": "草稿应用成功",
+    "applyError": "应用草稿失败",
+    "rejectSuccess": "草稿拒绝成功",
+    "rejectError": "拒绝草稿失败"
   },
   "search": {
     "placeholder": "搜索书籍、作者、出版社...",

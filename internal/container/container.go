@@ -11,6 +11,7 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/meilisearch"
+	"github.com/jianyun8023/calibre-api/internal/drafts"
 	"github.com/jianyun8023/calibre-api/internal/service"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/content"
@@ -40,6 +41,11 @@ type Container struct {
 	bookService service.BookService
 	bookHandler *calibre.BookHandlerV2
 
+	// Drafts layer
+	draftRepo    repository.DraftRepository
+	draftService service.DraftService
+	draftHandler *calibre.DraftHandler
+
 	// API instance
 	api *calibre.Api
 }
@@ -66,6 +72,10 @@ func NewContainer(config *calibre.Config) (*Container, error) {
 
 	if err := c.initTasks(); err != nil {
 		return nil, fmt.Errorf("failed to initialize task manager: %w", err)
+	}
+
+	if err := c.initDrafts(); err != nil {
+		log.Warnf("Drafts initialization failed: %v", err)
 	}
 
 	return c, nil
@@ -102,7 +112,27 @@ func NewContainerWithConfigManager() (*Container, error) {
 		return nil, fmt.Errorf("failed to initialize task manager: %w", err)
 	}
 
+	if err := c.initDrafts(); err != nil {
+		log.Warnf("Drafts initialization failed: %v", err)
+	}
+
 	return c, nil
+}
+
+// initDrafts 初始化草稿数据库和服务
+func (c *Container) initDrafts() error {
+	dbPath := c.config.Drafts.DBPath
+	if dbPath == "" {
+		dbPath = ".cache/drafts.db" // default
+	}
+
+	db, err := drafts.InitDB(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to initialize drafts database: %w", err)
+	}
+
+	c.draftRepo = repository.NewSqliteDraftRepository(db)
+	return nil
 }
 
 // initContentAPI 初始化 Calibre Content Server 客户端
@@ -236,6 +266,13 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		// 创建 BookHandler
 		c.bookHandler = calibre.NewBookHandler(c.bookService)
 
+		// 初始化 DraftService 和 Handler (需要 bookService 依赖)
+		if c.draftRepo != nil {
+			c.draftService = service.NewDraftService(c.draftRepo, c.bookService)
+			c.draftHandler = calibre.NewDraftHandler(c.draftService)
+			log.Info("Drafts service and handler initialized")
+		}
+
 		log.Info("Book repository, service and handler initialized")
 	}
 
@@ -252,6 +289,7 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		c.cacheManager,
 		c.sseManager,
 		c.bookHandler,
+		c.draftHandler,
 	); err != nil {
 		return nil, fmt.Errorf("failed to inject dependencies: %w", err)
 	}

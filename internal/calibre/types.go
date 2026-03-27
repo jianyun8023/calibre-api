@@ -52,6 +52,10 @@ type Metadata struct {
 	DoubanUrl string `json:"doubanurl"`
 }
 
+type DraftsConfig struct {
+	DBPath string `mapstructure:"db_path"`
+}
+
 type Config struct {
 	Address     string             `mapstructure:"address"`
 	Debug       bool               `mapstructure:"debug"`
@@ -63,6 +67,7 @@ type Config struct {
 	Qdrant      QdrantConfig       `mapstructure:"qdrant"`
 	Meilisearch MeilisearchConfig  `mapstructure:"meilisearch"`
 	Cache       cache.Config       `mapstructure:"cache"`
+	Drafts      DraftsConfig       `mapstructure:"drafts"`
 }
 
 type QdrantConfig struct {

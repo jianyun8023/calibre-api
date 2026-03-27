@@ -29,6 +29,7 @@ type Api struct {
 	sseManager       *tasks.SSEManager
 	bookHandler      *BookHandlerV2  // 新的 Handler（使用 Service 层）
 	metricsHandler   *MetricsHandler // 性能指标处理器
+	draftHandler     *DraftHandler   // 草稿处理器
 }
 
 // InjectDependencies 注入依赖（用于依赖注入容器）
@@ -41,6 +42,7 @@ func (a *Api) InjectDependencies(
 	cacheManager *cache.Manager,
 	sseManager *tasks.SSEManager,
 	bookHandler *BookHandlerV2,
+	draftHandler *DraftHandler,
 ) error {
 	a.config = config
 	a.contentApi = contentApi
@@ -51,6 +53,7 @@ func (a *Api) InjectDependencies(
 	a.cacheManager = cacheManager
 	a.sseManager = sseManager
 	a.bookHandler = bookHandler
+	a.draftHandler = draftHandler
 
 	// 创建性能指标处理器
 	if cachedSearcher != nil {
@@ -104,6 +107,15 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.POST("/tasks/start", c.startTask)
 	base.POST("/tasks/:id/stop", c.stopTask)
 	base.GET("/tasks/stream", c.streamTasks) // SSE 任务流
+
+	// 草稿管理
+	if c.draftHandler != nil {
+		base.POST("/drafts/delete", c.draftHandler.ReceiveDeletes)
+		base.POST("/drafts/update", c.draftHandler.ReceiveUpdates)
+		base.GET("/drafts", c.draftHandler.GetPendingDrafts)
+		base.POST("/drafts/apply", c.draftHandler.ApplyDrafts)
+		base.POST("/drafts/reject", c.draftHandler.RejectDrafts)
+	}
 
 	// 性能监控和指标
 	if c.metricsHandler != nil {
