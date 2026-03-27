@@ -1,6 +1,8 @@
 package calibre
 
 import (
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/service"
 	"github.com/jianyun8023/calibre-api/pkg/response"
@@ -51,13 +53,29 @@ func (h *DraftHandler) ReceiveUpdates(c *gin.Context) {
 }
 
 func (h *DraftHandler) GetPendingDrafts(c *gin.Context) {
-	drafts, err := h.draftService.GetPendingDrafts(c.Request.Context())
+	limitStr := c.DefaultQuery("limit", "10")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		response.BadRequest(c, "Invalid limit parameter")
+		return
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		response.BadRequest(c, "Invalid offset parameter")
+		return
+	}
+
+	drafts, total, err := h.draftService.GetPendingDrafts(c.Request.Context(), limit, offset)
 	if err != nil {
 		response.Error(c, err)
 		return
 	}
 
-	response.Success(c, drafts)
+	page := (offset / limit) + 1
+	response.Paginated(c, drafts, total, page, limit)
 }
 
 func (h *DraftHandler) ApplyDrafts(c *gin.Context) {
@@ -92,4 +110,30 @@ func (h *DraftHandler) RejectDrafts(c *gin.Context) {
 	}
 
 	response.SuccessWithMessage(c, "drafts rejected successfully", gin.H{"count": len(req.IDs)})
+}
+
+func (h *DraftHandler) GetHistory(c *gin.Context) {
+	limitStr := c.DefaultQuery("limit", "50")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		response.BadRequest(c, "Invalid limit parameter")
+		return
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		response.BadRequest(c, "Invalid offset parameter")
+		return
+	}
+
+	histories, total, err := h.draftService.GetHistory(c.Request.Context(), limit, offset)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	page := (offset / limit) + 1
+	response.Paginated(c, histories, total, page, limit)
 }

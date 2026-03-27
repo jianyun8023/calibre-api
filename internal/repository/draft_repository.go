@@ -49,15 +49,20 @@ type BookDraftHistory struct {
 type DraftRepository interface {
 	// Drafts
 	CreateDraft(ctx context.Context, draft *BookDraft) (int64, error)
-	GetPendingDrafts(ctx context.Context) ([]BookDraft, error)
+	GetPendingDrafts(ctx context.Context, limit, offset int) ([]BookDraft, int64, error)
 	GetDraftByID(ctx context.Context, id int64) (*BookDraft, error)
+	GetPendingDraftByBookIDAndAction(ctx context.Context, bookID string, action DraftType) (*BookDraft, error)
 	GetPendingDraftsBefore(ctx context.Context, before time.Time) ([]BookDraft, error)
 	UpdateDraftStatus(ctx context.Context, id int64, status DraftStatus) error
+	UpdateDraftData(ctx context.Context, id int64, data string) error
 	DeleteDraft(ctx context.Context, id int64) error
+
+	// Atomic Operations
+	ApplyDraftAtomically(ctx context.Context, id int64, newStatus DraftStatus, actionFunc func() error) error
 
 	// History
 	CreateHistory(ctx context.Context, history *BookDraftHistory) (int64, error)
-	GetHistory(ctx context.Context, limit, offset int) ([]BookDraftHistory, error)
+	GetHistory(ctx context.Context, limit, offset int) ([]BookDraftHistory, int64, error)
 }
 
 type sqliteDraftRepository struct {
@@ -80,11 +85,19 @@ func (r *sqliteDraftRepository) CreateDraft(ctx context.Context, draft *BookDraf
 	return result.LastInsertId()
 }
 
-func (r *sqliteDraftRepository) GetPendingDrafts(ctx context.Context) ([]BookDraft, error) {
-	query := `SELECT id, book_id, action, data, status, created_at FROM book_drafts WHERE status = ? ORDER BY created_at DESC`
-	rows, err := r.db.QueryContext(ctx, query, DraftStatusPending)
+func (r *sqliteDraftRepository) GetPendingDrafts(ctx context.Context, limit, offset int) ([]BookDraft, int64, error) {
+	// First get total count
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM book_drafts WHERE status = ?`
+	if err := r.db.QueryRowContext(ctx, countQuery, DraftStatusPending).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	// Then get paginated data
+	query := `SELECT id, book_id, action, data, status, created_at FROM book_drafts WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`
+	rows, err := r.db.QueryContext(ctx, query, DraftStatusPending, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -92,11 +105,11 @@ func (r *sqliteDraftRepository) GetPendingDrafts(ctx context.Context) ([]BookDra
 	for rows.Next() {
 		var draft BookDraft
 		if err := rows.Scan(&draft.ID, &draft.BookID, &draft.Action, &draft.Data, &draft.Status, &draft.CreatedAt); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		drafts = append(drafts, draft)
 	}
-	return drafts, nil
+	return drafts, total, nil
 }
 
 func (r *sqliteDraftRepository) GetDraftByID(ctx context.Context, id int64) (*BookDraft, error) {
@@ -108,6 +121,21 @@ func (r *sqliteDraftRepository) GetDraftByID(ctx context.Context, id int64) (*Bo
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // or define a specific error
+		}
+		return nil, err
+	}
+	return &draft, nil
+}
+
+func (r *sqliteDraftRepository) GetPendingDraftByBookIDAndAction(ctx context.Context, bookID string, action DraftType) (*BookDraft, error) {
+	query := `SELECT id, book_id, action, data, status, created_at FROM book_drafts WHERE book_id = ? AND action = ? AND status = ? LIMIT 1`
+	row := r.db.QueryRowContext(ctx, query, bookID, action, DraftStatusPending)
+
+	var draft BookDraft
+	err := row.Scan(&draft.ID, &draft.BookID, &draft.Action, &draft.Data, &draft.Status, &draft.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // Not found, this is fine
 		}
 		return nil, err
 	}
@@ -139,10 +167,58 @@ func (r *sqliteDraftRepository) UpdateDraftStatus(ctx context.Context, id int64,
 	return err
 }
 
+func (r *sqliteDraftRepository) UpdateDraftData(ctx context.Context, id int64, data string) error {
+	query := `UPDATE book_drafts SET data = ? WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, data, id)
+	return err
+}
+
 func (r *sqliteDraftRepository) DeleteDraft(ctx context.Context, id int64) error {
 	query := `DELETE FROM book_drafts WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
+}
+
+func (r *sqliteDraftRepository) ApplyDraftAtomically(ctx context.Context, id int64, newStatus DraftStatus, actionFunc func() error) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 1. Lock and check the row
+	query := `SELECT book_id, action, data, status FROM book_drafts WHERE id = ? AND status = ?`
+	// Note: SQLite doesn't strictly support SELECT ... FOR UPDATE, but the transaction will lock the DB for writes
+	row := tx.QueryRowContext(ctx, query, id, DraftStatusPending)
+
+	var draft BookDraft
+	draft.ID = id
+	err = row.Scan(&draft.BookID, &draft.Action, &draft.Data, &draft.Status)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil // Already processed or doesn't exist, we consider this a successful no-op to prevent race conditions
+		}
+		return err
+	}
+
+	// 2. Perform external action (e.g. update Calibre)
+	if err := actionFunc(); err != nil {
+		return err // Rollback
+	}
+
+	// 3. Update Draft Status
+	updateQuery := `UPDATE book_drafts SET status = ? WHERE id = ?`
+	if _, err := tx.ExecContext(ctx, updateQuery, newStatus, id); err != nil {
+		return err // Rollback
+	}
+
+	// 4. Record History
+	historyQuery := `INSERT INTO book_draft_history (draft_id, book_id, action, data, status) VALUES (?, ?, ?, ?, ?)`
+	if _, err := tx.ExecContext(ctx, historyQuery, draft.ID, draft.BookID, draft.Action, draft.Data, newStatus); err != nil {
+		return err // Rollback
+	}
+
+	return tx.Commit()
 }
 
 func (r *sqliteDraftRepository) CreateHistory(ctx context.Context, history *BookDraftHistory) (int64, error) {
@@ -154,11 +230,18 @@ func (r *sqliteDraftRepository) CreateHistory(ctx context.Context, history *Book
 	return result.LastInsertId()
 }
 
-func (r *sqliteDraftRepository) GetHistory(ctx context.Context, limit, offset int) ([]BookDraftHistory, error) {
+func (r *sqliteDraftRepository) GetHistory(ctx context.Context, limit, offset int) ([]BookDraftHistory, int64, error) {
+	// First get total count
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM book_draft_history`
+	if err := r.db.QueryRowContext(ctx, countQuery).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
 	query := `SELECT id, draft_id, book_id, action, data, status, processed_at FROM book_draft_history ORDER BY processed_at DESC LIMIT ? OFFSET ?`
 	rows, err := r.db.QueryContext(ctx, query, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -166,9 +249,9 @@ func (r *sqliteDraftRepository) GetHistory(ctx context.Context, limit, offset in
 	for rows.Next() {
 		var h BookDraftHistory
 		if err := rows.Scan(&h.ID, &h.DraftID, &h.BookID, &h.Action, &h.Data, &h.Status, &h.ProcessedAt); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		histories = append(histories, h)
 	}
-	return histories, nil
+	return histories, total, nil
 }

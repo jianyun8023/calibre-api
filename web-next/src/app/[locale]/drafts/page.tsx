@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { RefreshCcw, CheckCircle, XCircle } from "lucide-react"
+import { Pagination } from "@/components/pagination"
 
 interface Draft {
   id: number
@@ -24,14 +25,20 @@ export default function DraftsPage() {
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const limit = 10
 
-  const fetchDrafts = async () => {
+  const fetchDrafts = async (currentPage: number) => {
     setLoading(true)
     try {
-      const res = await fetch("/api/drafts")
+      const offset = (currentPage - 1) * limit
+      const res = await fetch(`/api/drafts?limit=${limit}&offset=${offset}`)
       if (!res.ok) throw new Error("Failed to fetch drafts")
       const data = await res.json()
       setDrafts(data.data || [])
+      setTotalPages(data.total_pages || 1)
+      setPage(data.page || 1)
     } catch (err) {
       console.error(err)
       toast.error(t("fetchError"))
@@ -41,7 +48,7 @@ export default function DraftsPage() {
   }
 
   useEffect(() => {
-    fetchDrafts()
+    fetchDrafts(1)
   }, [])
 
   const handleSelectAll = (checked: boolean) => {
@@ -73,7 +80,7 @@ export default function DraftsPage() {
       if (!res.ok) throw new Error("Failed to apply drafts")
       toast.success(t("applySuccess"))
       setSelectedIds(new Set())
-      fetchDrafts()
+      fetchDrafts(page)
     } catch (err) {
       console.error(err)
       toast.error(t("applyError"))
@@ -91,7 +98,7 @@ export default function DraftsPage() {
       if (!res.ok) throw new Error("Failed to reject drafts")
       toast.success(t("rejectSuccess"))
       setSelectedIds(new Set())
-      fetchDrafts()
+      fetchDrafts(page)
     } catch (err) {
       console.error(err)
       toast.error(t("rejectError"))
@@ -121,7 +128,7 @@ export default function DraftsPage() {
             {t("description")}
           </p>
         </div>
-        <Button variant="outline" size="icon" onClick={fetchDrafts} disabled={loading}>
+        <Button variant="outline" size="icon" onClick={() => fetchDrafts(page)} disabled={loading}>
           <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
@@ -196,6 +203,16 @@ export default function DraftsPage() {
               </CardContent>
             </Card>
           ))
+        )}
+
+        {drafts.length > 0 && totalPages > 1 && (
+          <div className="mt-8">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={(p) => fetchDrafts(p)}
+            />
+          </div>
         )}
       </div>
     </div>

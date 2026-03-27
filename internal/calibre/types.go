@@ -57,6 +57,10 @@ type DraftsConfig struct {
 	ExpireDays int    `mapstructure:"expire_days"`
 }
 
+type AuthConfig struct {
+	APIKey string `mapstructure:"api_key"`
+}
+
 type Config struct {
 	Address     string             `mapstructure:"address"`
 	Debug       bool               `mapstructure:"debug"`
@@ -69,6 +73,7 @@ type Config struct {
 	Meilisearch MeilisearchConfig  `mapstructure:"meilisearch"`
 	Cache       cache.Config       `mapstructure:"cache"`
 	Drafts      DraftsConfig       `mapstructure:"drafts"`
+	Auth        AuthConfig         `mapstructure:"auth"`
 }
 
 type QdrantConfig struct {

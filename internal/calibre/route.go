@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/cache"
+	"github.com/jianyun8023/calibre-api/internal/middleware"
 	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/meilisearch"
@@ -110,11 +111,18 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 
 	// 草稿管理
 	if c.draftHandler != nil {
-		base.POST("/drafts/delete", c.draftHandler.ReceiveDeletes)
-		base.POST("/drafts/update", c.draftHandler.ReceiveUpdates)
-		base.GET("/drafts", c.draftHandler.GetPendingDrafts)
-		base.POST("/drafts/apply", c.draftHandler.ApplyDrafts)
-		base.POST("/drafts/reject", c.draftHandler.RejectDrafts)
+		// Public endpoints for external systems (if no global auth is needed, otherwise wrap them)
+		// Assuming we want to protect all draft modification endpoints:
+		draftGroup := base.Group("/drafts")
+		draftGroup.Use(middleware.APIKeyAuth(c.config.Auth.APIKey))
+		{
+			draftGroup.POST("/delete", c.draftHandler.ReceiveDeletes)
+			draftGroup.POST("/update", c.draftHandler.ReceiveUpdates)
+			draftGroup.GET("", c.draftHandler.GetPendingDrafts)
+			draftGroup.POST("/apply", c.draftHandler.ApplyDrafts)
+			draftGroup.POST("/reject", c.draftHandler.RejectDrafts)
+			draftGroup.GET("/history", c.draftHandler.GetHistory)
+		}
 	}
 
 	// 性能监控和指标

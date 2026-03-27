@@ -63,3 +63,7 @@ chat:
 drafts:
   db_path: ".cache/drafts.db"
   expire_days: 30
+
+# 认证配置
+auth:
+  api_key: "calibre-secret-key" # 用于敏感接口的 API 认证
