@@ -23,7 +23,7 @@ func TestClearFieldsWithEmptyValues(t *testing.T) {
 		// 只有 Tags 可以清空
 		emptySlice := []string{}
 		updates := &BookUpdate{
-			Tags: emptySlice, // 清空标签
+			Tags: &emptySlice, // 清空标签
 		}
 
 		metadata := buildUpdateParams(updates, oldBook)
@@ -63,7 +63,7 @@ func TestClearFieldsWithEmptyValues(t *testing.T) {
 	t.Run("清空作者 - 不允许", func(t *testing.T) {
 		emptySlice := []string{}
 		updates := &BookUpdate{
-			Authors: emptySlice, // 尝试清空作者
+			Authors: &emptySlice, // 尝试清空作者
 		}
 
 		metadata := buildUpdateParams(updates, oldBook)
@@ -128,8 +128,8 @@ func TestUpdateWithValues(t *testing.T) {
 		updates := &BookUpdate{
 			Title:     &title,
 			Publisher: &publisher,
-			Tags:      tags,
-			Authors:   authors,
+			Tags:      &tags,
+			Authors:   &authors,
 		}
 
 		metadata := buildUpdateParams(updates, oldBook)
