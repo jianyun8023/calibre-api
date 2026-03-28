@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -126,8 +129,38 @@ func main() {
 		log.Infof("route: %s %s", route.Method, route.Path)
 	}
 
-	log.Infof("server listen on %s", conf.Address)
-	r.Run(conf.Address)
+	// 创建 HTTP 服务器以支持优雅退出
+	srv := &http.Server{
+		Addr:    conf.Address,
+		Handler: r,
+	}
+
+	// 在 goroutine 中启动服务器
+	go func() {
+		log.Infof("Server starting on %s", conf.Address)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}()
+
+	// 等待中断信号以优雅关闭服务器
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Info("Shutting down server...")
+
+	// 关闭后台任务
+	cont.Shutdown()
+
+	// 设置 5 秒超时来完成现有请求
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Warnf("Server forced to shutdown: %v", err)
+	}
+
+	log.Info("Server exited gracefully")
 }
 
 

@@ -16,8 +16,8 @@ type DraftService interface {
 	ReceiveDeletes(ctx context.Context, ids []string) error
 	ReceiveUpdates(ctx context.Context, updates []BookDraftUpdate) error
 	GetPendingDrafts(ctx context.Context, limit, offset int) ([]repository.BookDraft, int64, error)
-	ApplyDrafts(ctx context.Context, ids []int64) ([]error)
-	RejectDrafts(ctx context.Context, ids []int64) ([]error)
+	ApplyDrafts(ctx context.Context, ids []int64) []error
+	RejectDrafts(ctx context.Context, ids []int64) []error
 	CleanupExpiredDrafts(ctx context.Context, days int) (int, error)
 	GetHistory(ctx context.Context, limit, offset int) ([]repository.BookDraftHistory, int64, error)
 }
@@ -216,16 +216,92 @@ func (s *draftService) ApplyDrafts(ctx context.Context, ids []int64) []error {
 				return // Another process got it
 			}
 
-			// 2. Perform External Action
+			// 2. Perform External Action (DRY RUN MODE - 仅日志，不执行)
 			var actionErr error
 			if draft.Action == repository.DraftActionDelete {
-				actionErr = s.bookService.DeleteBook(draft.BookID)
+				log.Infof("========================================")
+				log.Infof("📋 Draft ID: %d", id)
+				log.Infof("📚 Book ID: %s", draft.BookID)
+				log.Infof("🔥 Action: DELETE")
+				log.Infof("⏰ Created At: %s", draft.CreatedAt)
+				log.Infof("🎯 Will Execute: s.bookService.DeleteBook(\"%s\")", draft.BookID)
+				log.Infof("📌 Description: 将调用 Calibre Content Server API 删除此书籍")
+				log.Infof("⚠️  Note: DRY RUN MODE - 实际删除操作已被注释，不会执行真实删除")
+				log.Infof("========================================")
+
+				// DRY RUN: 注释掉实际执行代码
+				// actionErr = s.bookService.DeleteBook(draft.BookID)
+
 			} else if draft.Action == repository.DraftActionUpdate {
 				var updateData BookUpdate
 				if errUnmarshal := json.Unmarshal([]byte(draft.Data), &updateData); errUnmarshal != nil {
 					actionErr = fmt.Errorf("failed to unmarshal update data for draft %d: %v", id, errUnmarshal)
 				} else {
-					actionErr = s.bookService.UpdateMetadata(draft.BookID, &updateData)
+					log.Infof("========================================")
+					log.Infof("📋 Draft ID: %d", id)
+					log.Infof("📚 Book ID: %s", draft.BookID)
+					log.Infof("✏️  Action: UPDATE")
+					log.Infof("⏰ Created At: %s", draft.CreatedAt)
+					log.Infof("📝 Update Data:")
+
+					// 详细输出每个更新字段
+					if updateData.Title != nil && *updateData.Title != "" {
+						log.Infof("  ✓ Title: %s", *updateData.Title)
+					}
+					if updateData.Authors != nil && len(*updateData.Authors) > 0 {
+						log.Infof("  ✓ Authors: %v", *updateData.Authors)
+					}
+					if updateData.Publisher != nil && *updateData.Publisher != "" {
+						log.Infof("  ✓ Publisher: %s", *updateData.Publisher)
+					}
+					if updateData.Tags != nil {
+						if len(*updateData.Tags) > 0 {
+							log.Infof("  ✓ Tags: %v", *updateData.Tags)
+						} else {
+							log.Infof("  ✓ Tags: [] (清空标签)")
+						}
+					}
+					if updateData.Isbn != nil && *updateData.Isbn != "" {
+						log.Infof("  ✓ ISBN: %s", *updateData.Isbn)
+					}
+					if updateData.PubDate != nil && !updateData.PubDate.IsZero() {
+						log.Infof("  ✓ PubDate: %s", updateData.PubDate.Format("2006-01-02"))
+					}
+					if updateData.Rating != 0 {
+						log.Infof("  ✓ Rating: %.1f", updateData.Rating)
+					}
+					if updateData.Comments != nil && *updateData.Comments != "" {
+						comments := *updateData.Comments
+						if len(comments) > 100 {
+							comments = comments[:100] + "..."
+						}
+						log.Infof("  ✓ Comments: %s", comments)
+					}
+
+					// 显示被拒绝的字段（空值）
+					if updateData.Title != nil && *updateData.Title == "" {
+						log.Warnf("  ✗ Title: \"\" (拒绝：不允许清空)")
+					}
+					if updateData.Publisher != nil && *updateData.Publisher == "" {
+						log.Warnf("  ✗ Publisher: \"\" (拒绝：不允许清空)")
+					}
+					if updateData.Comments != nil && *updateData.Comments == "" {
+						log.Warnf("  ✗ Comments: \"\" (拒绝：不允许清空)")
+					}
+					if updateData.Isbn != nil && *updateData.Isbn == "" {
+						log.Warnf("  ✗ ISBN: \"\" (拒绝：不允许清空)")
+					}
+					if updateData.Authors != nil && len(*updateData.Authors) == 0 {
+						log.Warnf("  ✗ Authors: [] (拒绝：不允许清空)")
+					}
+
+					log.Infof("🎯 Will Execute: s.bookService.UpdateMetadata(\"%s\", updateData)", draft.BookID)
+					log.Infof("📌 Description: 将调用 Calibre Content Server API 更新书籍元数据")
+					log.Infof("⚠️  Note: DRY RUN MODE - 实际更新操作已被注释，不会执行真实更新")
+					log.Infof("========================================")
+
+					// DRY RUN: 注释掉实际执行代码
+					// actionErr = s.bookService.UpdateMetadata(draft.BookID, &updateData)
 				}
 			}
 

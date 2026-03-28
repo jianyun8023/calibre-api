@@ -49,12 +49,21 @@ type Container struct {
 
 	// API instance
 	api *calibre.Api
+
+	// Background tasks control
+	shutdownCtx    context.Context
+	shutdownCancel context.CancelFunc
 }
 
 // NewContainer 创建新的依赖注入容器
 func NewContainer(config *calibre.Config) (*Container, error) {
+	// 创建 shutdown context
+	ctx, cancel := context.WithCancel(context.Background())
+	
 	c := &Container{
-		config: config,
+		config:         config,
+		shutdownCtx:    ctx,
+		shutdownCancel: cancel,
 	}
 
 	// 按依赖顺序初始化组件
@@ -90,9 +99,14 @@ func NewContainerWithConfigManager() (*Container, error) {
 		return nil, fmt.Errorf("failed to create config manager: %w", err)
 	}
 
+	// 创建 shutdown context
+	ctx, cancel := context.WithCancel(context.Background())
+
 	c := &Container{
-		configManager: configManager,
-		config:        configManager.GetConfig(),
+		configManager:  configManager,
+		config:         configManager.GetConfig(),
+		shutdownCtx:    ctx,
+		shutdownCancel: cancel,
 	}
 
 	// 按依赖顺序初始化组件
@@ -273,28 +287,12 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 			c.draftHandler = calibre.NewDraftHandler(c.draftService)
 			log.Info("Drafts service and handler initialized")
 
-			// Start background cleanup task
+			// Start background cleanup task with graceful shutdown support
 			expireDays := c.config.Drafts.ExpireDays
 			if expireDays <= 0 {
 				expireDays = 30 // Default 30 days
 			}
-			go func() {
-				ticker := time.NewTicker(24 * time.Hour)
-				defer ticker.Stop()
-
-				// Run once immediately on startup
-				if count, err := c.draftService.CleanupExpiredDrafts(context.Background(), expireDays); err == nil && count > 0 {
-					log.Infof("Cleaned up %d expired drafts on startup", count)
-				}
-
-				for range ticker.C {
-					if count, err := c.draftService.CleanupExpiredDrafts(context.Background(), expireDays); err != nil {
-						log.Warnf("Failed to cleanup expired drafts: %v", err)
-					} else if count > 0 {
-						log.Infof("Cleaned up %d expired drafts", count)
-					}
-				}
-			}()
+			go c.runDraftCleanupTask(expireDays)
 		}
 
 		log.Info("Book repository, service and handler initialized")
@@ -457,4 +455,51 @@ func (c *Container) Close() error {
 
 	log.Info("Container closed successfully")
 	return nil
+}
+
+// runDraftCleanupTask 运行后台草稿清理任务，支持优雅退出
+func (c *Container) runDraftCleanupTask(expireDays int) {
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+
+	// Run once immediately on startup
+	ctx, cancel := context.WithTimeout(c.shutdownCtx, 5*time.Minute)
+	if count, err := c.draftService.CleanupExpiredDrafts(ctx, expireDays); err != nil {
+		if ctx.Err() == nil { // 不记录由于 shutdown 导致的错误
+			log.Warnf("Failed to cleanup expired drafts on startup: %v", err)
+		}
+	} else if count > 0 {
+		log.Infof("Cleaned up %d expired drafts on startup", count)
+	}
+	cancel()
+
+	// 定期清理
+	for {
+		select {
+		case <-ticker.C:
+			ctx, cancel := context.WithTimeout(c.shutdownCtx, 5*time.Minute)
+			if count, err := c.draftService.CleanupExpiredDrafts(ctx, expireDays); err != nil {
+				if ctx.Err() == nil { // 不记录由于 shutdown 导致的错误
+					log.Warnf("Failed to cleanup expired drafts: %v", err)
+				}
+			} else if count > 0 {
+				log.Infof("Cleaned up %d expired drafts", count)
+			}
+			cancel()
+		case <-c.shutdownCtx.Done():
+			log.Info("Draft cleanup task stopped gracefully")
+			return
+		}
+	}
+}
+
+// Shutdown 优雅关闭所有后台任务
+func (c *Container) Shutdown() {
+	log.Info("Shutting down background tasks...")
+	if c.shutdownCancel != nil {
+		c.shutdownCancel()
+	}
+	// 给后台任务一些时间来完成清理
+	time.Sleep(100 * time.Millisecond)
+	log.Info("Background tasks shutdown complete")
 }

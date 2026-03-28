@@ -52,14 +52,14 @@ type Book struct {
 
 // BookUpdate 书籍更新请求
 type BookUpdate struct {
-	Title     string    `json:"title"`
-	Authors   []string  `json:"authors"`
-	Publisher string    `json:"publisher"`
-	PubDate   time.Time `json:"pubdate"`
-	Isbn      string    `json:"isbn"`
-	Tags      []string  `json:"tags"`
-	Rating    float64   `json:"rating"`
-	Comments  string    `json:"comments"`
+	Title     *string    `json:"title,omitempty"`
+	Authors   *[]string  `json:"authors,omitempty"` // 使用指针类型：nil=不更新, 空数组会被拒绝
+	Publisher *string    `json:"publisher,omitempty"`
+	PubDate   *time.Time `json:"pubdate,omitempty"` // 使用指针类型，未提供时为 nil
+	Isbn      *string    `json:"isbn,omitempty"`
+	Tags      *[]string  `json:"tags,omitempty"` // 使用指针类型：nil=不更新, &[]=清空, &[...]=更新
+	Rating    float64    `json:"rating,omitempty"`
+	Comments  *string    `json:"comments,omitempty"`
 }
 
 // ContentAPI 内容服务接口（用于与 Calibre Content Server 交互）
@@ -133,32 +133,47 @@ func convertBookToSemantic(book *Book) semantic.Book {
 func buildUpdateParams(updates *BookUpdate, oldBook *Book) map[string]interface{} {
 	metadata := map[string]interface{}{}
 
-	if updates.Comments != "" {
-		metadata["comments"] = updates.Comments
+	// Comments: 只允许补全信息（非空值），不允许清空
+	if updates.Comments != nil && *updates.Comments != "" {
+		metadata["comments"] = *updates.Comments
 	}
-	if updates.Isbn != "" {
+
+	// Isbn: 只允许补全信息（非空值）
+	if updates.Isbn != nil && *updates.Isbn != "" {
 		identifiers := oldBook.Identifiers
 		if identifiers == nil {
 			identifiers = make(map[string]string)
 		}
-		identifiers["isbn"] = updates.Isbn
+		identifiers["isbn"] = *updates.Isbn
 		metadata["identifiers"] = identifiers
 	}
-	if updates.Title != "" {
-		metadata["title"] = updates.Title
+
+	// Title: 只允许补全信息（非空值），不允许清空
+	if updates.Title != nil && *updates.Title != "" {
+		metadata["title"] = *updates.Title
 	}
-	if updates.Publisher != "" {
-		metadata["publisher"] = updates.Publisher
+
+	// Publisher: 只允许补全信息（非空值），不允许清空
+	if updates.Publisher != nil && *updates.Publisher != "" {
+		metadata["publisher"] = *updates.Publisher
 	}
-	if !updates.PubDate.IsZero() {
+
+	// PubDate: 保持原有逻辑
+	if updates.PubDate != nil && !updates.PubDate.IsZero() {
 		metadata["pubdate"] = updates.PubDate.Format("2006-01-02T15:04:05+00:00")
 	}
-	if updates.Authors != nil {
-		metadata["authors"] = updates.Authors
+
+	// Authors: 只允许非空数组，不允许清空
+	if updates.Authors != nil && len(*updates.Authors) > 0 {
+		metadata["authors"] = *updates.Authors
 	}
+
+	// Tags: 允许清空（nil = 不更新，&[] = 清空）
 	if updates.Tags != nil {
-		metadata["tags"] = updates.Tags
+		metadata["tags"] = *updates.Tags
 	}
+
+	// Rating: 保持原有逻辑（0 表示未设置或移除评分）
 	if updates.Rating > 0 {
 		metadata["rating"] = updates.Rating
 	}
@@ -170,33 +185,40 @@ func buildUpdateParams(updates *BookUpdate, oldBook *Book) map[string]interface{
 func mergeBookUpdates(oldBook *Book, updates *BookUpdate) *Book {
 	merged := *oldBook // 复制旧书籍
 
-	if updates.Title != "" {
-		merged.Title = updates.Title
+	// 字符串字段：只允许非空值更新
+	if updates.Title != nil && *updates.Title != "" {
+		merged.Title = *updates.Title
 	}
-	if updates.Authors != nil {
-		merged.Authors = updates.Authors
+	if updates.Publisher != nil && *updates.Publisher != "" {
+		merged.Publisher = *updates.Publisher
 	}
-	if updates.Publisher != "" {
-		merged.Publisher = updates.Publisher
+	if updates.Comments != nil && *updates.Comments != "" {
+		merged.Comments = *updates.Comments
 	}
-	if updates.Comments != "" {
-		merged.Comments = updates.Comments
-	}
-	if updates.Tags != nil {
-		merged.Tags = updates.Tags
-	}
-	if updates.Rating > 0 {
-		merged.Rating = updates.Rating
-	}
-	if updates.Isbn != "" {
-		merged.Isbn = updates.Isbn
+	if updates.Isbn != nil && *updates.Isbn != "" {
+		merged.Isbn = *updates.Isbn
 		if merged.Identifiers == nil {
 			merged.Identifiers = make(map[string]string)
 		}
-		merged.Identifiers["isbn"] = updates.Isbn
+		merged.Identifiers["isbn"] = *updates.Isbn
 	}
-	if !updates.PubDate.IsZero() {
-		merged.PubDate = updates.PubDate
+
+	// Authors: 只允许非空数组，不允许清空
+	if updates.Authors != nil && len(*updates.Authors) > 0 {
+		merged.Authors = *updates.Authors
+	}
+	
+	// Tags: 允许清空（nil = 不更新，[] = 清空）
+	if updates.Tags != nil {
+		merged.Tags = *updates.Tags
+	}
+
+	// 其他字段
+	if updates.Rating > 0 {
+		merged.Rating = updates.Rating
+	}
+	if updates.PubDate != nil && !updates.PubDate.IsZero() {
+		merged.PubDate = *updates.PubDate
 	}
 
 	return &merged

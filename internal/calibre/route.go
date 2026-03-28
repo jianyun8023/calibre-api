@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jianyun8023/calibre-api/internal/cache"
-	"github.com/jianyun8023/calibre-api/internal/middleware"
 	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/meilisearch"
@@ -109,12 +108,9 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.POST("/tasks/:id/stop", c.stopTask)
 	base.GET("/tasks/stream", c.streamTasks) // SSE 任务流
 
-	// 草稿管理
+	// 草稿管理（内网使用，暂不启用认证）
 	if c.draftHandler != nil {
-		// Public endpoints for external systems (if no global auth is needed, otherwise wrap them)
-		// Assuming we want to protect all draft modification endpoints:
 		draftGroup := base.Group("/drafts")
-		draftGroup.Use(middleware.APIKeyAuth(c.config.Auth.APIKey))
 		{
 			draftGroup.POST("/delete", c.draftHandler.ReceiveDeletes)
 			draftGroup.POST("/update", c.draftHandler.ReceiveUpdates)
