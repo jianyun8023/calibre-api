@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -216,94 +217,79 @@ func (s *draftService) ApplyDrafts(ctx context.Context, ids []int64) []error {
 				return // Another process got it
 			}
 
-			// 2. Perform External Action (DRY RUN MODE - 仅日志，不执行)
-			var actionErr error
-			if draft.Action == repository.DraftActionDelete {
-				log.Infof("========================================")
-				log.Infof("📋 Draft ID: %d", id)
-				log.Infof("📚 Book ID: %s", draft.BookID)
-				log.Infof("🔥 Action: DELETE")
-				log.Infof("⏰ Created At: %s", draft.CreatedAt)
-				log.Infof("🎯 Will Execute: s.bookService.DeleteBook(\"%s\")", draft.BookID)
-				log.Infof("📌 Description: 将调用 Calibre Content Server API 删除此书籍")
-				log.Infof("⚠️  Note: DRY RUN MODE - 实际删除操作已被注释，不会执行真实删除")
-				log.Infof("========================================")
-
-				// DRY RUN: 注释掉实际执行代码
-				// actionErr = s.bookService.DeleteBook(draft.BookID)
-
-			} else if draft.Action == repository.DraftActionUpdate {
-				var updateData BookUpdate
-				if errUnmarshal := json.Unmarshal([]byte(draft.Data), &updateData); errUnmarshal != nil {
-					actionErr = fmt.Errorf("failed to unmarshal update data for draft %d: %v", id, errUnmarshal)
-				} else {
-					log.Infof("========================================")
-					log.Infof("📋 Draft ID: %d", id)
-					log.Infof("📚 Book ID: %s", draft.BookID)
-					log.Infof("✏️  Action: UPDATE")
-					log.Infof("⏰ Created At: %s", draft.CreatedAt)
-					log.Infof("📝 Update Data:")
-
-					// 详细输出每个更新字段
-					if updateData.Title != nil && *updateData.Title != "" {
-						log.Infof("  ✓ Title: %s", *updateData.Title)
-					}
-					if updateData.Authors != nil && len(*updateData.Authors) > 0 {
-						log.Infof("  ✓ Authors: %v", *updateData.Authors)
-					}
-					if updateData.Publisher != nil && *updateData.Publisher != "" {
-						log.Infof("  ✓ Publisher: %s", *updateData.Publisher)
-					}
-					if updateData.Tags != nil {
-						if len(*updateData.Tags) > 0 {
-							log.Infof("  ✓ Tags: %v", *updateData.Tags)
-						} else {
-							log.Infof("  ✓ Tags: [] (清空标签)")
-						}
-					}
-					if updateData.Isbn != nil && *updateData.Isbn != "" {
-						log.Infof("  ✓ ISBN: %s", *updateData.Isbn)
-					}
-					if updateData.PubDate != nil && !updateData.PubDate.IsZero() {
-						log.Infof("  ✓ PubDate: %s", updateData.PubDate.Format("2006-01-02"))
-					}
-					if updateData.Rating != 0 {
-						log.Infof("  ✓ Rating: %.1f", updateData.Rating)
-					}
-					if updateData.Comments != nil && *updateData.Comments != "" {
-						comments := *updateData.Comments
-						if len(comments) > 100 {
-							comments = comments[:100] + "..."
-						}
-						log.Infof("  ✓ Comments: %s", comments)
-					}
-
-					// 显示被拒绝的字段（空值）
-					if updateData.Title != nil && *updateData.Title == "" {
-						log.Warnf("  ✗ Title: \"\" (拒绝：不允许清空)")
-					}
-					if updateData.Publisher != nil && *updateData.Publisher == "" {
-						log.Warnf("  ✗ Publisher: \"\" (拒绝：不允许清空)")
-					}
-					if updateData.Comments != nil && *updateData.Comments == "" {
-						log.Warnf("  ✗ Comments: \"\" (拒绝：不允许清空)")
-					}
-					if updateData.Isbn != nil && *updateData.Isbn == "" {
-						log.Warnf("  ✗ ISBN: \"\" (拒绝：不允许清空)")
-					}
-					if updateData.Authors != nil && len(*updateData.Authors) == 0 {
-						log.Warnf("  ✗ Authors: [] (拒绝：不允许清空)")
-					}
-
-					log.Infof("🎯 Will Execute: s.bookService.UpdateMetadata(\"%s\", updateData)", draft.BookID)
-					log.Infof("📌 Description: 将调用 Calibre Content Server API 更新书籍元数据")
-					log.Infof("⚠️  Note: DRY RUN MODE - 实际更新操作已被注释，不会执行真实更新")
-					log.Infof("========================================")
-
-					// DRY RUN: 注释掉实际执行代码
-					// actionErr = s.bookService.UpdateMetadata(draft.BookID, &updateData)
+		// 2. Perform External Action
+		var actionErr error
+		if draft.Action == repository.DraftActionDelete {
+			log.Infof("Applying draft #%d: DELETE book %s (created: %s)", id, draft.BookID, draft.CreatedAt.Format("2006-01-02 15:04:05"))
+			actionErr = s.bookService.DeleteBook(draft.BookID)
+		} else if draft.Action == repository.DraftActionUpdate {
+			var updateData BookUpdate
+			if errUnmarshal := json.Unmarshal([]byte(draft.Data), &updateData); errUnmarshal != nil {
+				actionErr = fmt.Errorf("failed to unmarshal update data for draft %d: %v", id, errUnmarshal)
+			} else {
+				// 构建更新字段摘要
+				var fields []string
+				if updateData.Title != nil && *updateData.Title != "" {
+					fields = append(fields, fmt.Sprintf("title=%s", *updateData.Title))
 				}
+				if updateData.Authors != nil && len(*updateData.Authors) > 0 {
+					fields = append(fields, fmt.Sprintf("authors=%v", *updateData.Authors))
+				}
+				if updateData.Publisher != nil && *updateData.Publisher != "" {
+					fields = append(fields, fmt.Sprintf("publisher=%s", *updateData.Publisher))
+				}
+				if updateData.Tags != nil {
+					if len(*updateData.Tags) > 0 {
+						fields = append(fields, fmt.Sprintf("tags=%v", *updateData.Tags))
+					} else {
+						fields = append(fields, "tags=[] (clear)")
+					}
+				}
+				if updateData.Isbn != nil && *updateData.Isbn != "" {
+					fields = append(fields, fmt.Sprintf("isbn=%s", *updateData.Isbn))
+				}
+				if updateData.PubDate != nil && !updateData.PubDate.IsZero() {
+					fields = append(fields, fmt.Sprintf("pubdate=%s", updateData.PubDate.Format("2006-01-02")))
+				}
+				if updateData.Rating != 0 {
+					fields = append(fields, fmt.Sprintf("rating=%.1f", updateData.Rating))
+				}
+				if updateData.Comments != nil && *updateData.Comments != "" {
+					commentPreview := *updateData.Comments
+					if len(commentPreview) > 50 {
+						commentPreview = commentPreview[:50] + "..."
+					}
+					fields = append(fields, fmt.Sprintf("comments=%s", commentPreview))
+				}
+
+				// 记录被拒绝的空值字段
+				var rejectedFields []string
+				if updateData.Title != nil && *updateData.Title == "" {
+					rejectedFields = append(rejectedFields, "title")
+				}
+				if updateData.Publisher != nil && *updateData.Publisher == "" {
+					rejectedFields = append(rejectedFields, "publisher")
+				}
+				if updateData.Comments != nil && *updateData.Comments == "" {
+					rejectedFields = append(rejectedFields, "comments")
+				}
+				if updateData.Isbn != nil && *updateData.Isbn == "" {
+					rejectedFields = append(rejectedFields, "isbn")
+				}
+				if updateData.Authors != nil && len(*updateData.Authors) == 0 {
+					rejectedFields = append(rejectedFields, "authors")
+				}
+
+				if len(fields) > 0 {
+					log.Infof("Applying draft #%d: UPDATE book %s, fields: %s", id, draft.BookID, strings.Join(fields, ", "))
+				}
+				if len(rejectedFields) > 0 {
+					log.Warnf("Draft #%d: Rejected empty fields (not allowed): %s", id, strings.Join(rejectedFields, ", "))
+				}
+
+				actionErr = s.bookService.UpdateMetadata(draft.BookID, &updateData)
 			}
+		}
 
 			// 3. Finalize
 			if actionErr != nil {

@@ -89,19 +89,24 @@ func (s *bookServiceV2) UpdateMetadata(id string, updates *BookUpdate) error {
 		return apperrors.WrapWithDetails(err, apperrors.CodeInternalError, "failed to update metadata", err.Error(), 500)
 	}
 
-	// 合并更新到旧书籍
-	mergedBook := mergeBookUpdates(oldBook, updates)
+	// 重新查询最新书籍数据（以 Calibre 为准）
+	updatedBook, err := s.GetBookByID(id)
+	if err != nil {
+		log.Warnf("Failed to fetch updated book %s: %v, using merge fallback", id, err)
+		// 降级方案：使用本地 merge
+		updatedBook = mergeBookUpdates(oldBook, updates)
+	}
 
 	// 异步更新 Repository 中的数据
 	if s.searcher != nil {
-		semanticBook := convertBookToSemantic(mergedBook)
+		semanticBook := convertBookToSemantic(updatedBook)
 		_, err := s.taskManager.StartTask(tasks.TaskTypeUpdateMetadata, tasks.TaskModeFull, func(taskID string) tasks.Task {
 			return tasks.NewUpdateMetadataTask(taskID, semanticBook, s.searcher)
 		})
 		if err != nil {
-			log.Warnf("Failed to start update task for book %d: %v", oldBook.ID, err)
+			log.Warnf("Failed to start update task for book %d: %v", updatedBook.ID, err)
 		} else {
-			log.Infof("Started update task for book %d", oldBook.ID)
+			log.Infof("Started update task for book %d", updatedBook.ID)
 		}
 	}
 
