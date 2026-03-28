@@ -337,6 +337,33 @@ func (a *contentAPIAdapter) UpdateMetaData(id string, metadata map[string]interf
 	return true, nil
 }
 
+func (a *contentAPIAdapter) GetBookDetail(id int64) (*service.Book, error) {
+	contentBook, err := a.api.GetBookDetail(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换 content.Book 到 service.Book
+	return &service.Book{
+		ID:           contentBook.ID,
+		Title:        contentBook.Title,
+		Authors:      contentBook.Authors,
+		Publisher:    contentBook.Publisher,
+		PubDate:      contentBook.PubDate,
+		Isbn:         contentBook.Isbn,
+		Tags:         contentBook.Tags,
+		Rating:       contentBook.Rating,
+		SeriesIndex:  contentBook.SeriesIndex,
+		Comments:     contentBook.Comments,
+		Languages:    contentBook.Languages,
+		LastModified: contentBook.LastModified,
+		Cover:        contentBook.Cover,
+		FilePath:     contentBook.FilePath,
+		Identifiers:  contentBook.Identifiers,
+		Size:         contentBook.Size,
+	}, nil
+}
+
 func (a *contentAPIAdapter) GetAllPublisher() ([]string, error) {
 	return a.api.GetAllPublisher()
 }

@@ -70,6 +70,9 @@ type ContentAPI interface {
 	// UpdateMetaData 更新元数据
 	UpdateMetaData(id string, metadata map[string]interface{}, library string) (bool, error)
 
+	// GetBookDetail 从 Calibre 获取书籍详情（最新数据）
+	GetBookDetail(id int64) (*Book, error)
+
 	// GetAllPublisher 获取所有出版社
 	GetAllPublisher() ([]string, error)
 }
