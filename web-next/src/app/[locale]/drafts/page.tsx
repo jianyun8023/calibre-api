@@ -2,14 +2,29 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useTranslations } from "next-intl"
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-import { RefreshCcw, CheckCircle, XCircle, ArrowRight, Minus, Plus } from "lucide-react"
+import { RefreshCcw, CheckCircle, XCircle, ArrowRight, Minus, Plus, Search, Edit } from "lucide-react"
 import { Pagination } from "@/components/pagination"
+import type { DoubanBook } from "@/lib/api/metadata"
+
+// 懒加载元数据对话框组件
+const MetadataEditDialog = dynamic(() => import("@/components/metadata-edit-dialog").then(mod => ({ default: mod.MetadataEditDialog })), {
+  loading: () => <div>Loading...</div>,
+})
+
+const MetadataSearchDialog = dynamic(() => import("@/components/metadata-search-dialog").then(mod => ({ default: mod.MetadataSearchDialog })), {
+  loading: () => <div>Loading...</div>,
+})
+
+const MetadataCompareDialog = dynamic(() => import("@/components/metadata-compare-dialog").then(mod => ({ default: mod.MetadataCompareDialog })), {
+  loading: () => <div>Loading...</div>,
+})
 
 interface Draft {
   id: number
@@ -21,7 +36,7 @@ interface Draft {
 }
 
 interface BookMetadata {
-  id: string | number
+  id: number
   title: string
   authors: string[]
   publisher: string
@@ -30,7 +45,11 @@ interface BookMetadata {
   tags: string[]
   rating: number
   comments: string
-  [key: string]: unknown
+  cover: string
+  file_path?: string
+  size?: number
+  identifiers?: Record<string, string>
+  [key: string]: unknown | string[] | number | null | undefined
 }
 
 function DraftItem({ 
@@ -38,33 +57,51 @@ function DraftItem({
   isSelected, 
   onSelect,
   onApply,
-  onReject
+  onReject,
+  onBookUpdate
 }: { 
   draft: Draft, 
   isSelected: boolean, 
   onSelect: (id: number, checked: boolean) => void,
   onApply: (id: number) => void,
-  onReject: (id: number) => void
+  onReject: (id: number) => void,
+  onBookUpdate: () => void
 }) {
   const [book, setBook] = useState<BookMetadata | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false)
+  const [compareDialogOpen, setCompareDialogOpen] = useState(false)
+  const [doubanMetadata, setDoubanMetadata] = useState<DoubanBook | null>(null)
+
+  const loadBook = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/book/${draft.book_id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setBook(data.data)
+      }
+    } catch (err) {
+      console.error("Failed to fetch book", err)
+    } finally {
+      setLoading(false)
+    }
+  }, [draft.book_id])
 
   useEffect(() => {
-    const fetchBook = async () => {
-      try {
-        const res = await fetch(`/api/book/${draft.book_id}`)
-        if (res.ok) {
-          const data = await res.json()
-          setBook(data.data)
-        }
-      } catch (err) {
-        console.error("Failed to fetch book", err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchBook()
-  }, [draft.book_id])
+    loadBook()
+  }, [loadBook])
+
+  const handleMetadataSelect = (metadata: DoubanBook) => {
+    setDoubanMetadata(metadata)
+    setCompareDialogOpen(true)
+  }
+
+  const handleMetadataUpdateSuccess = () => {
+    loadBook()
+    onBookUpdate()
+  }
 
   // Parse update data
   const updates: Record<string, unknown> = {}
@@ -415,6 +452,27 @@ function DraftItem({
           </CardDescription>
         </div>
         <div className="flex gap-2">
+          {/* 元数据操作按钮（仅更新操作显示） */}
+          {draft.action === "update" && book && (
+            <>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                title="搜索元数据"
+                onClick={() => setSearchDialogOpen(true)}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                title="手动编辑元数据"
+                onClick={() => setEditDialogOpen(true)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           <Button 
             variant="outline" 
             size="sm" 
@@ -436,6 +494,33 @@ function DraftItem({
       <CardContent>
         {renderChanges()}
       </CardContent>
+
+      {/* 元数据对话框（仅更新操作显示） */}
+      {draft.action === "update" && book && (
+        <>
+          <MetadataEditDialog
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            book={book}
+            onSuccess={handleMetadataUpdateSuccess}
+          />
+          <MetadataSearchDialog
+            open={searchDialogOpen}
+            onOpenChange={setSearchDialogOpen}
+            book={book}
+            onSelect={handleMetadataSelect}
+          />
+          {doubanMetadata && (
+            <MetadataCompareDialog
+              open={compareDialogOpen}
+              onOpenChange={setCompareDialogOpen}
+              book={book}
+              doubanMetadata={doubanMetadata}
+              onSuccess={handleMetadataUpdateSuccess}
+            />
+          )}
+        </>
+      )}
     </Card>
   )
 }
@@ -608,6 +693,7 @@ export default function DraftsPage() {
               onSelect={handleSelect}
               onApply={(id) => handleApply([id])}
               onReject={(id) => handleReject([id])}
+              onBookUpdate={() => fetchDrafts(page)}
             />
           ))
         )}
