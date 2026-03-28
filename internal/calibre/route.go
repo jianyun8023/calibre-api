@@ -115,9 +115,10 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 			draftGroup.POST("/delete", c.draftHandler.ReceiveDeletes)
 			draftGroup.POST("/update", c.draftHandler.ReceiveUpdates)
 			draftGroup.GET("", c.draftHandler.GetPendingDrafts)
-			draftGroup.POST("/apply", c.draftHandler.ApplyDrafts)
-			draftGroup.POST("/reject", c.draftHandler.RejectDrafts)
-			draftGroup.GET("/history", c.draftHandler.GetHistory)
+		draftGroup.POST("/apply", c.draftHandler.ApplyDrafts)
+		draftGroup.POST("/reject", c.draftHandler.RejectDrafts)
+		draftGroup.POST("/cancel", c.draftHandler.CancelDrafts)
+		draftGroup.GET("/history", c.draftHandler.GetHistory)
 		}
 	}
 
