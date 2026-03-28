@@ -1,16 +1,17 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useTranslations } from "next-intl"
+import { useParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { toast } from "sonner"
-import { RefreshCcw, CheckCircle, XCircle, ArrowRight, Minus, Plus, Search, Edit } from "lucide-react"
-import { Pagination } from "@/components/pagination"
+import { RefreshCcw, CheckCircle, XCircle, ArrowRight, Minus, Plus, Search, Edit, ExternalLink } from "lucide-react"
 import type { DoubanBook } from "@/lib/api/metadata"
 
 // 懒加载元数据对话框组件
@@ -67,6 +68,8 @@ function DraftItem({
   onReject: (id: number) => void,
   onBookUpdate: () => void
 }) {
+  const params = useParams()
+  const locale = params.locale || 'zh-CN'
   const [book, setBook] = useState<BookMetadata | null>(null)
   const [loading, setLoading] = useState(true)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -442,7 +445,153 @@ function DraftItem({
         />
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-lg">Book ID: {draft.book_id}</CardTitle>
+            <HoverCard openDelay={200}>
+              <HoverCardTrigger asChild>
+                <a
+                  href={`/${locale}/detail/${draft.book_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex items-center gap-1.5 hover:underline cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                  }}
+                >
+                  <CardTitle className="text-lg">Book ID: {draft.book_id}</CardTitle>
+                  <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </a>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-[480px]" side="right" align="start" sideOffset={10}>
+                {loading ? (
+                  <div className="flex gap-4">
+                    <Skeleton className="h-32 w-24 shrink-0 rounded" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                      <Skeleton className="h-20 w-full" />
+                    </div>
+                  </div>
+                ) : book ? (
+                  <div className="flex gap-4">
+                    {/* 封面图片 */}
+                    {book.cover ? (
+                      <div className="shrink-0">
+                        <img
+                          src={book.cover}
+                          alt={book.title}
+                          className="h-40 w-28 object-cover rounded shadow-md"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-40 w-28 shrink-0 bg-muted rounded flex items-center justify-center text-muted-foreground text-xs">
+                        无封面
+                      </div>
+                    )}
+
+                    {/* 元数据信息 */}
+                    <div className="flex-1 space-y-3 min-w-0">
+                      <div className="space-y-1">
+                        <h4 className="font-semibold text-base leading-tight line-clamp-2">
+                          {book.title}
+                        </h4>
+                        {book.authors && book.authors.length > 0 && (
+                          <p className="text-sm text-muted-foreground line-clamp-1">
+                            作者: {book.authors.join(", ")}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-1.5 text-sm">
+                        {book.publisher && (
+                          <div className="flex gap-2">
+                            <span className="text-muted-foreground shrink-0 w-16">出版社:</span>
+                            <span className="truncate">{book.publisher}</span>
+                          </div>
+                        )}
+                        {book.pubdate && (
+                          <div className="flex gap-2">
+                            <span className="text-muted-foreground shrink-0 w-16">出版日期:</span>
+                            <span>{book.pubdate}</span>
+                          </div>
+                        )}
+                        {book.isbn && (
+                          <div className="flex gap-2">
+                            <span className="text-muted-foreground shrink-0 w-16">ISBN:</span>
+                            <span className="font-mono text-xs truncate">{book.isbn}</span>
+                          </div>
+                        )}
+                        {book.rating > 0 && (
+                          <div className="flex gap-2">
+                            <span className="text-muted-foreground shrink-0 w-16">评分:</span>
+                            <span className="font-medium text-yellow-600 dark:text-yellow-500">
+                              {book.rating}/10 ⭐
+                            </span>
+                          </div>
+                        )}
+                        {book.tags && book.tags.length > 0 && (
+                          <div className="flex gap-2">
+                            <span className="text-muted-foreground shrink-0 w-16">标签:</span>
+                            <div className="flex flex-wrap gap-1 min-w-0">
+                              {book.tags.slice(0, 5).map((tag, idx) => (
+                                <span 
+                                  key={idx}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {book.tags.length > 5 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{book.tags.length - 5}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {book.identifiers && Object.keys(book.identifiers).length > 0 && (
+                          <div className="flex gap-2">
+                            <span className="text-muted-foreground shrink-0 w-16">标识符:</span>
+                            <div className="text-xs space-x-2 truncate">
+                              {Object.entries(book.identifiers).slice(0, 3).map(([key, value]) => (
+                                <span key={key} className="font-mono">
+                                  {key}: {value}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {book.size && (
+                          <div className="flex gap-2">
+                            <span className="text-muted-foreground shrink-0 w-16">文件大小:</span>
+                            <span>{(book.size / 1024 / 1024).toFixed(2)} MB</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {book.comments && (
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {book.comments.replace(/<[^>]*>/g, '')}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="pt-2 border-t flex items-center gap-1 text-xs text-muted-foreground">
+                        <ExternalLink className="h-3 w-3" />
+                        <span>点击查看完整详情</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    无法加载书籍信息
+                  </div>
+                )}
+              </HoverCardContent>
+            </HoverCard>
             <Badge variant={draft.action === "delete" ? "destructive" : "secondary"}>
               {draft.action.toUpperCase()}
             </Badge>
@@ -529,21 +678,50 @@ export default function DraftsPage() {
   const t = useTranslations("drafts")
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [loading, setLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
   const limit = 10
 
-  const fetchDrafts = useCallback(async (currentPage: number) => {
-    setLoading(true)
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return
+    
+    setIsLoadingMore(true)
     try {
-      const offset = (currentPage - 1) * limit
+      const offset = page * limit
       const res = await fetch(`/api/drafts?limit=${limit}&offset=${offset}`)
       if (!res.ok) throw new Error("Failed to fetch drafts")
       const data = await res.json()
-      setDrafts(data.data || [])
-      setTotalPages(data.total_pages || 1)
-      setPage(data.page || 1)
+      const newDrafts = data.data || []
+      
+      if (newDrafts.length === 0) {
+        setHasMore(false)
+      } else {
+        setDrafts(prev => [...prev, ...newDrafts])
+        setPage(prev => prev + 1)
+        setHasMore(newDrafts.length === limit)
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error(t("fetchError"))
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [page, hasMore, isLoadingMore, t])
+
+  const fetchInitialDrafts = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/drafts?limit=${limit}&offset=0`)
+      if (!res.ok) throw new Error("Failed to fetch drafts")
+      const data = await res.json()
+      const newDrafts = data.data || []
+      setDrafts(newDrafts)
+      setPage(1)
+      setHasMore(newDrafts.length === limit)
     } catch (err) {
       console.error(err)
       toast.error(t("fetchError"))
@@ -553,8 +731,33 @@ export default function DraftsPage() {
   }, [t])
 
   useEffect(() => {
-    fetchDrafts(1)
-  }, [fetchDrafts])
+    fetchInitialDrafts()
+  }, [fetchInitialDrafts])
+
+  useEffect(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect()
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loading && !isLoadingMore && hasMore) {
+          loadMore()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current)
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+      }
+    }
+  }, [loading, isLoadingMore, hasMore, loadMore])
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -585,6 +788,10 @@ export default function DraftsPage() {
       })
       if (!res.ok) throw new Error("Failed to apply drafts")
       toast.success(t("applySuccess"))
+      
+      // 从列表中移除已应用的草稿
+      setDrafts(prev => prev.filter(d => !targetIds.includes(d.id)))
+      
       if (!ids) {
         setSelectedIds(new Set())
       } else {
@@ -592,7 +799,6 @@ export default function DraftsPage() {
         ids.forEach(id => { newSelected.delete(id) })
         setSelectedIds(newSelected)
       }
-      fetchDrafts(page)
     } catch (err) {
       console.error(err)
       toast.error(t("applyError"))
@@ -610,6 +816,10 @@ export default function DraftsPage() {
       })
       if (!res.ok) throw new Error("Failed to reject drafts")
       toast.success(t("rejectSuccess"))
+      
+      // 从列表中移除已拒绝的草稿
+      setDrafts(prev => prev.filter(d => !targetIds.includes(d.id)))
+      
       if (!ids) {
         setSelectedIds(new Set())
       } else {
@@ -617,7 +827,6 @@ export default function DraftsPage() {
         ids.forEach(id => { newSelected.delete(id) })
         setSelectedIds(newSelected)
       }
-      fetchDrafts(page)
     } catch (err) {
       console.error(err)
       toast.error(t("rejectError"))
@@ -693,21 +902,28 @@ export default function DraftsPage() {
               onSelect={handleSelect}
               onApply={(id) => handleApply([id])}
               onReject={(id) => handleReject([id])}
-              onBookUpdate={() => fetchDrafts(page)}
+              onBookUpdate={fetchInitialDrafts}
             />
           ))
         )}
 
-        {drafts.length > 0 && totalPages > 1 && (
-          <div className="mt-8">
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              hasNext={page < totalPages}
-              hasPrev={page > 1}
-              onNext={() => fetchDrafts(page + 1)}
-              onPrev={() => fetchDrafts(page - 1)}
-            />
+        {/* 加载更多指示器 */}
+        {drafts.length > 0 && (
+          <div ref={loadMoreRef} className="py-8 text-center">
+            {isLoadingMore ? (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <RefreshCcw className="h-4 w-4 animate-spin" />
+                <span className="text-sm">加载更多...</span>
+              </div>
+            ) : hasMore ? (
+              <div className="text-xs text-muted-foreground">
+                滚动加载更多
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground">
+                已加载全部草稿
+              </div>
+            )}
           </div>
         )}
       </div>
