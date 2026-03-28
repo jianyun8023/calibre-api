@@ -19,6 +19,7 @@ type DraftService interface {
 	GetPendingDrafts(ctx context.Context, limit, offset int) ([]repository.BookDraft, int64, error)
 	ApplyDrafts(ctx context.Context, ids []int64) []error
 	RejectDrafts(ctx context.Context, ids []int64) []error
+	CancelDrafts(ctx context.Context, bookIDs []string) (int, int, []error)
 	CleanupExpiredDrafts(ctx context.Context, days int) (int, error)
 	GetHistory(ctx context.Context, limit, offset int) ([]repository.BookDraftHistory, int64, error)
 }
@@ -342,4 +343,50 @@ func (s *draftService) RejectDrafts(ctx context.Context, ids []int64) []error {
 	}
 
 	return errs
+}
+
+func (s *draftService) CancelDrafts(ctx context.Context, bookIDs []string) (int, int, []error) {
+	var errs []error
+	cancelledBooks := 0
+	totalDeleted := 0
+
+	for _, bookID := range bookIDs {
+		drafts := s.getPendingDraftsByBookID(ctx, bookID)
+
+		if len(drafts) == 0 {
+			errs = append(errs, fmt.Errorf("no pending drafts found for book %s", bookID))
+			continue
+		}
+
+		deletedCount := 0
+		for _, draft := range drafts {
+			if err := s.draftRepo.DeleteDraft(ctx, draft.ID); err != nil {
+				errs = append(errs, fmt.Errorf("failed to delete draft %d for book %s: %v", draft.ID, bookID, err))
+				continue
+			}
+			deletedCount++
+			totalDeleted++
+		}
+
+		if deletedCount > 0 {
+			cancelledBooks++
+			log.Infof("Cancelled %d draft(s) for book %s", deletedCount, bookID)
+		}
+	}
+
+	return cancelledBooks, totalDeleted, errs
+}
+
+func (s *draftService) getPendingDraftsByBookID(ctx context.Context, bookID string) []repository.BookDraft {
+	var allDrafts []repository.BookDraft
+
+	if updateDraft, err := s.draftRepo.GetPendingDraftByBookIDAndAction(ctx, bookID, repository.DraftActionUpdate); err == nil && updateDraft != nil {
+		allDrafts = append(allDrafts, *updateDraft)
+	}
+
+	if deleteDraft, err := s.draftRepo.GetPendingDraftByBookIDAndAction(ctx, bookID, repository.DraftActionDelete); err == nil && deleteDraft != nil {
+		allDrafts = append(allDrafts, *deleteDraft)
+	}
+
+	return allDrafts
 }
