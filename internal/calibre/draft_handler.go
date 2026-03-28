@@ -1,6 +1,7 @@
 package calibre
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -126,6 +127,57 @@ func (h *DraftHandler) RejectDrafts(c *gin.Context) {
 	}
 
 	response.SuccessWithMessage(c, "drafts rejected successfully", gin.H{"count": len(req.IDs)})
+}
+
+func (h *DraftHandler) CancelDrafts(c *gin.Context) {
+	var req struct {
+		// Note: binding:"required" doesn't reject empty arrays in Gin,
+		// so we validate with len() check below
+		IDs []string `json:"ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request body")
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		response.BadRequest(c, "ids cannot be empty")
+		return
+	}
+
+	cancelledBooks, cancelledDrafts, errs := h.draftService.CancelDrafts(c.Request.Context(), req.IDs)
+
+	if len(errs) > 0 {
+		var errorMsgs []string
+		for _, err := range errs {
+			errorMsgs = append(errorMsgs, err.Error())
+		}
+
+		if cancelledBooks > 0 {
+			response.SuccessWithMessage(c,
+				fmt.Sprintf("Cancelled drafts for %d book(s), %d failed", cancelledBooks, len(errs)),
+				gin.H{
+					"cancelled_books":        cancelledBooks,
+					"cancelled_drafts_count": cancelledDrafts,
+					"errors":                 errorMsgs,
+				})
+		} else {
+			response.SuccessWithMessage(c,
+				"Failed to cancel all drafts",
+				gin.H{
+					"total":  len(req.IDs),
+					"errors": errorMsgs,
+				})
+		}
+		return
+	}
+
+	response.SuccessWithMessage(c,
+		fmt.Sprintf("Successfully cancelled drafts for %d book(s)", cancelledBooks),
+		gin.H{
+			"cancelled_books":        cancelledBooks,
+			"cancelled_drafts_count": cancelledDrafts,
+		})
 }
 
 func (h *DraftHandler) GetHistory(c *gin.Context) {
