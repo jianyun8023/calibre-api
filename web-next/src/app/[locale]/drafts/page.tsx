@@ -842,7 +842,7 @@ export default function DraftsPage() {
             {t("description")}
           </p>
         </div>
-        <Button variant="outline" size="icon" onClick={() => fetchDrafts(page)} disabled={loading}>
+        <Button variant="outline" size="icon" onClick={() => fetchInitialDrafts()} disabled={loading || isLoadingMore}>
           <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import { searchMetadata, type DoubanBook } from "@/lib/api/metadata"
+import { searchMetadata, type DoubanBook, type MetadataSearchResponse } from "@/lib/api/metadata"
 import type { Book } from "@/types/book"
 import { Search, Loader2 } from "lucide-react"
 import Image from "next/image"
@@ -48,7 +48,7 @@ export function MetadataSearchDialog({ open, onOpenChange, book, onSelect }: Met
     setSelectedIndex(null)
 
     try {
-      const response = await searchMetadata(query)
+      const response: MetadataSearchResponse = await searchMetadata(query)
 
       // 豆瓣 API 返回格式：{ success: boolean, books: [], message?: string }
       if (response.success && response.books && response.books.length > 0) {
