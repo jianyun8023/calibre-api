@@ -50,18 +50,22 @@ export function MetadataSearchDialog({ open, onOpenChange, book, onSelect }: Met
     try {
       const response: MetadataSearchResponse = await searchMetadata(query)
 
-      // 豆瓣 API 返回格式：{ success: boolean, books: [], message?: string }
-      if (response.success && response.books && response.books.length > 0) {
+      // 豆瓣 API 返回格式：{ success: boolean, books: [], count, start, total }
+      if (!response) {
+        toast.warning("搜索服务暂时不可用")
+        setSearchResults([])
+      } else if (response.success && response.books && response.books.length > 0) {
         setSearchResults(response.books)
         toast.success(`找到 ${response.books.length} 本相关书籍`)
       } else {
-        toast.warning("未找到相关书籍")
+        toast.warning("未找到相关书籍，请尝试其他关键词")
         setSearchResults([])
       }
     } catch (error) {
       console.error("搜索元数据失败:", error)
       const message = error instanceof Error ? error.message : "搜索失败"
       toast.error(`搜索失败: ${message}`)
+      setSearchResults([])
     } finally {
       setSearching(false)
     }

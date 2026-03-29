@@ -27,6 +27,10 @@ const MetadataCompareDialog = dynamic(() => import("@/components/metadata-compar
   loading: () => <div>Loading...</div>,
 })
 
+const DraftWorkbenchDialog = dynamic(() => import("@/components/draft-workbench-dialog").then(mod => ({ default: mod.DraftWorkbenchDialog })), {
+  loading: () => <div>Loading...</div>,
+})
+
 interface Draft {
   id: number
   book_id: string
@@ -682,6 +686,7 @@ export default function DraftsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
+  const [workbenchOpen, setWorkbenchOpen] = useState(false)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const limit = 10
@@ -842,9 +847,20 @@ export default function DraftsPage() {
             {t("description")}
           </p>
         </div>
-        <Button variant="outline" size="icon" onClick={() => fetchInitialDrafts()} disabled={loading || isLoadingMore}>
-          <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="default" 
+            onClick={() => setWorkbenchOpen(true)}
+            disabled={loading || drafts.length === 0}
+            className="gap-2"
+          >
+            <Search className="h-4 w-4" />
+            进入工作台
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => fetchInitialDrafts()} disabled={loading || isLoadingMore}>
+            <RefreshCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center space-x-4 mb-4 bg-muted/50 p-4 rounded-lg">
@@ -927,6 +943,13 @@ export default function DraftsPage() {
           </div>
         )}
       </div>
+
+      {/* 工作台对话框 */}
+      <DraftWorkbenchDialog
+        open={workbenchOpen}
+        onOpenChange={setWorkbenchOpen}
+        onRefresh={fetchInitialDrafts}
+      />
     </div>
   )
 }
