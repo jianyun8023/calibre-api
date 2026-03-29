@@ -224,29 +224,99 @@ func TestReceiveUpdates_UpdateExisting(t *testing.T) {
 	service := NewDraftService(mockRepo, mockBookService)
 
 	ctx := context.Background()
-	title := "Updated Title"
+	
+	// 旧草稿有 tags 和 publisher
+	oldTags := []string{"旧标签"}
+	oldPublisher := "旧出版社"
+	oldData := BookUpdate{
+		Tags:      &oldTags,
+		Publisher: &oldPublisher,
+	}
+	oldDataJSON, _ := json.Marshal(oldData)
+
+	// 新提交只有 title（应该保留旧的 tags 和 publisher）
+	newTitle := "New Title"
 	updates := []BookDraftUpdate{
 		{
 			ID:   "1",
-			Data: &BookUpdate{Title: &title},
+			Data: &BookUpdate{Title: &newTitle},
 		},
 	}
 
 	// Mock: 已存在待审核的更新草稿
 	existingDrafts := []repository.BookDraft{
-		{ID: 1, BookID: "1", Action: repository.DraftActionUpdate, Status: repository.DraftStatusPending},
+		{ID: 1, BookID: "1", Action: repository.DraftActionUpdate, Status: repository.DraftStatusPending, Data: string(oldDataJSON)},
 	}
 	mockRepo.On("GetPendingDraftsByBookIDsAndAction", ctx, []string{"1"}, repository.DraftActionUpdate).
 		Return(existingDrafts, nil)
 
-	// Mock: 更新现有草稿的数据
-	mockRepo.On("UpdateDraftData", ctx, int64(1), mock.Anything).Return(nil)
+	// Mock: 更新现有草稿的数据，验证合并后的数据
+	mockRepo.On("UpdateDraftData", ctx, int64(1), mock.MatchedBy(func(data string) bool {
+		var merged BookUpdate
+		json.Unmarshal([]byte(data), &merged)
+		// 验证合并：应该同时包含新的 title 和旧的 tags、publisher
+		return merged.Title != nil && *merged.Title == "New Title" &&
+			merged.Tags != nil && len(*merged.Tags) == 1 && (*merged.Tags)[0] == "旧标签" &&
+			merged.Publisher != nil && *merged.Publisher == "旧出版社"
+	})).Return(nil)
 
 	err := service.ReceiveUpdates(ctx, updates)
 
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 	mockRepo.AssertNotCalled(t, "CreateDraft")
+}
+
+func TestReceiveUpdates_MergeOverride(t *testing.T) {
+	mockRepo := new(MockDraftRepository)
+	mockBookService := new(MockBookService)
+	service := NewDraftService(mockRepo, mockBookService)
+
+	ctx := context.Background()
+	
+	// 旧草稿：tags=[], publisher="旧出版社"
+	oldTags := []string{}
+	oldPublisher := "旧出版社"
+	oldData := BookUpdate{
+		Tags:      &oldTags,
+		Publisher: &oldPublisher,
+	}
+	oldDataJSON, _ := json.Marshal(oldData)
+
+	// 新提交：tags=["新标签"], publisher="新出版社", authors=["作者"]
+	newTags := []string{"新标签"}
+	newPublisher := "新出版社"
+	newAuthors := []string{"作者"}
+	updates := []BookDraftUpdate{
+		{
+			ID: "1",
+			Data: &BookUpdate{
+				Tags:      &newTags,
+				Publisher: &newPublisher,
+				Authors:   &newAuthors,
+			},
+		},
+	}
+
+	existingDrafts := []repository.BookDraft{
+		{ID: 1, BookID: "1", Action: repository.DraftActionUpdate, Status: repository.DraftStatusPending, Data: string(oldDataJSON)},
+	}
+	mockRepo.On("GetPendingDraftsByBookIDsAndAction", ctx, []string{"1"}, repository.DraftActionUpdate).
+		Return(existingDrafts, nil)
+
+	// 验证合并：新字段覆盖旧字段，新增字段被保留
+	mockRepo.On("UpdateDraftData", ctx, int64(1), mock.MatchedBy(func(data string) bool {
+		var merged BookUpdate
+		json.Unmarshal([]byte(data), &merged)
+		return merged.Tags != nil && len(*merged.Tags) == 1 && (*merged.Tags)[0] == "新标签" &&
+			merged.Publisher != nil && *merged.Publisher == "新出版社" &&
+			merged.Authors != nil && len(*merged.Authors) == 1 && (*merged.Authors)[0] == "作者"
+	})).Return(nil)
+
+	err := service.ReceiveUpdates(ctx, updates)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
 }
 
 func TestGetPendingDrafts_Success(t *testing.T) {

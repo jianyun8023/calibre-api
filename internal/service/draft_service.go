@@ -143,18 +143,35 @@ func (s *draftService) ReceiveUpdates(ctx context.Context, updates []BookDraftUp
 	}
 
 	for _, u := range updates {
-		dataBytes, err := json.Marshal(u.Data)
-		if err != nil {
-			return fmt.Errorf("failed to serialize update data for book %s: %v", u.ID, err)
-		}
+		var finalData *BookUpdate
 
 		if existing := existingMap[u.ID]; existing != nil {
-			// Update the existing draft's data
+			// Merge with existing draft data
+			var existingData BookUpdate
+			if err := json.Unmarshal([]byte(existing.Data), &existingData); err != nil {
+				return fmt.Errorf("failed to parse existing draft data for book %s: %v", u.ID, err)
+			}
+
+			// Merge: new fields override old fields, but keep old fields if not provided in new data
+			finalData = mergeDraftUpdates(&existingData, u.Data)
+			
+			dataBytes, err := json.Marshal(finalData)
+			if err != nil {
+				return fmt.Errorf("failed to serialize merged data for book %s: %v", u.ID, err)
+			}
+
 			if err := s.draftRepo.UpdateDraftData(ctx, existing.ID, string(dataBytes)); err != nil {
 				return fmt.Errorf("failed to update existing draft data for book %s: %v", u.ID, err)
 			}
-			log.Infof("Updated existing pending update draft for book %s", u.ID)
+			log.Infof("Merged and updated existing pending update draft for book %s", u.ID)
 		} else {
+			// Create new draft
+			finalData = u.Data
+			dataBytes, err := json.Marshal(finalData)
+			if err != nil {
+				return fmt.Errorf("failed to serialize update data for book %s: %v", u.ID, err)
+			}
+
 			draft := &repository.BookDraft{
 				BookID: u.ID,
 				Action: repository.DraftActionUpdate,
@@ -343,6 +360,70 @@ func (s *draftService) RejectDrafts(ctx context.Context, ids []int64) []error {
 	}
 
 	return errs
+}
+
+// mergeDraftUpdates merges new draft data into existing draft data
+// New fields override old fields, but old fields are preserved if not provided in new data
+func mergeDraftUpdates(old, new *BookUpdate) *BookUpdate {
+	merged := &BookUpdate{}
+
+	// Title: new overrides old
+	if new.Title != nil {
+		merged.Title = new.Title
+	} else if old.Title != nil {
+		merged.Title = old.Title
+	}
+
+	// Authors: new overrides old
+	if new.Authors != nil {
+		merged.Authors = new.Authors
+	} else if old.Authors != nil {
+		merged.Authors = old.Authors
+	}
+
+	// Publisher: new overrides old
+	if new.Publisher != nil {
+		merged.Publisher = new.Publisher
+	} else if old.Publisher != nil {
+		merged.Publisher = old.Publisher
+	}
+
+	// Tags: new overrides old
+	if new.Tags != nil {
+		merged.Tags = new.Tags
+	} else if old.Tags != nil {
+		merged.Tags = old.Tags
+	}
+
+	// Isbn: new overrides old
+	if new.Isbn != nil {
+		merged.Isbn = new.Isbn
+	} else if old.Isbn != nil {
+		merged.Isbn = old.Isbn
+	}
+
+	// Comments: new overrides old
+	if new.Comments != nil {
+		merged.Comments = new.Comments
+	} else if old.Comments != nil {
+		merged.Comments = old.Comments
+	}
+
+	// PubDate: new overrides old
+	if new.PubDate != nil && !new.PubDate.IsZero() {
+		merged.PubDate = new.PubDate
+	} else if old.PubDate != nil && !old.PubDate.IsZero() {
+		merged.PubDate = old.PubDate
+	}
+
+	// Rating: new overrides old (0 means not provided)
+	if new.Rating != 0 {
+		merged.Rating = new.Rating
+	} else if old.Rating != 0 {
+		merged.Rating = old.Rating
+	}
+
+	return merged
 }
 
 func (s *draftService) CancelDrafts(ctx context.Context, bookIDs []string) (int, int, []error) {

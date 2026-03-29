@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **草稿合并模式** (2026-03-29):
+  - UPDATE 草稿支持字段级合并：重复提交时新字段覆盖旧字段，未提交字段保留旧值
+  - 新增 `mergeDraftUpdates` 辅助函数处理草稿数据合并
+  - 允许分多次提交逐步补全书籍元数据
+  - 示例场景：第一次清空 tags，第二次补充 publisher，最终草稿包含两个变更
+  - 完整的单元测试覆盖（包含合并和覆盖场景）
+
 - **草稿取消接口** (2026-03-28):
   - 新增 `POST /api/drafts/cancel` 接口，支持通过书籍 ID 取消待处理草稿
   - 取消操作直接删除数据库记录，不保留历史
