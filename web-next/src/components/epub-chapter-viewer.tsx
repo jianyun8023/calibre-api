@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ChevronLeft, ChevronRight, List, Download } from "lucide-react"
-import { fetchBookToc } from "@/lib/api/books"
+import { fetchBookToc, fetchChapterContent } from "@/lib/api/books"
 
 interface TocItem {
   text: string
@@ -17,6 +17,12 @@ interface TocItem {
 interface EpubChapterViewerProps {
   bookId: string
   bookTitle: string
+}
+
+// Backend TOC response format
+interface TocResponseData {
+  points?: TocItem[]
+  [key: string]: unknown
 }
 
 export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps) {
@@ -38,7 +44,7 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
 
   const loadToc = async () => {
     try {
-      const data = await fetchBookToc(bookId)
+      const data = await fetchBookToc(bookId) as unknown as TocResponseData
       if (data && data.points && Array.isArray(data.points)) {
         setToc(data.points)
       }
@@ -57,18 +63,16 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
       const chapter = toc[chapterIndex]
       // Extract the file path from the src URL
       const srcPath = chapter.content.src
-      const filePath = srcPath.replace(`/read/${bookId}/file/`, '')
+      // Remove the URL prefix to get the actual file path
+      // Format could be: /read/69431/file/OEBPS/Text/chapter1.xhtml
+      const filePath = srcPath.replace(/^\/read\/[^/]+\/file\//, '')
       
-      const response = await fetch(`/api/read/${bookId}/file/${filePath}`)
-      if (response.ok) {
-        const content = await response.text()
-        setChapterContent(content)
-      } else {
-        setChapterContent(`<p>Failed to load chapter content (HTTP ${response.status})</p>`)
-      }
+      // Use the API helper function which handles the request properly
+      const content = await fetchChapterContent(bookId, filePath)
+      setChapterContent(content)
     } catch (error) {
       console.error("Failed to load chapter:", error)
-      setChapterContent(`<p>Error loading chapter: ${error instanceof Error ? error.message : 'Unknown error'}</p>`)
+      setChapterContent(`<p class="text-destructive">Error loading chapter: ${error instanceof Error ? error.message : 'Unknown error'}</p>`)
     } finally {
       setContentLoading(false)
     }
@@ -88,10 +92,10 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
 
   if (loading) {
     return (
-      <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
+      <div className="h-full flex items-center justify-center p-2">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading book chapters...</p>
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-xs">Loading book chapters...</p>
         </div>
       </div>
     )
@@ -99,15 +103,15 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
 
   if (toc.length === 0) {
     return (
-      <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
-        <div className="text-center">
-          <List className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <h2 className="text-xl font-semibold mb-2">No Chapters Found</h2>
-          <p className="text-muted-foreground mb-4">
+      <div className="h-full flex items-center justify-center p-2">
+        <div className="text-center max-w-md">
+          <List className="w-6 h-6 mx-auto mb-2 opacity-50" />
+          <h2 className="text-sm font-semibold mb-1 leading-tight">No Chapters Found</h2>
+          <p className="text-xs text-muted-foreground mb-2 leading-tight">
             This book doesn't have a readable table of contents.
           </p>
-          <Button onClick={() => window.open(`/api/download/book/${bookId}.epub`, '_blank')}>
-            <Download className="w-4 h-4 mr-2" />
+          <Button size="sm" onClick={() => window.open(`/api/download/book/${bookId}.epub`, '_blank')} className="h-7 text-xs">
+            <Download className="w-3 h-3 mr-1.5" />
             Download EPUB
           </Button>
         </div>
@@ -116,18 +120,18 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
+    <div className="h-full flex">
       {/* Chapter Navigation Sidebar */}
-      <div className="w-80 border-r bg-muted/30">
-        <div className="p-4 border-b">
-          <h2 className="font-semibold truncate" title={bookTitle}>
+      <div className="w-80 border-r bg-muted/30 flex flex-col">
+        <div className="px-2 py-1 border-b shrink-0">
+          <h2 className="text-xs font-semibold truncate leading-none mb-0.5" title={bookTitle}>
             {bookTitle}
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground leading-none">
             {toc.length} chapters
           </p>
         </div>
-        <ScrollArea className="h-[calc(100%-80px)]">
+        <ScrollArea className="flex-1">
           <div className="p-2">
             {toc.map((chapter, index) => (
               <button
@@ -149,34 +153,36 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
       </div>
 
       {/* Chapter Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Chapter Header */}
-        <div className="p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="px-2 py-1 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shrink-0">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-lg font-semibold">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xs font-semibold truncate leading-none mb-0.5">
                 {toc[currentChapter]?.text || `Chapter ${currentChapter + 1}`}
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground leading-none">
                 Chapter {currentChapter + 1} of {toc.length}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-0.5 ml-2 shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={goToPreviousChapter}
                 disabled={currentChapter === 0}
+                className="h-6 w-6 p-0"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-3 h-3" />
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={goToNextChapter}
                 disabled={currentChapter === toc.length - 1}
+                className="h-6 w-6 p-0"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3 h-3" />
               </Button>
             </div>
           </div>
@@ -184,15 +190,15 @@ export function EpubChapterViewer({ bookId, bookTitle }: EpubChapterViewerProps)
 
         {/* Chapter Content */}
         <ScrollArea className="flex-1">
-          <div className="p-6 max-w-4xl mx-auto">
+          <div className="p-4 max-w-4xl mx-auto">
             {contentLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-4"></div>
-                <p>Loading chapter...</p>
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto mb-2"></div>
+                <p className="text-xs">Loading chapter...</p>
               </div>
             ) : (
               <div 
-                className="prose prose-gray dark:prose-invert max-w-none"
+                className="prose prose-sm prose-gray dark:prose-invert max-w-none"
                 dangerouslySetInnerHTML={{ __html: chapterContent }}
               />
             )}

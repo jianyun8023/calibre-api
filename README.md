@@ -273,7 +273,13 @@ qdrant:
 
 # 元数据服务配置
 metadata:
-  doubanurl: https://api.douban.com
+  doubanmode: local  # "local"（本地爬虫，推荐）或 "http"（HTTP 服务）
+  doubanurl: http://your-douban-api:8085  # HTTP 模式时需要，local 模式可省略
+  # doubanconfig:  # local 模式可选配置，以下为默认值，通常不需要修改
+  #   baseurl: https://book.douban.com/
+  #   searchurl: https://www.douban.com/search?cat={searchType}&q={searchText}
+  #   isbnurl: https://book.douban.com/isbn/{isbn}/
+  #   detailurl: https://book.douban.com/subject/{id}/
 
 # MCP 服务器配置
 mcp:
@@ -310,7 +316,8 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4
 
 # 元数据服务
-CALIBRE_METADATA_DOUBANURL=http://your-douban-api
+CALIBRE_METADATA_DOUBANMODE=local  # 或 "http"
+CALIBRE_METADATA_DOUBANURL=http://your-douban-api  # HTTP 模式时需要
 
 # MCP 配置
 CALIBRE_MCP_ENABLED=false

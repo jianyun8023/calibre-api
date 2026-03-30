@@ -7,7 +7,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **性能优化** (2026-03-29)：集成 go-douban-api 为内置包，消除 HTTP 调用开销
+  - 元数据查询延迟减少 50-150ms（本地模式）
+  - 新增 `metadata.doubanmode` 配置（"local" 或 "http"）
+  - 保留 HTTP 模式作为降级选项
+  - 内置 24h 缓存机制（ttlcache，1000 本书容量）
+  - 提供默认配置常量，用户只需配置 `doubanmode: local` 即可启用
+
 ### Added
+- **新增依赖** (2026-03-29):
+  - `github.com/PuerkitoBio/goquery` - HTML 解析（豆瓣页面爬取）
+  - `github.com/jellydator/ttlcache/v3` - 内存缓存（元数据缓存）
+
+- **新增包** (2026-03-29):
+  - `pkg/douban` - 豆瓣元数据爬虫服务（从 go-douban-api 集成）
+
+- **草稿工作台模式** (2026-03-29):
+  - 新增全屏工作台对话框，专注单书处理体验
+  - 卡片专注模式：一次显示一个草稿，左右箭头切换
+  - 自动跳转：Apply/Reject 后自动显示下一本书籍
+  - 内联编辑：直接在工作台编辑标题、标签、作者等字段
+  - 实时预览：显示编辑前后对比，支持数组字段（标签/作者）的添加删除
+  - 键盘快捷键：支持方向键、Enter、Delete、Space 等快捷键操作
+  - 进度跟踪：显示已处理/剩余数量和进度条
+  - 完成动画：处理完所有草稿后显示完成提示并自动关闭
+  - **元数据编辑流程优化**：豆瓣搜索和手动编辑的元数据不再直接保存，而是先填充到内联编辑区域，用户可进一步调整后再统一应用
+  - **快速编辑对话框**：
+    - 新增简化的批量编辑界面，支持一次性编辑所有字段并应用到工作台
+    - 支持从书籍文件（EPUB）中提取元数据（ISBN、作者、出版社、出版日期）
+    - 智能填充：只填充空字段，不覆盖已有内容
+  - **封面预览增强**：鼠标悬停在封面上显示大图（400×600px），支持最大 80vh 高度自适应
+  - **书籍内容预览**：
+    - 工作台新增"预览内容"按钮，支持在弹框中查看完整 EPUB 章节
+    - 80% 屏幕大小弹框，不限制章节数量，辅助决策是否保留/删除书籍
+    - 复用现有 `EpubChapterViewer` 组件，支持目录导航和章节切换
+    - 动态加载，不影响主包体积
+  - 组件结构：
+    - `draft-workbench-dialog.tsx` - 工作台主对话框
+    - `workbench-card.tsx` - 草稿卡片展示
+    - `inline-edit-field.tsx` - 内联编辑字段组件
+    - `quick-edit-dialog.tsx` - 快速批量编辑对话框
+    - `book-preview-dialog.tsx` - 书籍内容预览对话框
+
+### Fixed
+- **书籍预览内容加载修复** (2026-03-29):
+  - 修复预览对话框宽度限制问题：添加 `sm:max-w-none` 覆盖 Shadcn Dialog 默认的 `sm:max-w-lg` 限制
+  - **修复章节内容 404 错误**：后端 `getBookContent` 函数添加 `strings.TrimPrefix` 去掉路径前导斜杠，修复 Gin 通配符参数导致的路径问题
+  - **修复 EpubChapterViewer 布局问题**：
+    - 侧边栏和内容区域改用 `flex` 布局，Header 使用 `shrink-0` 固定高度
+    - 移除固定高度计算 `h-[calc(100%-4rem)]`，改为 `flex-1` 自动填充
+    - 内容区域添加 `overflow-hidden` 防止溢出
+  - **修复重复关闭按钮问题**：工作台和预览对话框添加 `showCloseButton={false}` 禁用 DialogContent 默认关闭按钮
+  - **优化预览对话框头部高度**（修复内容加载后头部变高问题，尤其是 404 错误时）：
+    - **外层对话框头部**：py-1.5→py-1, px-4→px-3, text-sm→text-xs, leading-tight→leading-none, 按钮 h-7→h-6, 图标 h-3.5→h-3
+    - **EpubChapterViewer 侧边栏头部**：py-2→py-1, px-3→px-2, text-sm→text-xs, leading-tight→leading-none, 添加 mb-0.5 控制行间距
+    - **EpubChapterViewer 内容头部**：py-2→py-1, px-3→px-2, text-sm→text-xs, leading-tight→leading-none, 按钮 h-7→h-6, 图标 w-3.5→w-3, gap-1→gap-0.5
+    - **加载/错误状态**：优化加载中（h-8→h-5, py-6→py-4, mb-4→mb-2）、无章节错误（w-10→w-6, mb-3→mb-2, mb-2→mb-1, mb-4→mb-2）
+    - **章节内容加载状态**：py-6→py-4, h-5→h-4, mb-3→mb-2, text-sm→text-xs
+    - 所有头部文字使用 `leading-none` 完全消除行间距
+    - 所有内边距和间距进一步压缩至最小可用值
+  - 改用 `fetchChapterContent` API 辅助函数，正确处理章节路径
+  - 添加详细日志用于调试
+  - 修复 `EpubChapterViewer` 的 TypeScript 类型错误
+
+- **元数据搜索异常处理** (2026-03-29):
+  - 修复豆瓣搜索返回空结果时的 null 读取错误
+  - 增强错误处理：区分服务不可用、无搜索结果和搜索失败三种情况
+  - 统一错误提示信息，提供更友好的用户反馈
+
+- **工作台边界条件处理** (2026-03-29):
+  - 修复 `draft` 为 undefined 时的运行时错误
+  - 在 `WorkbenchCard` 组件添加防御性检查，避免访问空对象属性
+  - 在 `DraftWorkbenchDialog` 添加 `currentDraft` 存在性验证
+  - 遵循 React Hooks 规则，确保 hooks 在所有渲染路径中以相同顺序调用
+
+- **工作台数据隔离** (2026-03-29):
+  - 修复切换草稿时，前一本书的编辑数据残留到新草稿的问题
+  - 使用 `useEffect` 和 `useMemo` 优化 `editedData` 的初始化和重置逻辑
+  - 切换草稿时自动关闭打开的元数据对话框，避免状态混乱
+  - 确保每个草稿都有独立的编辑状态
+
+- **工作台索引越界保护** (2026-03-29):
+  - 修复处理最后一本书时，`currentIndex` 越界导致的数据加载失败
+  - 添加 `useEffect` 监听队列长度变化，自动调整 `currentIndex` 到有效范围
+  - 确保从队列移除草稿后，立即调整索引避免访问不存在的元素
+  - 优雅处理队列为空的情况，显示完成提示而不是错误
+
 - **草稿合并模式** (2026-03-29):
   - UPDATE 草稿支持字段级合并：重复提交时新字段覆盖旧字段，未提交字段保留旧值
   - 新增 `mergeDraftUpdates` 辅助函数处理草稿数据合并

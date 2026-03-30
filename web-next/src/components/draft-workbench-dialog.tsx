@@ -227,7 +227,7 @@ export function DraftWorkbenchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-screen h-screen max-w-none sm:max-w-none p-0 gap-0 rounded-none border-0 top-0 left-0 translate-x-0 translate-y-0">
+      <DialogContent className="w-screen h-screen max-w-none sm:max-w-none p-0 gap-0 rounded-none border-0 top-0 left-0 translate-x-0 translate-y-0" showCloseButton={false}>
         <DialogTitle className="sr-only">草稿工作台</DialogTitle>
         
         {/* 头部导航栏 */}

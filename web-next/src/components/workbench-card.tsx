@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { toast } from "sonner"
-import { ExternalLink, CheckCircle, XCircle, SkipForward, AlertTriangle, RotateCcw, Search, Edit } from "lucide-react"
+import { ExternalLink, CheckCircle, XCircle, SkipForward, AlertTriangle, RotateCcw, Search, Edit, Book } from "lucide-react"
 import Image from "next/image"
 import { InlineEditField } from "./inline-edit-field"
 import type { DoubanBook } from "@/lib/api/metadata"
@@ -19,6 +19,10 @@ const MetadataSearchDialog = dynamic(() => import("./metadata-search-dialog").th
 })
 
 const QuickEditDialog = dynamic(() => import("./quick-edit-dialog").then(mod => ({ default: mod.QuickEditDialog })), {
+  ssr: false,
+})
+
+const BookPreviewDialog = dynamic(() => import("./book-preview-dialog").then(mod => ({ default: mod.BookPreviewDialog })), {
   ssr: false,
 })
 
@@ -68,6 +72,7 @@ export function WorkbenchCard({
   const [editedData, setEditedData] = useState<Record<string, unknown>>({})
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [quickEditDialogOpen, setQuickEditDialogOpen] = useState(false)
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
 
   // 解析更新数据（使用 useMemo 避免每次渲染都重新计算）
   const updates = useMemo(() => {
@@ -488,6 +493,15 @@ export function WorkbenchCard({
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setPreviewDialogOpen(true)}
+                disabled={!draft?.book_id || isProcessing}
+              >
+                <Book className="h-3 w-3 mr-1" />
+                预览内容
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleReset}
                 disabled={!hasUnsavedChanges || isProcessing}
               >
@@ -558,11 +572,21 @@ export function WorkbenchCard({
           <QuickEditDialog
             open={quickEditDialogOpen}
             onOpenChange={setQuickEditDialogOpen}
-            bookId={draft.book_id}
+            bookId={Number(draft.book_id)}
             initialData={{ ...book, ...editedData }}
             onApply={handleQuickEditApply}
           />
         </>
+      )}
+
+      {/* 书籍预览对话框 */}
+      {book && (
+        <BookPreviewDialog
+          open={previewDialogOpen}
+          onOpenChange={setPreviewDialogOpen}
+          bookId={draft.book_id}
+          bookTitle={book.title || `书籍 ${draft.book_id}`}
+        />
       )}
     </Card>
   )

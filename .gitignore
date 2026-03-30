@@ -32,3 +32,4 @@ calibre-api
 nohup.out
 .cursor/mcp.json
 config.yaml
+.pnpm-store/

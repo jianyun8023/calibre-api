@@ -523,7 +523,18 @@ func (m *MCPServer) handleGetISBNMetadata(ctx context.Context, request mcp.CallT
 
 	log.Debugf("MCP Tool get_isbn_metadata: isbn=%s", isbn)
 
-	// 调用豆瓣 API 获取元数据
+	// 本地模式：直接调用 douban 服务
+	if m.api.doubanMode == "local" && m.api.doubanService != nil {
+		result := m.api.doubanService.Get(isbn, m.api.config.Metadata.DoubanConfig.IsbnUrl)
+		if !result.Success || len(result.Books) == 0 {
+			log.Warnf("ISBN %s not found in douban local service", isbn)
+			return mcp.NewToolResultError("ISBN not found in douban"), nil
+		}
+		log.Debugf("ISBN %s found in douban local service", isbn)
+		return mcp.NewToolResultText(formatToolResult(result.Books[0])), nil
+	}
+
+	// HTTP 降级模式
 	var jsonData map[string]interface{}
 	resp, err := m.api.http.R().SetResult(&jsonData).Get(m.api.config.Metadata.DoubanUrl + "/v2/book/isbn/" + isbn)
 	if err != nil || resp.StatusCode() != 200 {
@@ -555,7 +566,18 @@ func (m *MCPServer) handleSearchMetadata(ctx context.Context, request mcp.CallTo
 
 	log.Debugf("MCP Tool search_metadata: query=%s", query)
 
-	// 调用豆瓣 API 搜索元数据
+	// 本地模式：直接调用 douban 服务
+	if m.api.doubanMode == "local" && m.api.doubanService != nil {
+		result := m.api.doubanService.Search(query, 5) // 默认返回 5 个结果
+		if !result.Success {
+			log.Warnf("Query '%s' failed in douban local service", query)
+			return mcp.NewToolResultError("no results found in douban"), nil
+		}
+		log.Debugf("Query '%s' found %d results in douban local service", query, result.Count)
+		return mcp.NewToolResultText(formatToolResult(result)), nil
+	}
+
+	// HTTP 降级模式
 	var jsonData map[string]interface{}
 	resp, err := m.api.http.R().SetResult(&jsonData).SetQueryParam("q", query).Get(m.api.config.Metadata.DoubanUrl + "/v2/book/search")
 	if err != nil || resp.StatusCode() != 200 {

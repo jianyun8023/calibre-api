@@ -373,6 +373,35 @@ GET /api/book/content?id=123&path=OEBPS/content.opf
 
 #### 4. 元数据服务
 
+> v1.3.0 新增本地模式：集成豆瓣爬虫服务，减少网络延迟 80-90%
+
+**配置说明**：
+
+元数据服务支持两种模式：
+
+1. **Local 模式**（推荐）：内置豆瓣爬虫，直接访问豆瓣网站
+   - 性能：缓存命中 < 10ms，首次查询 ~200-350ms
+   - 配置：`doubanmode: local`（其他配置使用默认值）
+   - 优点：单进程部署、低延迟、内置缓存
+
+2. **HTTP 模式**（兼容）：调用外部 go-douban-api 服务
+   - 性能：~40-100ms（不含豆瓣响应时间）
+   - 配置：`doubanmode: http` + `doubanurl: http://...`
+   - 优点：可独立扩展、支持代理池
+
+**配置示例**：
+
+```yaml
+# 本地模式（推荐）
+metadata:
+  doubanmode: local
+
+# HTTP 模式
+metadata:
+  doubanmode: http
+  doubanurl: http://192.168.2.236:8075
+```
+
 ##### 4.1 根据 ISBN 获取元数据
 
 ```http
@@ -1620,7 +1649,13 @@ content:
 
 # 元数据服务配置
 metadata:
-  doubanurl: https://api.douban.com
+  doubanmode: local  # "local"（本地爬虫，推荐）或 "http"（HTTP 服务）
+  doubanurl: http://your-douban-api:8085  # HTTP 模式时需要
+  # doubanconfig:  # local 模式可选配置（以下为默认值，通常无需修改）
+  #   baseurl: https://book.douban.com/
+  #   searchurl: https://www.douban.com/search?cat={searchType}&q={searchText}
+  #   isbnurl: https://book.douban.com/isbn/{isbn}/
+  #   detailurl: https://book.douban.com/subject/{id}/
 
 # MCP 服务器配置
 mcp:
@@ -1663,7 +1698,8 @@ CALIBRE_TMP_DIR=.files
 CALIBRE_CONTENT_SERVER=https://lib.example.com
 
 # 元数据服务
-CALIBRE_METADATA_DOUBANURL=https://api.douban.com
+CALIBRE_METADATA_DOUBANMODE=local  # "local" 或 "http"
+CALIBRE_METADATA_DOUBANURL=http://your-douban-api:8085  # HTTP 模式时需要
 
 # MCP 配置
 CALIBRE_MCP_ENABLED=false
