@@ -13,6 +13,7 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/client"
 	"github.com/jianyun8023/calibre-api/pkg/content"
+	"github.com/jianyun8023/calibre-api/pkg/douban"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 )
 
@@ -29,6 +30,9 @@ type Api struct {
 	sseManager       *tasks.SSEManager
 	bookHandler      *BookHandlerV2  // 新的 Handler（使用 Service 层）
 	metricsHandler   *MetricsHandler // 性能指标处理器
+	draftHandler     *DraftHandler   // 草稿处理器
+	doubanService    *douban.Service // 豆瓣元数据服务（本地模式）
+	doubanMode       string          // 豆瓣模式："local" 或 "http"
 }
 
 // InjectDependencies 注入依赖（用于依赖注入容器）
@@ -41,6 +45,7 @@ func (a *Api) InjectDependencies(
 	cacheManager *cache.Manager,
 	sseManager *tasks.SSEManager,
 	bookHandler *BookHandlerV2,
+	draftHandler *DraftHandler,
 ) error {
 	a.config = config
 	a.contentApi = contentApi
@@ -51,6 +56,7 @@ func (a *Api) InjectDependencies(
 	a.cacheManager = cacheManager
 	a.sseManager = sseManager
 	a.bookHandler = bookHandler
+	a.draftHandler = draftHandler
 
 	// 创建性能指标处理器
 	if cachedSearcher != nil {
@@ -62,6 +68,41 @@ func (a *Api) InjectDependencies(
 		if err := os.MkdirAll(a.baseDir, fs.ModePerm); err != nil {
 			return err
 		}
+	}
+
+	// 初始化豆瓣元数据服务
+	if err := a.initDoubanService(); err != nil {
+		log.Warnf("Failed to initialize douban service: %v", err)
+	}
+
+	return nil
+}
+
+// initDoubanService 初始化豆瓣元数据服务
+func (a *Api) initDoubanService() error {
+	// 应用默认配置
+	a.config.Metadata.ApplyDoubanDefaults()
+	a.doubanMode = a.config.Metadata.DoubanMode
+
+	// 本地模式：初始化爬虫服务
+	if a.doubanMode == "local" {
+		parser := douban.NewDoubanBookParser()
+		loader := douban.NewDoubanBookLoader(
+			parser,
+			a.config.Metadata.DoubanConfig.BaseUrl,
+		)
+		a.doubanService = douban.NewService(
+			loader,
+			a.config.Metadata.DoubanConfig.SearchUrl,
+			a.config.Metadata.DoubanConfig.BaseUrl,
+		)
+		log.Infof("Douban service initialized in LOCAL mode")
+		log.Debugf("Douban config: baseUrl=%s, searchUrl=%s, isbnUrl=%s",
+			a.config.Metadata.DoubanConfig.BaseUrl,
+			a.config.Metadata.DoubanConfig.SearchUrl,
+			a.config.Metadata.DoubanConfig.IsbnUrl)
+	} else {
+		log.Infof("Douban service using HTTP mode: %s", a.config.Metadata.DoubanUrl)
 	}
 
 	return nil
@@ -104,6 +145,20 @@ func (c *Api) SetupRouter(r *gin.Engine) {
 	base.POST("/tasks/start", c.startTask)
 	base.POST("/tasks/:id/stop", c.stopTask)
 	base.GET("/tasks/stream", c.streamTasks) // SSE 任务流
+
+	// 草稿管理（内网使用，暂不启用认证）
+	if c.draftHandler != nil {
+		draftGroup := base.Group("/drafts")
+		{
+			draftGroup.POST("/delete", c.draftHandler.ReceiveDeletes)
+			draftGroup.POST("/update", c.draftHandler.ReceiveUpdates)
+			draftGroup.GET("", c.draftHandler.GetPendingDrafts)
+			draftGroup.POST("/apply", c.draftHandler.ApplyDrafts)
+			draftGroup.POST("/reject", c.draftHandler.RejectDrafts)
+			draftGroup.POST("/cancel", c.draftHandler.CancelDrafts)
+			draftGroup.GET("/history", c.draftHandler.GetHistory)
+		}
+	}
 
 	// 性能监控和指标
 	if c.metricsHandler != nil {
@@ -180,6 +235,9 @@ func NewClient(config *Config) *Api {
 		}
 	}
 
+	// 应用豆瓣默认配置
+	config.Metadata.ApplyDoubanDefaults()
+
 	// Create Api instance
 	api := Api{
 		config:           config,
@@ -189,6 +247,28 @@ func NewClient(config *Config) *Api {
 		meiliClient:      meiliClient,
 		semanticSearcher: semanticSearcher,
 		cacheManager:     cacheManager,
+		doubanMode:       config.Metadata.DoubanMode,
+	}
+
+	// 初始化豆瓣元数据服务
+	if api.doubanMode == "local" {
+		parser := douban.NewDoubanBookParser()
+		loader := douban.NewDoubanBookLoader(
+			parser,
+			config.Metadata.DoubanConfig.BaseUrl,
+		)
+		api.doubanService = douban.NewService(
+			loader,
+			config.Metadata.DoubanConfig.SearchUrl,
+			config.Metadata.DoubanConfig.BaseUrl,
+		)
+		log.Infof("Douban service initialized in LOCAL mode")
+		log.Debugf("Douban config: baseUrl=%s, searchUrl=%s, isbnUrl=%s",
+			config.Metadata.DoubanConfig.BaseUrl,
+			config.Metadata.DoubanConfig.SearchUrl,
+			config.Metadata.DoubanConfig.IsbnUrl)
+	} else {
+		log.Infof("Douban service using HTTP mode: %s", config.Metadata.DoubanUrl)
 	}
 
 	// 初始化 SSE MCP 服务器（在 HTTP 模式下默认启用）

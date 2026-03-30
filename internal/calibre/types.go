@@ -48,8 +48,54 @@ type BookRaw struct {
 	UUID         string         `json:"uuid"`
 }
 
+// Douban 默认配置常量
+const (
+	DefaultDoubanBaseUrl   = "https://book.douban.com/"
+	DefaultDoubanSearchUrl = "https://www.douban.com/search?cat={searchType}&q={searchText}"
+	DefaultDoubanIsbnUrl   = "https://book.douban.com/isbn/{isbn}/"
+	DefaultDoubanDetailUrl = "https://book.douban.com/subject/{id}/"
+)
+
+type DoubanConfig struct {
+	BaseUrl   string `mapstructure:"baseurl"`
+	SearchUrl string `mapstructure:"searchurl"`
+	IsbnUrl   string `mapstructure:"isbnurl"`
+	DetailUrl string `mapstructure:"detailurl"`
+}
+
 type Metadata struct {
-	DoubanUrl string `json:"doubanurl"`
+	DoubanUrl    string       `mapstructure:"doubanurl"`    // HTTP 模式 URL（兼容旧配置）
+	DoubanMode   string       `mapstructure:"doubanmode"`   // "local" 或 "http"，默认 "http"
+	DoubanConfig DoubanConfig `mapstructure:"doubanconfig"` // 本地模式配置（可选，使用默认值）
+}
+
+// ApplyDoubanDefaults 应用默认配置到 Metadata
+func (m *Metadata) ApplyDoubanDefaults() {
+	// 默认使用 HTTP 模式（兼容性）
+	if m.DoubanMode == "" {
+		m.DoubanMode = "http"
+	}
+
+	// 只有在 local 模式下才填充默认值
+	if m.DoubanMode == "local" {
+		if m.DoubanConfig.BaseUrl == "" {
+			m.DoubanConfig.BaseUrl = DefaultDoubanBaseUrl
+		}
+		if m.DoubanConfig.SearchUrl == "" {
+			m.DoubanConfig.SearchUrl = DefaultDoubanSearchUrl
+		}
+		if m.DoubanConfig.IsbnUrl == "" {
+			m.DoubanConfig.IsbnUrl = DefaultDoubanIsbnUrl
+		}
+		if m.DoubanConfig.DetailUrl == "" {
+			m.DoubanConfig.DetailUrl = DefaultDoubanDetailUrl
+		}
+	}
+}
+
+type DraftsConfig struct {
+	DBPath     string `mapstructure:"db_path"`
+	ExpireDays int    `mapstructure:"expire_days"`
 }
 
 type Config struct {
@@ -63,6 +109,7 @@ type Config struct {
 	Qdrant      QdrantConfig       `mapstructure:"qdrant"`
 	Meilisearch MeilisearchConfig  `mapstructure:"meilisearch"`
 	Cache       cache.Config       `mapstructure:"cache"`
+	Drafts      DraftsConfig       `mapstructure:"drafts"`
 }
 
 type QdrantConfig struct {

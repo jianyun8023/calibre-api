@@ -18,12 +18,9 @@ services:
       - CALIBRE_CONTENT_SERVER=https://lib.pve.icu
       - CALIBRE_SEARCH_INDEX=books
       - CALIBRE_TMPDIR=/tmp
-      - CALIBRE_METADATA_DOUBANURL=http://192.168.2.236:8085
+      - CALIBRE_METADATA_DOUBANMODE=local  # 本地模式（推荐）
+      # - CALIBRE_METADATA_DOUBANURL=http://192.168.2.236:8085  # HTTP 模式时需要
       - CALIBRE_MCP_ENABLED=false
-      
-      # Qdrant Configuration (使用本地 Qdrant 时取消注释)
-      # - CALIBRE_QDRANT_URL=http://qdrant:6333
-      # - CALIBRE_QDRANT_API_KEY=
       
       # OpenAI Configuration (启用 AI 功能时配置)
       # - OPENAI_API_KEY=your-api-key-here
@@ -68,27 +65,8 @@ services:
     networks:
       - calibre-network
 
-  # Optional Qdrant vector database
-  # 使用方法: docker-compose --profile qdrant up
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: calibre-qdrant
-    restart: unless-stopped
-    profiles: ["qdrant"]
-    ports:
-      - "6333:6333"  # HTTP API
-      - "6334:6334"  # gRPC API
-    volumes:
-      - qdrant_data:/qdrant/storage
-    environment:
-      - TZ=Asia/Shanghai
-    networks:
-      - calibre-network
-
 volumes:
   calibre_data:
-    driver: local
-  qdrant_data:
     driver: local
 
 networks:

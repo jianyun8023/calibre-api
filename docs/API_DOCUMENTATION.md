@@ -373,6 +373,35 @@ GET /api/book/content?id=123&path=OEBPS/content.opf
 
 #### 4. 元数据服务
 
+> v1.3.0 新增本地模式：集成豆瓣爬虫服务，减少网络延迟 80-90%
+
+**配置说明**：
+
+元数据服务支持两种模式：
+
+1. **Local 模式**（推荐）：内置豆瓣爬虫，直接访问豆瓣网站
+   - 性能：缓存命中 < 10ms，首次查询 ~200-350ms
+   - 配置：`doubanmode: local`（其他配置使用默认值）
+   - 优点：单进程部署、低延迟、内置缓存
+
+2. **HTTP 模式**（兼容）：调用外部 go-douban-api 服务
+   - 性能：~40-100ms（不含豆瓣响应时间）
+   - 配置：`doubanmode: http` + `doubanurl: http://...`
+   - 优点：可独立扩展、支持代理池
+
+**配置示例**：
+
+```yaml
+# 本地模式（推荐）
+metadata:
+  doubanmode: local
+
+# HTTP 模式
+metadata:
+  doubanmode: http
+  doubanurl: http://192.168.2.236:8075
+```
+
 ##### 4.1 根据 ISBN 获取元数据
 
 ```http
@@ -514,9 +543,385 @@ POST /api/search/hybrid
 }
 ```
 
-#### 8. 任务管理
+#### 8. 草稿管理
 
-##### 8.1 获取任务列表
+草稿管理系统用于审核外部系统提交的书籍变更请求（删除、更新）。系统设计为内网使用，暂未启用认证机制。
+
+##### 8.1 接收删除草稿
+
+```http
+POST /api/drafts/delete
+```
+
+**请求体**:
+```json
+{
+  "ids": ["123", "456", "789"]
+}
+```
+
+**参数说明**:
+- `ids` ([]string, required): 待删除的书籍 ID 列表
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "received": 3
+  }
+}
+```
+
+**说明**:
+- 自动检测重复删除草稿，避免重复创建
+- 草稿将以 `pending` 状态保存，等待审核
+
+##### 8.2 接收更新草稿
+
+```http
+POST /api/drafts/update
+```
+
+**请求体**:
+```json
+{
+  "updates": [
+    {
+      "id": "123",
+      "data": {
+        "title": "新标题",
+        "authors": ["作者1", "作者2"],
+        "tags": ["标签1", "标签2"],
+        "rating": 4.5
+      }
+    }
+  ]
+}
+```
+
+**参数说明**:
+- `updates` ([]object, required): 更新数据列表
+  - `id` (string, required): 书籍 ID
+  - `data` (object, required): 更新的元数据
+    - 支持的字段：`title`, `authors`, `publisher`, `tags`, `isbn`, `rating`, `comments`, `pubdate`
+    - **字段更新规则**（保护元数据完整性）：
+      - **Tags 字段**：**唯一允许清空的字段**
+        - 传递 `null` 或不传递 → 不更新
+        - 传递 `[]` → 清空标签
+        - 传递 `["值1", "值2"]` → 设置新标签
+      - **Authors 字段**：只允许补全，不允许清空
+        - 传递 `null` 或不传递 → 不更新
+        - 传递 `[]` → **被拒绝**（不允许清空）
+        - 传递 `["作者1", "作者2"]` → 更新作者
+      - **字符串字段**（`title`, `publisher`, `comments`, `isbn`）：只允许补全，不允许清空
+        - 传递 `null` 或不传递 → 不更新
+        - 传递 `""` → **被拒绝**（不允许清空）
+        - 传递非空值 → 更新字段
+    - **典型应用场景**：批量清理标签中的垃圾推广信息
+      ```json
+      {
+        "id": "274781",
+        "data": {
+          "tags": []              // 清空标签（垃圾推广信息）
+        }
+      }
+      ```
+      ```json
+      {
+        "id": "274782",
+        "data": {
+          "publisher": "人民文学出版社",  // 补全出版社信息
+          "tags": ["文学", "小说"]         // 更新标签
+        }
+      }
+      ```
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "received": 1
+  }
+}
+```
+
+**说明**:
+- **草稿合并机制**：如果同一书籍已有待审核的更新草稿，将**合并**新提交的字段到现有草稿
+  - 新提交的字段会**覆盖**旧字段
+  - 未提交的字段会**保留**旧值
+  - 避免重复草稿堆积
+  - 示例：
+    ```
+    第一次提交: {"tags": []}
+    第二次提交: {"publisher": "清华大学出版社"}
+    合并结果: {"tags": [], "publisher": "清华大学出版社"}
+    ```
+
+##### 8.3 获取待审核草稿列表
+
+```http
+GET /api/drafts?limit=10&offset=0
+```
+
+**查询参数**:
+- `limit` (integer, default=10): 每页记录数 (1-100)
+- `offset` (integer, default=0): 偏移量
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "id": 1,
+      "book_id": "123",
+      "action": "delete",
+      "data": "",
+      "status": "pending",
+      "created_at": "2026-03-27T10:00:00Z"
+    },
+    {
+      "id": 2,
+      "book_id": "456",
+      "action": "update",
+      "data": "{\"title\":\"新标题\"}",
+      "status": "pending",
+      "created_at": "2026-03-27T09:30:00Z"
+    }
+  ],
+  "page": 1,
+  "total_pages": 5,
+  "total": 50
+}
+```
+
+**字段说明**:
+- `action`: 操作类型，`delete` (删除) 或 `update` (更新)
+- `status`: 状态，`pending` (待处理), `processing` (处理中), `applied` (已应用), `rejected` (已拒绝), `expired` (已过期)
+- `data`: JSON 格式的变更数据（仅 update 操作有值）
+
+##### 8.4 应用草稿
+
+```http
+POST /api/drafts/apply
+```
+
+**请求体**:
+```json
+{
+  "ids": [1, 2, 3]
+}
+```
+
+**参数说明**:
+- `ids` ([]int64, required): 草稿 ID 列表
+
+**响应示例**:
+
+成功：
+```json
+{
+  "code": 200,
+  "message": "drafts applied successfully",
+  "data": {
+    "count": 3
+  }
+}
+```
+
+部分失败：
+```json
+{
+  "code": 200,
+  "message": "drafts processed with some errors",
+  "data": {
+    "total": 3,
+    "errors": [
+      "failed to apply external action for draft 2: book not found"
+    ]
+  }
+}
+```
+
+**说明**:
+- 支持批量应用，最多并发处理 5 个草稿
+- 使用原子操作标记为 `processing` 状态，避免重复处理
+- 应用成功后自动创建历史记录
+- 应用失败时自动回滚到 `pending` 状态，返回错误信息
+
+##### 8.5 拒绝草稿
+
+```http
+POST /api/drafts/reject
+```
+
+**请求体**:
+```json
+{
+  "ids": [4, 5]
+}
+```
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "message": "drafts rejected successfully",
+  "data": {
+    "count": 2
+  }
+}
+```
+
+**说明**:
+- 拒绝的草稿将标记为 `rejected` 状态并记录到历史
+
+##### 8.6 取消草稿
+
+取消（删除）指定书籍的所有待处理草稿，不保留历史记录。
+
+```http
+POST /api/drafts/cancel
+```
+
+**请求体**:
+```json
+{
+  "ids": ["274752", "274781", "274776"]
+}
+```
+
+**字段说明**:
+- `ids` ([]string, required): 书籍 ID 数组（注意：是书籍 ID，不是草稿表主键）
+
+**成功响应** (HTTP 200):
+```json
+{
+  "code": 200,
+  "message": "Successfully cancelled drafts for 3 book(s)",
+  "data": {
+    "cancelled_books": 3,
+    "cancelled_drafts_count": 5
+  }
+}
+```
+
+**部分失败响应** (HTTP 200):
+```json
+{
+  "code": 200,
+  "message": "Cancelled drafts for 2 book(s), 1 failed",
+  "data": {
+    "cancelled_books": 2,
+    "cancelled_drafts_count": 4,
+    "errors": [
+      "no pending drafts found for book 999999"
+    ]
+  }
+}
+```
+
+**完全失败响应** (HTTP 200):
+```json
+{
+  "code": 200,
+  "message": "Failed to cancel all drafts",
+  "data": {
+    "total": 3,
+    "errors": [
+      "no pending drafts found for book 274752",
+      "no pending drafts found for book 274781"
+    ]
+  }
+}
+```
+
+**请求参数错误** (HTTP 400):
+```json
+{
+  "code": 400,
+  "message": "bad request"
+}
+```
+
+**字段说明**:
+- `cancelled_books`: 成功取消草稿的书籍数量
+- `cancelled_drafts_count`: 实际删除的草稿记录总数（一本书可能有多条草稿）
+- `errors`: 错误消息列表（部分失败或完全失败时出现）
+
+**使用说明**:
+- 只能取消 `pending` 状态的草稿
+- 删除操作不保留历史记录（与 `/reject` 不同）
+- 一本书可能同时有 `update` 和 `delete` 两种草稿，取消时会全部删除
+- 重复取消已删除的草稿会返回 "no pending drafts found" 错误（但仍为 200 状态码）
+
+##### 8.7 查询草稿历史
+
+```http
+GET /api/drafts/history?limit=50&offset=0
+```
+
+**查询参数**:
+- `limit` (integer, default=50): 每页记录数 (1-100)
+- `offset` (integer, default=0): 偏移量
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "id": 10,
+      "draft_id": 1,
+      "book_id": "123",
+      "action": "delete",
+      "data": "",
+      "status": "applied",
+      "processed_at": "2026-03-27T11:00:00Z"
+    },
+    {
+      "id": 9,
+      "draft_id": 2,
+      "book_id": "456",
+      "action": "update",
+      "data": "{\"title\":\"新标题\"}",
+      "status": "rejected",
+      "processed_at": "2026-03-27T10:50:00Z"
+    }
+  ],
+  "page": 1,
+  "total_pages": 3,
+  "total": 150
+}
+```
+
+**说明**:
+- 返回所有已处理的草稿历史（applied, rejected, expired）
+- 按处理时间倒序排列
+
+##### 8.8 自动清理配置
+
+草稿自动清理功能配置：
+
+```yaml
+drafts:
+  db_path: ".cache/drafts.db"
+  expire_days: 30  # 超过 30 天的 pending 草稿自动过期
+```
+
+**清理策略**:
+- 启动时立即执行一次清理
+- 每 24 小时自动清理一次
+- 清理卡住超过 1 小时的 `processing` 状态草稿
+- 清理超过配置天数的 `pending` 状态草稿
+
+#### 9. 任务管理
+
+##### 9.1 获取任务列表
 
 ```http
 GET /api/tasks
@@ -540,7 +945,7 @@ GET /api/tasks
 }
 ```
 
-##### 8.2 启动任务
+##### 9.2 启动任务
 
 ```http
 POST /api/tasks/start
@@ -585,7 +990,7 @@ curl -X POST http://localhost:8080/api/tasks/start \
   -d '{"type": "qdrant_sync", "mode": "incremental"}'
 ```
 
-##### 8.3 停止任务
+##### 9.3 停止任务
 
 ```http
 POST /api/tasks/:id/stop
@@ -1244,7 +1649,13 @@ content:
 
 # 元数据服务配置
 metadata:
-  doubanurl: https://api.douban.com
+  doubanmode: local  # "local"（本地爬虫，推荐）或 "http"（HTTP 服务）
+  doubanurl: http://your-douban-api:8085  # HTTP 模式时需要
+  # doubanconfig:  # local 模式可选配置（以下为默认值，通常无需修改）
+  #   baseurl: https://book.douban.com/
+  #   searchurl: https://www.douban.com/search?cat={searchType}&q={searchText}
+  #   isbnurl: https://book.douban.com/isbn/{isbn}/
+  #   detailurl: https://book.douban.com/subject/{id}/
 
 # MCP 服务器配置
 mcp:
@@ -1287,7 +1698,8 @@ CALIBRE_TMP_DIR=.files
 CALIBRE_CONTENT_SERVER=https://lib.example.com
 
 # 元数据服务
-CALIBRE_METADATA_DOUBANURL=https://api.douban.com
+CALIBRE_METADATA_DOUBANMODE=local  # "local" 或 "http"
+CALIBRE_METADATA_DOUBANURL=http://your-douban-api:8085  # HTTP 模式时需要
 
 # MCP 配置
 CALIBRE_MCP_ENABLED=false
@@ -1699,8 +2111,9 @@ curl -X PUT http://localhost:6333/collections/books/snapshots/upload \
 
 #### 5. 安全配置
 
-**API 认证**:
-- 使用 API Key 或 JWT Token
+**网络安全**:
+- 建议仅在内网环境中使用
+- 如需公网访问，建议在反向代理层（如 Nginx）配置认证
 - HTTPS 加密传输
 - 限制 IP 访问
 

@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/cache"
 	"github.com/jianyun8023/calibre-api/internal/calibre"
@@ -11,6 +12,7 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/semantic"
 	"github.com/jianyun8023/calibre-api/internal/semantic/embedding"
 	"github.com/jianyun8023/calibre-api/internal/semantic/meilisearch"
+	"github.com/jianyun8023/calibre-api/internal/drafts"
 	"github.com/jianyun8023/calibre-api/internal/service"
 	"github.com/jianyun8023/calibre-api/internal/tasks"
 	"github.com/jianyun8023/calibre-api/pkg/content"
@@ -40,14 +42,28 @@ type Container struct {
 	bookService service.BookService
 	bookHandler *calibre.BookHandlerV2
 
+	// Drafts layer
+	draftRepo    repository.DraftRepository
+	draftService service.DraftService
+	draftHandler *calibre.DraftHandler
+
 	// API instance
 	api *calibre.Api
+
+	// Background tasks control
+	shutdownCtx    context.Context
+	shutdownCancel context.CancelFunc
 }
 
 // NewContainer 创建新的依赖注入容器
 func NewContainer(config *calibre.Config) (*Container, error) {
+	// 创建 shutdown context
+	ctx, cancel := context.WithCancel(context.Background())
+	
 	c := &Container{
-		config: config,
+		config:         config,
+		shutdownCtx:    ctx,
+		shutdownCancel: cancel,
 	}
 
 	// 按依赖顺序初始化组件
@@ -66,6 +82,10 @@ func NewContainer(config *calibre.Config) (*Container, error) {
 
 	if err := c.initTasks(); err != nil {
 		return nil, fmt.Errorf("failed to initialize task manager: %w", err)
+	}
+
+	if err := c.initDrafts(); err != nil {
+		log.Warnf("Drafts initialization failed: %v", err)
 	}
 
 	return c, nil
@@ -79,9 +99,14 @@ func NewContainerWithConfigManager() (*Container, error) {
 		return nil, fmt.Errorf("failed to create config manager: %w", err)
 	}
 
+	// 创建 shutdown context
+	ctx, cancel := context.WithCancel(context.Background())
+
 	c := &Container{
-		configManager: configManager,
-		config:        configManager.GetConfig(),
+		configManager:  configManager,
+		config:         configManager.GetConfig(),
+		shutdownCtx:    ctx,
+		shutdownCancel: cancel,
 	}
 
 	// 按依赖顺序初始化组件
@@ -102,7 +127,27 @@ func NewContainerWithConfigManager() (*Container, error) {
 		return nil, fmt.Errorf("failed to initialize task manager: %w", err)
 	}
 
+	if err := c.initDrafts(); err != nil {
+		log.Warnf("Drafts initialization failed: %v", err)
+	}
+
 	return c, nil
+}
+
+// initDrafts 初始化草稿数据库和服务
+func (c *Container) initDrafts() error {
+	dbPath := c.config.Drafts.DBPath
+	if dbPath == "" {
+		dbPath = ".cache/drafts.db" // default
+	}
+
+	db, err := drafts.InitDB(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to initialize drafts database: %w", err)
+	}
+
+	c.draftRepo = repository.NewSqliteDraftRepository(db)
+	return nil
 }
 
 // initContentAPI 初始化 Calibre Content Server 客户端
@@ -236,6 +281,20 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		// 创建 BookHandler
 		c.bookHandler = calibre.NewBookHandler(c.bookService)
 
+		// 初始化 DraftService 和 Handler (需要 bookService 依赖)
+		if c.draftRepo != nil {
+			c.draftService = service.NewDraftService(c.draftRepo, c.bookService)
+			c.draftHandler = calibre.NewDraftHandler(c.draftService)
+			log.Info("Drafts service and handler initialized")
+
+			// Start background cleanup task with graceful shutdown support
+			expireDays := c.config.Drafts.ExpireDays
+			if expireDays <= 0 {
+				expireDays = 30 // Default 30 days
+			}
+			go c.runDraftCleanupTask(expireDays)
+		}
+
 		log.Info("Book repository, service and handler initialized")
 	}
 
@@ -252,6 +311,7 @@ func (c *Container) BuildAPI() (*calibre.Api, error) {
 		c.cacheManager,
 		c.sseManager,
 		c.bookHandler,
+		c.draftHandler,
 	); err != nil {
 		return nil, fmt.Errorf("failed to inject dependencies: %w", err)
 	}
@@ -275,6 +335,33 @@ func (a *contentAPIAdapter) UpdateMetaData(id string, metadata map[string]interf
 		return false, err
 	}
 	return true, nil
+}
+
+func (a *contentAPIAdapter) GetBookDetail(id int64) (*service.Book, error) {
+	contentBook, err := a.api.GetBookDetail(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换 content.Book 到 service.Book
+	return &service.Book{
+		ID:           contentBook.ID,
+		Title:        contentBook.Title,
+		Authors:      contentBook.Authors,
+		Publisher:    contentBook.Publisher,
+		PubDate:      contentBook.PubDate,
+		Isbn:         contentBook.Isbn,
+		Tags:         contentBook.Tags,
+		Rating:       contentBook.Rating,
+		SeriesIndex:  contentBook.SeriesIndex,
+		Comments:     contentBook.Comments,
+		Languages:    contentBook.Languages,
+		LastModified: contentBook.LastModified,
+		Cover:        contentBook.Cover,
+		FilePath:     contentBook.FilePath,
+		Identifiers:  contentBook.Identifiers,
+		Size:         contentBook.Size,
+	}, nil
 }
 
 func (a *contentAPIAdapter) GetAllPublisher() ([]string, error) {
@@ -395,4 +482,51 @@ func (c *Container) Close() error {
 
 	log.Info("Container closed successfully")
 	return nil
+}
+
+// runDraftCleanupTask 运行后台草稿清理任务，支持优雅退出
+func (c *Container) runDraftCleanupTask(expireDays int) {
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+
+	// Run once immediately on startup
+	ctx, cancel := context.WithTimeout(c.shutdownCtx, 5*time.Minute)
+	if count, err := c.draftService.CleanupExpiredDrafts(ctx, expireDays); err != nil {
+		if ctx.Err() == nil { // 不记录由于 shutdown 导致的错误
+			log.Warnf("Failed to cleanup expired drafts on startup: %v", err)
+		}
+	} else if count > 0 {
+		log.Infof("Cleaned up %d expired drafts on startup", count)
+	}
+	cancel()
+
+	// 定期清理
+	for {
+		select {
+		case <-ticker.C:
+			ctx, cancel := context.WithTimeout(c.shutdownCtx, 5*time.Minute)
+			if count, err := c.draftService.CleanupExpiredDrafts(ctx, expireDays); err != nil {
+				if ctx.Err() == nil { // 不记录由于 shutdown 导致的错误
+					log.Warnf("Failed to cleanup expired drafts: %v", err)
+				}
+			} else if count > 0 {
+				log.Infof("Cleaned up %d expired drafts", count)
+			}
+			cancel()
+		case <-c.shutdownCtx.Done():
+			log.Info("Draft cleanup task stopped gracefully")
+			return
+		}
+	}
+}
+
+// Shutdown 优雅关闭所有后台任务
+func (c *Container) Shutdown() {
+	log.Info("Shutting down background tasks...")
+	if c.shutdownCancel != nil {
+		c.shutdownCancel()
+	}
+	// 给后台任务一些时间来完成清理
+	time.Sleep(100 * time.Millisecond)
+	log.Info("Background tasks shutdown complete")
 }

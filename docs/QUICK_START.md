@@ -56,7 +56,8 @@ embedding:
     model: "bge-m3:latest"
 
 metadata:
-  doubanurl: "https://api.douban.com"
+  doubanmode: "local"  # 本地模式（推荐），或 "http"（外部服务）
+  # doubanurl: "http://your-douban-api:8085"  # HTTP 模式时需要
 ```
 
 ## 步骤 3: 启动 Calibre Content Server

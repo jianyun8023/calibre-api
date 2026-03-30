@@ -7,7 +7,182 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **性能优化** (2026-03-29)：集成 go-douban-api 为内置包，消除 HTTP 调用开销
+  - 元数据查询延迟减少 50-150ms（本地模式）
+  - 新增 `metadata.doubanmode` 配置（"local" 或 "http"）
+  - 保留 HTTP 模式作为降级选项
+  - 内置 24h 缓存机制（ttlcache，1000 本书容量）
+  - 提供默认配置常量，用户只需配置 `doubanmode: local` 即可启用
+
+### Added
+- **新增依赖** (2026-03-29):
+  - `github.com/PuerkitoBio/goquery` - HTML 解析（豆瓣页面爬取）
+  - `github.com/jellydator/ttlcache/v3` - 内存缓存（元数据缓存）
+
+- **新增包** (2026-03-29):
+  - `pkg/douban` - 豆瓣元数据爬虫服务（从 go-douban-api 集成）
+
+- **草稿工作台模式** (2026-03-29):
+  - 新增全屏工作台对话框，专注单书处理体验
+  - 卡片专注模式：一次显示一个草稿，左右箭头切换
+  - 自动跳转：Apply/Reject 后自动显示下一本书籍
+  - 内联编辑：直接在工作台编辑标题、标签、作者等字段
+  - 实时预览：显示编辑前后对比，支持数组字段（标签/作者）的添加删除
+  - 键盘快捷键：支持方向键、Enter、Delete、Space 等快捷键操作
+  - 进度跟踪：显示已处理/剩余数量和进度条
+  - 完成动画：处理完所有草稿后显示完成提示并自动关闭
+  - **元数据编辑流程优化**：豆瓣搜索和手动编辑的元数据不再直接保存，而是先填充到内联编辑区域，用户可进一步调整后再统一应用
+  - **快速编辑对话框**：
+    - 新增简化的批量编辑界面，支持一次性编辑所有字段并应用到工作台
+    - 支持从书籍文件（EPUB）中提取元数据（ISBN、作者、出版社、出版日期）
+    - 智能填充：只填充空字段，不覆盖已有内容
+  - **封面预览增强**：鼠标悬停在封面上显示大图（400×600px），支持最大 80vh 高度自适应
+  - **书籍内容预览**：
+    - 工作台新增"预览内容"按钮，支持在弹框中查看完整 EPUB 章节
+    - 80% 屏幕大小弹框，不限制章节数量，辅助决策是否保留/删除书籍
+    - 复用现有 `EpubChapterViewer` 组件，支持目录导航和章节切换
+    - 动态加载，不影响主包体积
+  - 组件结构：
+    - `draft-workbench-dialog.tsx` - 工作台主对话框
+    - `workbench-card.tsx` - 草稿卡片展示
+    - `inline-edit-field.tsx` - 内联编辑字段组件
+    - `quick-edit-dialog.tsx` - 快速批量编辑对话框
+    - `book-preview-dialog.tsx` - 书籍内容预览对话框
+
+### Fixed
+- **书籍预览内容加载修复** (2026-03-29):
+  - 修复预览对话框宽度限制问题：添加 `sm:max-w-none` 覆盖 Shadcn Dialog 默认的 `sm:max-w-lg` 限制
+  - **修复章节内容 404 错误**：后端 `getBookContent` 函数添加 `strings.TrimPrefix` 去掉路径前导斜杠，修复 Gin 通配符参数导致的路径问题
+  - **修复 EpubChapterViewer 布局问题**：
+    - 侧边栏和内容区域改用 `flex` 布局，Header 使用 `shrink-0` 固定高度
+    - 移除固定高度计算 `h-[calc(100%-4rem)]`，改为 `flex-1` 自动填充
+    - 内容区域添加 `overflow-hidden` 防止溢出
+  - **修复重复关闭按钮问题**：工作台和预览对话框添加 `showCloseButton={false}` 禁用 DialogContent 默认关闭按钮
+  - **优化预览对话框头部高度**（修复内容加载后头部变高问题，尤其是 404 错误时）：
+    - **外层对话框头部**：py-1.5→py-1, px-4→px-3, text-sm→text-xs, leading-tight→leading-none, 按钮 h-7→h-6, 图标 h-3.5→h-3
+    - **EpubChapterViewer 侧边栏头部**：py-2→py-1, px-3→px-2, text-sm→text-xs, leading-tight→leading-none, 添加 mb-0.5 控制行间距
+    - **EpubChapterViewer 内容头部**：py-2→py-1, px-3→px-2, text-sm→text-xs, leading-tight→leading-none, 按钮 h-7→h-6, 图标 w-3.5→w-3, gap-1→gap-0.5
+    - **加载/错误状态**：优化加载中（h-8→h-5, py-6→py-4, mb-4→mb-2）、无章节错误（w-10→w-6, mb-3→mb-2, mb-2→mb-1, mb-4→mb-2）
+    - **章节内容加载状态**：py-6→py-4, h-5→h-4, mb-3→mb-2, text-sm→text-xs
+    - 所有头部文字使用 `leading-none` 完全消除行间距
+    - 所有内边距和间距进一步压缩至最小可用值
+  - 改用 `fetchChapterContent` API 辅助函数，正确处理章节路径
+  - 添加详细日志用于调试
+  - 修复 `EpubChapterViewer` 的 TypeScript 类型错误
+
+- **元数据搜索异常处理** (2026-03-29):
+  - 修复豆瓣搜索返回空结果时的 null 读取错误
+  - 增强错误处理：区分服务不可用、无搜索结果和搜索失败三种情况
+  - 统一错误提示信息，提供更友好的用户反馈
+
+- **工作台边界条件处理** (2026-03-29):
+  - 修复 `draft` 为 undefined 时的运行时错误
+  - 在 `WorkbenchCard` 组件添加防御性检查，避免访问空对象属性
+  - 在 `DraftWorkbenchDialog` 添加 `currentDraft` 存在性验证
+  - 遵循 React Hooks 规则，确保 hooks 在所有渲染路径中以相同顺序调用
+
+- **工作台数据隔离** (2026-03-29):
+  - 修复切换草稿时，前一本书的编辑数据残留到新草稿的问题
+  - 使用 `useEffect` 和 `useMemo` 优化 `editedData` 的初始化和重置逻辑
+  - 切换草稿时自动关闭打开的元数据对话框，避免状态混乱
+  - 确保每个草稿都有独立的编辑状态
+
+- **工作台索引越界保护** (2026-03-29):
+  - 修复处理最后一本书时，`currentIndex` 越界导致的数据加载失败
+  - 添加 `useEffect` 监听队列长度变化，自动调整 `currentIndex` 到有效范围
+  - 确保从队列移除草稿后，立即调整索引避免访问不存在的元素
+  - 优雅处理队列为空的情况，显示完成提示而不是错误
+
+- **草稿合并模式** (2026-03-29):
+  - UPDATE 草稿支持字段级合并：重复提交时新字段覆盖旧字段，未提交字段保留旧值
+  - 新增 `mergeDraftUpdates` 辅助函数处理草稿数据合并
+  - 允许分多次提交逐步补全书籍元数据
+  - 示例场景：第一次清空 tags，第二次补充 publisher，最终草稿包含两个变更
+  - 完整的单元测试覆盖（包含合并和覆盖场景）
+
+- **草稿取消接口** (2026-03-28):
+  - 新增 `POST /api/drafts/cancel` 接口，支持通过书籍 ID 取消待处理草稿
+  - 取消操作直接删除数据库记录，不保留历史
+  - 支持批量取消多本书籍的草稿
+  - 完善的错误处理，支持部分成功场景（部分书籍取消成功，部分失败）
+  - 区分三种响应：全部成功、部分成功、完全失败（均返回 200 状态码）
+  - 详细的响应数据：`cancelled_books`（取消的书籍数）、`cancelled_drafts_count`（删除的草稿总数）
+  - 完整的单元测试和集成测试覆盖
+
+- **草稿管理系统** (2026-03-27):
+  - 新增外部书籍变更草稿管理功能
+  - 支持书籍删除和更新变更的草稿审核流程
+  - 新增草稿历史记录查询 API (`GET /api/drafts/history`)
+  - 自动清理过期草稿（可配置过期天数）
+  - 后台定时任务重置卡住的草稿状态
+  - 支持分页查询待审核草稿和历史记录
+
+### Changed
+- **草稿管理性能优化** (2026-03-27):
+  - 批量草稿应用支持并发处理（最大并发数: 5）
+  - 新增批量查询优化，避免 N+1 查询问题
+  - 重复草稿自动合并或更新，避免重复创建
+  - 添加 SQLite WAL 模式提升并发性能
+  - 新增数据库索引优化查询性能：
+    - `idx_book_drafts_status`: 状态+创建时间索引
+    - `idx_book_drafts_lookup`: 书籍ID+操作+状态复合索引
+    - `idx_book_draft_history_time`: 历史记录时间倒序索引
+
+- **草稿管理原子性增强** (2026-03-27):
+  - 使用数据库事务确保状态更新和历史记录的原子性
+  - 新增 `processing` 中间状态，防止并发重复处理
+  - 草稿应用失败时自动回滚到 `pending` 状态
+  - 新增 `expired` 状态，自动标记过期草稿
+
+- **草稿管理 API 响应优化** (2026-03-27):
+  - 批量操作返回部分成功结果和错误列表
+  - 新增分页响应，包含总记录数和页码信息
+  - 前端显示敏感字段时自动遮掩（token, password, secret, key, auth）
+
+### Fixed
+- **搜索索引同步修复** (2026-03-28):
+  - 修复草稿应用后 MeiliSearch 索引未正确更新的问题
+  - 问题原因：`UpdateMetadata` 在更新 Calibre 后从 MeiliSearch 读取旧数据，导致旧数据覆盖新数据
+  - 解决方案：更新后直接从 Calibre Content Server 获取最新数据，确保索引正确同步
+  - 新增 `ContentAPI.GetBookDetail` 方法用于从 Calibre 读取最新书籍元数据
+  - 影响范围：所有通过草稿管理系统更新的书籍元数据
+
+- **草稿管理稳定性修复** (2026-03-27):
+  - 修复应用崩溃导致草稿永久处于 processing 状态的问题
+  - 启动时自动重置超过 1 小时的卡住草稿
+  - 修复并发应用同一草稿的竞态条件问题
+  - 修复草稿历史记录未正确创建的问题
+  - **修复 Goroutine 泄露风险**: 后台清理任务支持优雅退出
+    - 添加 Context 控制和信号处理机制（SIGINT, SIGTERM）
+    - HTTP 服务器支持优雅关闭（5 秒超时）
+    - 后台任务在应用关闭时正确清理，防止资源泄露
+
+- **草稿更新字段规则优化** (2026-03-28):
+  - **更新规则**：保护书籍元数据完整性，只有 Tags 允许清空，其他字段只能补全
+    - **Tags 字段**：允许清空（`[]` = 清空，`null` = 不更新）
+    - **Authors 字段**：只允许非空数组，不允许清空
+    - **字符串字段**（Title, Publisher, Comments, Isbn）：只允许非空值，不允许清空
+  - **数据结构优化**：BookUpdate 字段改为指针类型，支持明确区分"不更新"和"设置值"
+    - `nil` = 不更新该字段
+    - 空字符串 `""` = 被拒绝（不允许清空）
+    - 非空值 = 更新为新值
+  - 前端显示优化：空数组现在会正确显示在草稿变更列表中
+  - 典型应用场景：批量清理书籍标签中的垃圾推广信息（如 "公众号：xxx" 等）
+
+### Security
+- **草稿管理数据安全** (2026-03-27):
+  - 前端数据展示自动遮掩敏感字段（token, password, secret, key, auth），防止信息泄露
+  - 注意：系统设计为内网使用，草稿管理端点暂未启用 API Key 认证
+
 ### Removed
+- **移除 API Key 认证中间件** (2026-03-27):
+  - 删除 `internal/middleware/auth.go` 和 `auth_test.go`
+  - 移除 `config.yaml` 中的 `auth` 配置段
+  - 移除 `internal/calibre/types.go` 中的 `AuthConfig` 结构
+  - 移除草稿管理路由中的 API Key 认证中间件
+  - 原因：系统设计为内网自用，暂不需要 API Key 认证。后续如需认证将使用 Gin 统一解决方案
+
 - **移除 Qdrant 向量数据库支持** (2026-03-03):
   - 删除 `internal/semantic/qdrant/` 整个包（client.go, searcher.go）
   - 删除 `internal/tasks/qdrant_sync.go` 同步任务实现

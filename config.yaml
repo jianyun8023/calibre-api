@@ -6,7 +6,8 @@ content:
   server: https://lib.pve.icu
 
 metadata:
-  doubanurl: http://192.168.2.236:8075
+  doubanmode: local  # 启用本地模式，性能优化
+  doubanurl: http://192.168.2.236:8075  # HTTP 降级模式（保留）
 
 # MCP 服务器配置
 mcp:
@@ -27,15 +28,10 @@ embedding:
   siliconflow:
     api_url: "https://api.siliconflow.cn/v1/embeddings"
     model: "Qwen/Qwen3-Embedding-8B"
-    api_token: "sk-byzendxdxkezkcnwtcjttvumaqwvsohvcvffvxrogxcjmvxm"  # 建议使用环境变量 SILICONFLOW_API_TOKEN
-
-qdrant:
-  url: "http://192.168.2.236:6333"
-  collection: "books"
-  timeout: 30
+    api_token: "sk-rdwwnnboqdclmxhwxpipdtvfdnbrflwencvbvxbqaeemobdu"  # 建议使用环境变量 SILICONFLOW_API_TOKEN
 
 meilisearch:
-  host: "http://localhost:7700"
+  host: "http://192.168.2.236:7700"
   api_key: ""
   index_name: "books"
 
@@ -44,17 +40,7 @@ cache:
   max_size_gb: 30
   cleanup_threshold: 0.9
 
-# LLM 配置（用于智能问答）
-llm:
-  provider: "openai"  # 或 "openai"
-  ollama:
-    server_url: "http://localhost:11434"
-    model: "qwen2.5:14b"  # 或 "deepseek-r1:7b" 支持思考模式
-  openai:
-    api_key: "sk-byzendxdxkezkcnwtcjttvumaqwvsohvcvffvxrogxcjmvxm"  # 建议使用环境变量 OPENAI_API_KEY
-    model: "deepseek-ai/DeepSeek-V3.1-Terminus"
-    base_url: "https://api.siliconflow.cn/v1"
-
-# 聊天数据库
-chat:
-  db_path: ".cache/chat.db"
+# 变更草稿数据库（内网使用，暂不启用认证）
+drafts:
+  db_path: ".cache/drafts.db"
+  expire_days: 30

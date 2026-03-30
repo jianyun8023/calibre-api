@@ -164,7 +164,8 @@ func (c *Api) extractTocFromEpub(id string) (map[string]interface{}, error) {
 // getBookContent 获取书籍内容（通过路径参数）
 func (c *Api) getBookContent(r *gin.Context) {
 	id := strings.TrimSuffix(r.Param("id"), ".epub")
-	path1 := r.Param("path")
+	// Gin's wildcard parameter includes the leading slash, remove it for FileFromFS
+	path1 := strings.TrimPrefix(r.Param("path"), "/")
 
 	_, err := c.getBookByIDV2(id)
 	if err != nil {

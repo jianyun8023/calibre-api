@@ -18,6 +18,7 @@
   "nav": {
     "home": "Home",
     "allBooks": "All Books",
+    "drafts": "Draft Changes",
     "search": "Search",
     "metadataManager": "Metadata Manager",
     "tasks": "Tasks",
@@ -41,6 +42,19 @@
     "viewDetails": "View Details",
     "download": "Download",
     "read": "Read"
+  },
+  "drafts": {
+    "title": "Draft Changes",
+    "description": "Review and manage pending book changes from external systems.",
+    "selected": "selected",
+    "apply": "Apply Selected",
+    "reject": "Reject Selected",
+    "noDrafts": "No pending drafts available.",
+    "fetchError": "Failed to fetch drafts",
+    "applySuccess": "Drafts applied successfully",
+    "applyError": "Failed to apply drafts",
+    "rejectSuccess": "Drafts rejected successfully",
+    "rejectError": "Failed to reject drafts"
   },
   "search": {
     "placeholder": "Search books, authors, publishers...",
