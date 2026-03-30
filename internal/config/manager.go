@@ -3,6 +3,8 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/jianyun8023/calibre-api/internal/calibre"
 	"github.com/jianyun8023/calibre-api/pkg/log"
 	"github.com/spf13/viper"
+	"github.com/subosito/gotenv"
 )
 
 // Manager 配置管理器，支持热重载
@@ -35,6 +38,9 @@ func (f ConfigWatcherFunc) OnConfigChanged(oldConfig, newConfig *calibre.Config)
 
 // NewManager 创建配置管理器
 func NewManager() (*Manager, error) {
+	// 加载 .env 文件（优先级：当前目录 > $HOME/.calibre-api > /etc/calibre-api/）
+	loadEnvFile()
+
 	v := viper.New()
 
 	// 配置 viper
@@ -47,7 +53,7 @@ func NewManager() (*Manager, error) {
 	// 设置默认值
 	setDefaults(v)
 
-	// 设置环境变量
+	// 设置环境变量（.env 已加载到系统环境变量中）
 	v.SetEnvPrefix("CALIBRE")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -63,6 +69,35 @@ func NewManager() (*Manager, error) {
 	}
 
 	return manager, nil
+}
+
+// loadEnvFile 按优先级加载 .env 文件
+func loadEnvFile() {
+	// 定义搜索路径（优先级从高到低）
+	searchPaths := []string{
+		".",                         // 当前目录
+		"$HOME/.calibre-api",        // 用户主目录
+		"/etc/calibre-api/",         // 系统配置目录
+	}
+
+	for _, path := range searchPaths {
+		// 展开环境变量
+		expandedPath := os.ExpandEnv(path)
+		envFilePath := filepath.Join(expandedPath, ".env")
+
+		// 检查文件是否存在
+		if _, err := os.Stat(envFilePath); err == nil {
+			// 加载 .env 文件
+			if err := gotenv.Load(envFilePath); err != nil {
+				log.Warnf("Failed to load .env file from %s: %v", envFilePath, err)
+			} else {
+				log.Infof("Loaded .env file from: %s", envFilePath)
+				return // 加载第一个找到的 .env 文件后返回
+			}
+		}
+	}
+
+	log.Info("No .env file found, using system environment variables only")
 }
 
 // setDefaults 设置默认配置值
