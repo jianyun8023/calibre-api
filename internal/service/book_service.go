@@ -1,6 +1,9 @@
 package service
 
 import (
+	"encoding/json"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jianyun8023/calibre-api/internal/semantic"
@@ -60,6 +63,79 @@ type BookUpdate struct {
 	Tags      *[]string  `json:"tags,omitempty"` // 使用指针类型：nil=不更新, &[]=清空, &[...]=更新
 	Rating    float64    `json:"rating,omitempty"`
 	Comments  *string    `json:"comments,omitempty"`
+}
+
+// UnmarshalJSON 自定义 JSON 解析，支持灵活的日期格式和 rating 类型
+func (bu *BookUpdate) UnmarshalJSON(data []byte) error {
+	type Alias BookUpdate // 避免递归调用
+	
+	// 先尝试使用辅助结构解析，支持字符串类型的 rating
+	aux := &struct {
+		PubDate interface{} `json:"pubdate,omitempty"` // 支持字符串格式的日期
+		Rating  interface{} `json:"rating,omitempty"`  // 支持字符串或数字
+		*Alias
+	}{
+		Alias: (*Alias)(bu),
+	}
+	
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	
+	// 处理 PubDate 字段
+	if aux.PubDate != nil {
+		switch v := aux.PubDate.(type) {
+		case string:
+			if v != "" {
+				parsedDate, err := parseFlexibleDate(v)
+				if err != nil {
+					return fmt.Errorf("invalid pubdate format '%s': %v", v, err)
+				}
+				bu.PubDate = &parsedDate
+			}
+		}
+	}
+	
+	// 处理 Rating 字段
+	if aux.Rating != nil {
+		switch v := aux.Rating.(type) {
+		case string:
+			if v != "" {
+				rating, err := strconv.ParseFloat(v, 64)
+				if err != nil {
+					return fmt.Errorf("invalid rating format '%s': %v", v, err)
+				}
+				bu.Rating = rating
+			}
+		case float64:
+			bu.Rating = v
+		}
+	}
+	
+	return nil
+}
+
+// parseFlexibleDate 解析多种日期格式
+func parseFlexibleDate(dateStr string) (time.Time, error) {
+	// 支持的日期格式列表
+	formats := []string{
+		"2006-01-02",           // 标准格式: 2023-09-01
+		"2006-1-2",             // 短格式: 2023-9-1
+		"2006-01",              // 年月: 2023-09
+		"2006-1",               // 年月短格式: 2023-9
+		"2006",                 // 仅年份: 2023
+		time.RFC3339,           // RFC3339: 2023-09-01T00:00:00Z
+		"2006-01-02T15:04:05",  // 无时区
+	}
+	
+	for _, format := range formats {
+		if t, err := time.Parse(format, dateStr); err == nil {
+			// 如果只有年月或年份，设置为该月的第一天
+			return t, nil
+		}
+	}
+	
+	return time.Time{}, fmt.Errorf("unable to parse date: %s", dateStr)
 }
 
 // ContentAPI 内容服务接口（用于与 Calibre Content Server 交互）

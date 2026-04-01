@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **草稿 API 数据解析** (2026-04-01)：修复 `/api/drafts/update` 端点 JSON 解析问题
+  - 支持灵活的日期格式（"2023-9" -> "2023-09-01"）
+  - 支持字符串或数字类型的 rating 字段
+  - 新增 `BookUpdate.UnmarshalJSON` 自定义解析方法
+  - 支持多种日期格式：YYYY-MM-DD、YYYY-M、YYYY 等
+
 ### Changed
 - **性能优化** (2026-03-29)：集成 go-douban-api 为内置包，消除 HTTP 调用开销
   - 元数据查询延迟减少 50-150ms（本地模式）
