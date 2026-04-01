@@ -50,6 +50,7 @@ specs
 
 # Cache
 .cache
+.files
 *.cache
 
 # Temporary files
