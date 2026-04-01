@@ -106,6 +106,36 @@ export function WorkbenchCard({
     return result
   }, [draft, book])
 
+  // 计算所有需要显示的字段（合并原始草稿和编辑数据，过滤无意义变更）
+  const displayFields = useMemo(() => {
+    const allFields = new Set<string>([...Object.keys(updates), ...Object.keys(editedData)])
+    
+    // 过滤掉与旧值相同或空值的字段
+    return Array.from(allFields).filter(key => {
+      const newValue = editedData[key] !== undefined ? editedData[key] : updates[key]
+      const oldValue = book ? book[key] : undefined
+      
+      // 如果新值为空且不是清空操作，跳过
+      const isNewEmpty = newValue === undefined || newValue === null || newValue === "" || (Array.isArray(newValue) && newValue.length === 0) || newValue === 0
+      const isOldEmpty = oldValue === undefined || oldValue === null || oldValue === "" || (Array.isArray(oldValue) && oldValue.length === 0) || oldValue === 0
+      const isTagsClearOperation = key === 'tags' && Array.isArray(newValue) && newValue.length === 0 && !isOldEmpty
+      
+      if (isNewEmpty && !isTagsClearOperation) return false
+      
+      // 如果新值与旧值相同，跳过
+      if (newValue === oldValue) return false
+      
+      // 数组字段特殊处理
+      if (Array.isArray(newValue) && Array.isArray(oldValue)) {
+        const sortedNew = [...newValue].sort()
+        const sortedOld = [...oldValue].sort()
+        if (JSON.stringify(sortedNew) === JSON.stringify(sortedOld)) return false
+      }
+      
+      return true
+    })
+  }, [updates, editedData, book])
+
   // 加载书籍数据
   useEffect(() => {
     if (!draft?.book_id) {
@@ -422,7 +452,7 @@ export function WorkbenchCard({
         )}
 
         {/* UPDATE 类型 - 显示变更 */}
-        {draft.action === "update" && Object.keys(updates).length > 0 && (
+        {draft.action === "update" && displayFields.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-primary">
               <div className="h-px flex-1 bg-border" />
@@ -430,7 +460,7 @@ export function WorkbenchCard({
               <div className="h-px flex-1 bg-border" />
             </div>
             
-            {Object.entries(updates).map(([key]) => {
+            {displayFields.map((key) => {
               const oldValue = book ? book[key] : undefined
               const currentValue = getCurrentValue(key)
               const isArrayField = key === 'tags' || key === 'authors'
@@ -522,7 +552,7 @@ export function WorkbenchCard({
         )}
 
         {/* UPDATE 类型但无变更 */}
-        {draft.action === "update" && Object.keys(updates).length === 0 && (
+        {draft.action === "update" && displayFields.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <p>无可见变更</p>
           </div>

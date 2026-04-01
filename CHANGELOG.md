@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **草稿工作台变更字段显示** (2026-04-01)：修复豆瓣搜索和手动编辑后新增字段不显示的问题
+  - 合并显示原始草稿字段和编辑新增的字段
+  - 自动过滤无意义变更（空值、与旧值相同等）
+  - 新增 `displayFields` 计算属性，动态合并所有变更字段
+  
 - **草稿 API 数据解析** (2026-04-01)：修复 `/api/drafts/update` 端点 JSON 解析问题
   - 支持灵活的日期格式（"2023-9" -> "2023-09-01"）
   - 支持字符串或数字类型的 rating 字段
