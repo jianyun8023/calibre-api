@@ -1,4 +1,4 @@
-FROM node:20-slim AS builder
+FROM node:24-slim AS builder
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -19,7 +19,7 @@ COPY . ./
 RUN pnpm build
 
 ## Runner - Standalone 模式运行时镜像
-FROM node:20-slim
+FROM node:24-slim
 
 # 多架构支持
 ARG TARGETPLATFORM
