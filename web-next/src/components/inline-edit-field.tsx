@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, X, Edit2, Plus } from "lucide-react"
+import { Check, X, Edit2, Plus, Trash2 } from "lucide-react"
 
 interface InlineEditFieldProps {
   label: string
   oldValue: unknown
   newValue: unknown
   onUpdate: (value: unknown) => void
+  onRemove?: () => void
   type?: "text" | "array" | "textarea"
 }
 
@@ -20,6 +21,7 @@ export function InlineEditField({
   oldValue,
   newValue,
   onUpdate,
+  onRemove,
   type = "text",
 }: InlineEditFieldProps) {
   const [isEditing, setIsEditing] = useState(false)
@@ -70,17 +72,30 @@ export function InlineEditField({
       <div className="space-y-2">
         <div className="font-medium text-sm capitalize flex items-center justify-between">
           <span>{label}</span>
-          {!isEditing && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-              className="h-6 px-2"
-            >
-              <Edit2 className="h-3 w-3 mr-1" />
-              编辑
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {!isEditing && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="h-6 px-2"
+              >
+                <Edit2 className="h-3 w-3 mr-1" />
+                编辑
+              </Button>
+            )}
+            {onRemove && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRemove}
+                className="h-6 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                title="移除此字段"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {!isEditing ? (
@@ -156,7 +171,20 @@ export function InlineEditField({
   // 文本类型
   return (
     <div className="space-y-2">
-      <div className="font-medium text-sm capitalize">{label}</div>
+      <div className="font-medium text-sm capitalize flex items-center justify-between">
+        <span>{label}</span>
+        {onRemove && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            className="h-6 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+            title="移除此字段"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div className="space-y-1">
           <div className="text-xs text-muted-foreground">旧值</div>

@@ -196,6 +196,15 @@ export function WorkbenchCard({
     setEditedData(prev => ({ ...prev, [key]: value }))
   }
   
+  // 移除字段
+  const handleFieldRemove = (key: string) => {
+    setEditedData(prev => {
+      const newData = { ...prev }
+      delete newData[key]
+      return newData
+    })
+  }
+  
   // 检查是否有未保存的修改
   const hasUnsavedChanges = JSON.stringify(editedData) !== JSON.stringify(updates)
   
@@ -481,15 +490,27 @@ export function WorkbenchCard({
                       oldValue={oldValue}
                       newValue={currentValue}
                       onUpdate={(value) => handleFieldUpdate(key, value)}
+                      onRemove={() => handleFieldRemove(key)}
                       type={fieldType}
                     />
                   </div>
                 )
               }
               
-              // 其他字段使用只读显示（如 rating、pubdate 等）
+              // 其他字段使用只读显示（如 rating、pubdate 等），也带移除按钮
               return (
-                <div key={key}>
+                <div key={key} className="relative group">
+                  <div className="absolute top-0 right-0 z-10">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleFieldRemove(key)}
+                      className="h-6 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="移除此字段"
+                    >
+                      <XCircle className="h-3 w-3" />
+                    </Button>
+                  </div>
                   {renderFieldDiff(key, oldValue, currentValue)}
                 </div>
               )
