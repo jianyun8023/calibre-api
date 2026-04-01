@@ -353,8 +353,8 @@ export function WorkbenchCard({
   }
 
   return (
-    <Card className="w-full shadow-lg">
-      <CardHeader className="pb-4">
+    <Card className="w-full shadow-lg flex flex-col max-h-[85vh]">
+      <CardHeader className="pb-4 shrink-0">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             <Badge variant={draft.action === "delete" ? "destructive" : "secondary"}>
@@ -376,7 +376,7 @@ export function WorkbenchCard({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 overflow-y-auto flex-1 scroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-400 dark:[&::-webkit-scrollbar-thumb]:bg-gray-600 dark:hover:[&::-webkit-scrollbar-thumb]:bg-gray-500">
         {/* 书籍信息 */}
         {book && (
           <div className="flex gap-4">
@@ -557,9 +557,11 @@ export function WorkbenchCard({
             <p>无可见变更</p>
           </div>
         )}
+      </CardContent>
 
-        {/* 操作按钮 */}
-        <div className="flex items-center justify-center gap-3 pt-4">
+      {/* 操作按钮 - 固定在底部 */}
+      <div className="border-t px-6 py-4 shrink-0 bg-background">
+        <div className="flex items-center justify-center gap-3">
           <Button
             variant="outline"
             onClick={onSkip}
@@ -588,7 +590,7 @@ export function WorkbenchCard({
             应用草稿
           </Button>
         </div>
-      </CardContent>
+      </div>
 
       {/* 元数据搜索对话框（仅更新操作显示） */}
       {draft.action === "update" && book && (
