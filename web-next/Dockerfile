@@ -2,6 +2,8 @@ FROM node:24-slim AS builder
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV CI=true
+ENV COREPACK_ENABLE_STRICT=0
 RUN corepack enable
 
 WORKDIR /app
