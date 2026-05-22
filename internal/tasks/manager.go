@@ -83,7 +83,7 @@ func (m *Manager) StartTask(t TaskType, mode TaskMode, factory func(string) Task
 
 	// Check if task of same type is running
 	// Exception: DeleteBook and UpdateMetadata tasks can run concurrently
-	if t != TaskTypeDeleteBook && t != TaskTypeUpdateMetadata && t != TaskTypeCheckMissing {
+	if t != TaskTypeDeleteBook && t != TaskTypeUpdateMetadata && t != TaskTypeCheckMissing && t != TaskTypeCleanupOrphans {
 		for _, task := range m.tasks {
 			status := task.GetStatus()
 			if status.Type == t && status.State == TaskStateRunning {

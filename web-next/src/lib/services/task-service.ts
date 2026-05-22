@@ -39,6 +39,7 @@ export type TaskType =
   | 'toc_extract'
   | 'check_missing'
   | 'copyright_extract'
+  | 'cleanup_orphans'
   | 'book_operation'
   | string
 

@@ -26,6 +26,7 @@ const TASK_TYPES = [
   { value: "toc_extract", label: "TOC Extract", description: "Extract table of contents" },
   { value: "check_missing", label: "Check Missing", description: "Check missing vectors" },
   { value: "copyright_extract", label: "Copyright Extract", description: "Extract ISBN and metadata from copyright pages" },
+  { value: "cleanup_orphans", label: "Cleanup Orphans", description: "Remove orphaned books from search index" },
 ]
 
 const TASK_MODES = [

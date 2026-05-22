@@ -11,6 +11,7 @@ const (
 	TaskTypeUpdateMetadata   TaskType = "update_metadata"
 	TaskTypeCheckMissing     TaskType = "check_missing"
 	TaskTypeCopyrightExtract TaskType = "copyright_extract"
+	TaskTypeCleanupOrphans   TaskType = "cleanup_orphans"
 )
 
 type TaskMode string

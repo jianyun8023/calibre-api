@@ -139,6 +139,43 @@ func (c *Api) startTask(r *gin.Context) {
 		})
 		return
 
+	case tasks.TaskTypeCleanupOrphans:
+		if c.contentApi == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Content API is not initialized",
+			})
+			return
+		}
+
+		if c.semanticSearcher == nil {
+			r.JSON(http.StatusServiceUnavailable, gin.H{
+				"code":    503,
+				"message": "Search service is not initialized",
+			})
+			return
+		}
+
+		manager := tasks.GetManager()
+		taskID, err := manager.StartTask(tasks.TaskTypeCleanupOrphans, tasks.TaskModeFull, func(id string) tasks.Task {
+			return tasks.NewCleanupOrphansTask(id, c.contentApi, c.semanticSearcher)
+		})
+
+		if err != nil {
+			r.JSON(http.StatusConflict, gin.H{
+				"code":    409,
+				"message": err.Error(),
+			})
+			return
+		}
+
+		r.JSON(http.StatusOK, gin.H{
+			"code":    200,
+			"message": "Orphan cleanup task started",
+			"data":    gin.H{"id": taskID},
+		})
+		return
+
 	case tasks.TaskTypeCopyrightExtract:
 		if c.contentApi == nil {
 			r.JSON(http.StatusServiceUnavailable, gin.H{
